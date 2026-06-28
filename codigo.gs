@@ -456,25 +456,31 @@ function buildClasificacion_(categoriaFilter) {
     let estado = 'Sin resultados';
     let descartada = '';
 
+    const valoresRegistrados = PASADAS
+      .map(p => ({
+        pasada: p.num,
+        label: p.label,
+        valor: tiempos[p.num] !== '' ? Number(tiempos[p.num]) : ''
+      }))
+      .filter(item => item.valor !== '');
+
     if (completedCount > 0 && completedCount < 6) {
-      estado = 'Pendiente';
+      total = round3_(
+        valoresRegistrados.reduce((sum, item) => sum + Number(item.valor), 0)
+      );
+
+      estado = penalizaciones > 0 ? 'Pendiente con penalización' : 'Pendiente';
     }
 
     if (completedCount === 6) {
-      const valores = PASADAS.map(p => ({
-        pasada: p.num,
-        label: p.label,
-        valor: Number(tiempos[p.num])
-      }));
-
-      const peor = [...valores].sort((a, b) => b.valor - a.valor)[0];
+      const peor = [...valoresRegistrados].sort((a, b) => b.valor - a.valor)[0];
 
       descartada = peor.label + ' - ' + peor.valor;
 
-      const valoresValidos = valores.filter(item => item.pasada !== peor.pasada);
+      const valoresValidos = valoresRegistrados.filter(item => item.pasada !== peor.pasada);
 
       total = round3_(
-        valoresValidos.reduce((sum, item) => sum + item.valor, 0)
+        valoresValidos.reduce((sum, item) => sum + Number(item.valor), 0)
       );
 
       estado = penalizaciones > 0 ? 'Completo con penalización' : 'Completo';
@@ -497,35 +503,43 @@ function buildClasificacion_(categoriaFilter) {
     };
   });
 
-  rows.sort((a, b) => {
-    const aComplete = a.total !== '';
-    const bComplete = b.total !== '';
+    rows.sort((a, b) => {
+      const aHasTotal = a.total !== '';
+      const bHasTotal = b.total !== '';
 
-    if (aComplete && bComplete) {
-      return Number(a.total) - Number(b.total);
-    }
+      // Los pilotos con algún tiempo registrado van arriba
+      if (aHasTotal && !bHasTotal) {
+        return -1;
+      }
 
-    if (aComplete && !bComplete) {
-      return -1;
-    }
+      if (!aHasTotal && bHasTotal) {
+        return 1;
+      }
 
-    if (!aComplete && bComplete) {
-      return 1;
-    }
+      // Si ambos tienen total, ordenar siempre por mejor tiempo acumulado
+      if (aHasTotal && bHasTotal) {
+        const totalDiff = Number(a.total) - Number(b.total);
 
-    if (a.categoria !== b.categoria) {
-      return a.categoria.localeCompare(b.categoria);
-    }
+        if (totalDiff !== 0) {
+          return totalDiff;
+        }
+      }
 
-    const dorsalA = Number(a.dorsal);
-    const dorsalB = Number(b.dorsal);
+      // En empate o sin tiempos, ordenar por categoría
+      if (a.categoria !== b.categoria) {
+        return a.categoria.localeCompare(b.categoria);
+      }
 
-    if (!isNaN(dorsalA) && !isNaN(dorsalB)) {
-      return dorsalA - dorsalB;
-    }
+      // Después por dorsal
+      const dorsalA = Number(a.dorsal);
+      const dorsalB = Number(b.dorsal);
 
-    return String(a.dorsal).localeCompare(String(b.dorsal));
-  });
+      if (!isNaN(dorsalA) && !isNaN(dorsalB)) {
+        return dorsalA - dorsalB;
+      }
+
+      return String(a.dorsal).localeCompare(String(b.dorsal));
+    });
 
   return rows;
 }
