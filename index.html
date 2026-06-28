@@ -371,6 +371,9 @@
 
         <div class="button-row">
           <button class="secondary" onclick="loadClasificacion()">Actualizar clasificación</button>
+          <button class="secondary" id="toggleTimeFormatButton" onclick="toggleClasificacionTimeFormat()">
+            Ver en minutos
+          </button>
         </div>
 
         <div id="clasificacionMessage" class="message"></div>
@@ -507,7 +510,9 @@
       pin: '',
       juez: '',
       selectedPasada: null,
-      categorias: []
+      categorias: [],
+      clasificacionTimeFormat: 'seconds',
+      lastClasificacionRows: []
     };
 
     function login() {
@@ -807,7 +812,8 @@
 
       google.script.run
         .withSuccessHandler(function(rows) {
-          renderClasificacion(rows);
+          appState.lastClasificacionRows = rows || [];
+          renderClasificacion(appState.lastClasificacionRows);
           hideMessage('clasificacionMessage');
         })
         .withFailureHandler(function(error) {
@@ -824,15 +830,58 @@
       return String(row.descartada).startsWith(label + ' -');
     }
 
-    function renderTimeCell(row, key, label) {
-      const value = row[key];
+function renderTimeCell(row, key, label) {
+  const value = row[key];
+  const formattedValue = formatClasificacionTime(value);
 
-      if (isDiscarded(row, label)) {
-        return '<td class="discarded-time">' + safe(value) + '</td>';
-      }
+  if (isDiscarded(row, label)) {
+    return '<td class="discarded-time">' + safe(formattedValue) + '</td>';
+  }
 
-      return '<td>' + safe(value) + '</td>';
-    }
+  return '<td>' + safe(formattedValue) + '</td>';
+}
+
+    function toggleClasificacionTimeFormat() {
+  if (appState.clasificacionTimeFormat === 'seconds') {
+    appState.clasificacionTimeFormat = 'minutes';
+    document.getElementById('toggleTimeFormatButton').textContent = 'Ver en segundos';
+  } else {
+    appState.clasificacionTimeFormat = 'seconds';
+    document.getElementById('toggleTimeFormatButton').textContent = 'Ver en minutos';
+  }
+
+  renderClasificacion(appState.lastClasificacionRows || []);
+}
+
+function formatClasificacionTime(value) {
+  if (value === null || value === undefined || value === '') {
+    return '';
+  }
+
+  if (appState.clasificacionTimeFormat === 'seconds') {
+    return value;
+  }
+
+  return secondsToDisplayTime(value);
+}
+
+function secondsToDisplayTime(value) {
+  const numericValue = Number(value);
+
+  if (isNaN(numericValue)) {
+    return value;
+  }
+
+  const totalTenths = Math.round(numericValue * 10);
+  const minutes = Math.floor(totalTenths / 600);
+  const remainingTenths = totalTenths % 600;
+  const seconds = Math.floor(remainingTenths / 10);
+  const tenths = remainingTenths % 10;
+
+  const paddedSeconds = String(seconds).padStart(2, '0');
+
+  return minutes + ':' + paddedSeconds + ',' + tenths;
+}
 
     function renderClasificacion(rows) {
       const body = document.getElementById('clasificacionBody');
@@ -858,7 +907,7 @@
           renderTimeCell(row, 'vuelta2', 'Vuelta 2') +
           renderTimeCell(row, 'ida3', 'Ida 3') +
           renderTimeCell(row, 'vuelta3', 'Vuelta 3') +
-          '<td><strong>' + safe(row.total) + '</strong></td>' +
+          '<td><strong>' + safe(formatClasificacionTime(row.total)) + '</strong></td>' +
           '<td><span class="pill">' + safe(row.estado) + '</span></td>';
 
         body.appendChild(tr);
