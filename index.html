@@ -1,0 +1,1134 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    :root {
+      --bg: #f4f4f5;
+      --card: #ffffff;
+      --text: #18181b;
+      --muted: #71717a;
+      --primary: #111827;
+      --primaryText: #ffffff;
+      --border: #e4e4e7;
+      --danger: #b91c1c;
+      --success: #166534;
+      --warning: #92400e;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .container {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 16px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.04);
+    }
+
+    h1 {
+      font-size: 24px;
+      margin: 0 0 4px;
+    }
+
+    h2 {
+      font-size: 18px;
+      margin: 0 0 12px;
+    }
+
+    label {
+      display: block;
+      font-weight: bold;
+      margin: 14px 0 6px;
+    }
+
+    input,
+    select {
+      width: 100%;
+      font-size: 18px;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: white;
+    }
+
+    button {
+      border: 0;
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      background: var(--primary);
+      color: var(--primaryText);
+    }
+
+    button.secondary {
+      background: #e5e7eb;
+      color: #111827;
+    }
+
+    button.danger {
+      background: var(--danger);
+      color: white;
+    }
+
+    button.success {
+      background: var(--success);
+      color: white;
+    }
+
+    .button-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+
+    .button-row button {
+      flex: 1;
+      min-width: 120px;
+    }
+
+    .pasadas {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .time-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .small-label {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 0;
+    }
+
+    .pasadas button {
+      background: #e5e7eb;
+      color: #111827;
+    }
+
+    .pasadas button.active {
+      background: var(--primary);
+      color: white;
+    }
+
+    .message {
+      padding: 12px;
+      border-radius: 12px;
+      margin-top: 12px;
+      font-weight: bold;
+      display: none;
+    }
+
+    .message.success {
+      background: #dcfce7;
+      color: var(--success);
+      display: block;
+    }
+
+    .message.error {
+      background: #fee2e2;
+      color: var(--danger);
+      display: block;
+    }
+
+    .message.warning {
+      background: #fef3c7;
+      color: var(--warning);
+      display: block;
+    }
+
+    .muted {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+      margin-top: 8px;
+    }
+
+    .nav-buttons button {
+      background: #e5e7eb;
+      color: #111827;
+    }
+
+    .nav-buttons button.active {
+      background: var(--primary);
+      color: var(--primaryText);
+    }
+
+    th,
+    td {
+      border-bottom: 1px solid var(--border);
+      padding: 8px;
+      text-align: left;
+    }
+
+    th {
+      background: #f9fafb;
+      font-size: 12px;
+    }
+
+    .table-wrapper {
+      overflow-x: auto;
+    }
+
+    .pill {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: #e5e7eb;
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    .duplicate-box {
+      border: 1px solid #f59e0b;
+      background: #fffbeb;
+      padding: 12px;
+      border-radius: 12px;
+      margin-top: 12px;
+      display: none;
+    }
+
+    .discarded-time {
+      text-decoration: line-through;
+      color: #991b1b;
+      font-weight: bold;
+      opacity: 0.75;
+    }
+
+    @media (max-width: 520px) {
+      .container {
+        padding: 10px;
+      }
+
+      .card {
+        padding: 14px;
+      }
+
+      h1 {
+        font-size: 22px;
+      }
+
+      input,
+      select {
+        font-size: 16px;
+      }
+
+      .pasadas {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+
+    <div class="card" id="loginCard">
+      <h1>Rally RC</h1>
+      <p class="muted">Introduce el PIN de carrera para acceder.</p>
+
+      <label for="pinInput">PIN</label>
+      <input id="pinInput" type="password" placeholder="PIN">
+
+      <label for="juezInput">Nombre del juez / mesa</label>
+      <input id="juezInput" type="text" placeholder="Ej: Mesa 1">
+
+      <div class="button-row">
+        <button onclick="login()">Entrar</button>
+      </div>
+
+      <div id="loginMessage" class="message"></div>
+    </div>
+
+    <div id="app" class="hidden">
+      <div class="card">
+        <div class="topbar">
+          <div>
+            <h1>Rally RC</h1>
+            <div class="muted">Registro de resultados</div>
+          </div>
+          <button class="secondary" onclick="logout()">Salir</button>
+        </div>
+
+        <div class="button-row nav-buttons">
+          <button id="navRegistro" onclick="showView('registro')">Registrar pasada</button>
+          <button id="navClasificacion" class="secondary" onclick="showView('clasificacion')">Clasificación</button>
+          <button id="navAdmin" class="secondary" onclick="showView('admin')">Administración</button>
+        </div>
+      </div>
+
+      <div class="card" id="registroView">
+        <h2>Registrar pasada</h2>
+
+        <label for="categoriaSelect">Categoría</label>
+        <select id="categoriaSelect" onchange="onCategoriaChange()">
+          <option value="">Selecciona categoría</option>
+        </select>
+
+        <label for="pilotoSelect">Piloto</label>
+        <select id="pilotoSelect">
+          <option value="">Selecciona piloto</option>
+        </select>
+
+        <label>Pasada</label>
+        <div class="pasadas">
+          <button type="button" onclick="selectPasada(1)" id="pasada1">Ida 1</button>
+          <button type="button" onclick="selectPasada(2)" id="pasada2">Vuelta 1</button>
+          <button type="button" onclick="selectPasada(3)" id="pasada3">Ida 2</button>
+          <button type="button" onclick="selectPasada(4)" id="pasada4">Vuelta 2</button>
+          <button type="button" onclick="selectPasada(5)" id="pasada5">Ida 3</button>
+          <button type="button" onclick="selectPasada(6)" id="pasada6">Vuelta 3</button>
+        </div>
+
+        <label>Tiempo</label>
+
+        <div class="time-grid">
+          <div>
+            <label for="minutosInput" class="small-label">Minutos</label>
+            <input id="minutosInput" type="number" inputmode="numeric" min="0" value="0">
+          </div>
+
+          <div>
+            <label for="segundosInput" class="small-label">Segundos</label>
+            <input id="segundosInput" type="number" inputmode="numeric" min="0" max="59" placeholder="0">
+          </div>
+
+          <div>
+            <label for="decimasInput" class="small-label">Décimas</label>
+            <input id="decimasInput" type="number" inputmode="numeric" min="0" max="9" placeholder="0">
+          </div>
+        </div>
+
+        <label for="penalizacionInput">Penalización</label>
+        <input id="penalizacionInput" type="text" inputmode="decimal" value="0">
+
+        <div class="button-row">
+          <button class="success" onclick="guardarResultado(false)">Guardar resultado</button>
+          <button class="secondary" onclick="limpiarFormulario()">Limpiar</button>
+        </div>
+
+        <div id="registroMessage" class="message"></div>
+
+        <div id="duplicateBox" class="duplicate-box">
+          <strong>Ya existe un resultado para esta pasada.</strong>
+          <div id="duplicateText" style="margin-top: 8px;"></div>
+          <p class="muted">
+            No se ha guardado ningún cambio. Para corregir este resultado, modifica la hoja manualmente o añade una pantalla específica de correcciones.
+          </p>
+          <div class="button-row">
+            <button class="secondary" onclick="cancelOverwrite()">Cerrar aviso</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card hidden" id="clasificacionView">
+        <h2>Clasificación</h2>
+
+        <label for="categoriaClasificacionSelect">Categoría</label>
+        <select id="categoriaClasificacionSelect" onchange="loadClasificacion()">
+          <option value="">Todas</option>
+        </select>
+
+        <div class="button-row">
+          <button class="secondary" onclick="loadClasificacion()">Actualizar clasificación</button>
+        </div>
+
+        <div id="clasificacionMessage" class="message"></div>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Cat.</th>
+                <th>Dorsal</th>
+                <th>Piloto</th>
+                <th>Ida 1</th>
+                <th>Vuelta 1</th>
+                <th>Ida 2</th>
+                <th>Vuelta 2</th>
+                <th>Ida 3</th>
+                <th>Vuelta 3</th>
+                <th>Total</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody id="clasificacionBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card hidden" id="adminView">
+        <h2>Administración</h2>
+
+        <p class="muted">
+          Esta sección permite preparar una nueva carrera. Se crearán copias de seguridad de los resultados actuales antes de limpiar la carrera.
+        </p>
+
+        <label for="adminPinInput">Contraseña de administración</label>
+        <input id="adminPinInput" type="password" placeholder="Contraseña de administración">
+
+        <div class="button-row">
+          <button onclick="entrarAdministracion()">Entrar en administración</button>
+        </div>
+
+        <div id="adminLoginMessage" class="message"></div>
+
+        <div id="adminPanel" class="hidden" style="margin-top: 16px;">
+          <h2>Nueva carrera</h2>
+
+          <label for="nombreCarreraInput">Nombre de la nueva carrera</label>
+          <input id="nombreCarreraInput" type="text" placeholder="Ej: Rally RC - Junio 2026">
+
+          <label for="confirmNuevaCarreraInput">Confirmación</label>
+          <input id="confirmNuevaCarreraInput" type="text" placeholder="Escribe NUEVA CARRERA">
+
+          <div class="button-row">
+            <button class="danger" onclick="generarNuevaCarreraDesdeApp()">Generar nueva carrera</button>
+          </div>
+
+          <div id="adminActionMessage" class="message"></div>
+
+          <hr style="margin: 24px 0; border: 0; border-top: 1px solid var(--border);">
+
+          <h2>Corrección de resultado</h2>
+
+          <p class="muted">
+            Selecciona categoría, piloto y pasada para cargar el resultado existente y modificarlo.
+          </p>
+
+          <label for="correccionCategoriaSelect">Categoría</label>
+          <select id="correccionCategoriaSelect" onchange="onCorreccionCategoriaChange()">
+            <option value="">Selecciona categoría</option>
+          </select>
+
+          <label for="correccionPilotoSelect">Piloto</label>
+          <select id="correccionPilotoSelect">
+            <option value="">Selecciona piloto</option>
+          </select>
+
+          <label for="correccionPasadaSelect">Pasada</label>
+          <select id="correccionPasadaSelect">
+            <option value="">Selecciona pasada</option>
+            <option value="1">Ida 1</option>
+            <option value="2">Vuelta 1</option>
+            <option value="3">Ida 2</option>
+            <option value="4">Vuelta 2</option>
+            <option value="5">Ida 3</option>
+            <option value="6">Vuelta 3</option>
+          </select>
+
+          <div class="button-row">
+            <button class="secondary" onclick="cargarResultadoCorreccion()">Cargar resultado</button>
+          </div>
+
+          <div id="correccionMessage" class="message"></div>
+
+          <div id="correccionEditor" class="hidden" style="margin-top: 16px;">
+            <h2>Editar resultado</h2>
+
+            <div id="correccionResumen" class="muted" style="margin-bottom: 12px;"></div>
+
+            <label>Tiempo corregido</label>
+
+            <div class="time-grid">
+              <div>
+                <label for="correccionMinutosInput" class="small-label">Minutos</label>
+                <input id="correccionMinutosInput" type="number" inputmode="numeric" min="0" value="0">
+              </div>
+
+              <div>
+                <label for="correccionSegundosInput" class="small-label">Segundos</label>
+                <input id="correccionSegundosInput" type="number" inputmode="numeric" min="0" max="59" placeholder="0">
+              </div>
+
+              <div>
+                <label for="correccionDecimasInput" class="small-label">Décimas</label>
+                <input id="correccionDecimasInput" type="number" inputmode="numeric" min="0" max="9" placeholder="0">
+              </div>
+            </div>
+
+            <label for="correccionPenalizacionInput">Penalización corregida</label>
+            <input id="correccionPenalizacionInput" type="text" inputmode="decimal" value="0">
+
+            <label for="confirmCorreccionInput">Confirmación</label>
+            <input id="confirmCorreccionInput" type="text" placeholder="Escribe CORREGIR">
+
+            <div class="button-row">
+              <button class="danger" onclick="guardarCorreccionResultado()">Guardar corrección</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    let appState = {
+      pin: '',
+      juez: '',
+      selectedPasada: null,
+      categorias: []
+    };
+
+    function login() {
+      const pin = document.getElementById('pinInput').value.trim();
+      const juez = document.getElementById('juezInput').value.trim();
+
+      if (!pin) {
+        showMessage('loginMessage', 'Introduce el PIN', 'error');
+        return;
+      }
+
+      if (!juez) {
+        showMessage('loginMessage', 'Introduce el nombre del juez o mesa', 'error');
+        return;
+      }
+
+      showMessage('loginMessage', 'Validando acceso...', 'warning');
+
+      google.script.run
+        .withSuccessHandler(function(isValid) {
+          if (!isValid) {
+            showMessage('loginMessage', 'PIN incorrecto', 'error');
+            return;
+          }
+
+          appState.pin = pin;
+          appState.juez = juez;
+
+          document.getElementById('loginCard').classList.add('hidden');
+          document.getElementById('app').classList.remove('hidden');
+
+          showView('registro');
+          loadCategorias();
+        })
+        .withFailureHandler(function(error) {
+          showMessage('loginMessage', error.message || 'Error validando PIN', 'error');
+        })
+        .validatePin(pin);
+    }
+
+    function logout() {
+      appState = {
+        pin: '',
+        juez: '',
+        selectedPasada: null,
+        categorias: []
+      };
+
+      document.getElementById('pinInput').value = '';
+      document.getElementById('juezInput').value = '';
+      document.getElementById('app').classList.add('hidden');
+      document.getElementById('loginCard').classList.remove('hidden');
+    }
+
+    function loadCategorias() {
+      google.script.run
+        .withSuccessHandler(function(categorias) {
+          appState.categorias = categorias;
+          fillCategoriaSelects(categorias);
+        })
+        .withFailureHandler(function(error) {
+          showMessage('registroMessage', error.message || 'Error cargando categorías', 'error');
+        })
+        .getCategorias(appState.pin);
+    }
+
+    function fillCategoriaSelects(categorias) {
+      const registroSelect = document.getElementById('categoriaSelect');
+      const clasificacionSelect = document.getElementById('categoriaClasificacionSelect');
+      const correccionSelect = document.getElementById('correccionCategoriaSelect');
+
+      registroSelect.innerHTML = '<option value="">Selecciona categoría</option>';
+      clasificacionSelect.innerHTML = '<option value="">Todas</option>';
+
+      if (correccionSelect) {
+        correccionSelect.innerHTML = '<option value="">Selecciona categoría</option>';
+      }
+
+      categorias.forEach(function(categoria) {
+        const option1 = document.createElement('option');
+        option1.value = categoria;
+        option1.textContent = categoria;
+        registroSelect.appendChild(option1);
+
+        const option2 = document.createElement('option');
+        option2.value = categoria;
+        option2.textContent = categoria;
+        clasificacionSelect.appendChild(option2);
+
+        if (correccionSelect) {
+          const option3 = document.createElement('option');
+          option3.value = categoria;
+          option3.textContent = categoria;
+          correccionSelect.appendChild(option3);
+        }
+      });
+    }
+
+    function onCategoriaChange() {
+      const categoria = document.getElementById('categoriaSelect').value;
+      const pilotoSelect = document.getElementById('pilotoSelect');
+
+      pilotoSelect.innerHTML = '<option value="">Cargando pilotos...</option>';
+
+      if (!categoria) {
+        pilotoSelect.innerHTML = '<option value="">Selecciona piloto</option>';
+        return;
+      }
+
+      google.script.run
+        .withSuccessHandler(function(inscripciones) {
+          pilotoSelect.innerHTML = '<option value="">Selecciona piloto</option>';
+
+          inscripciones.forEach(function(item) {
+            const option = document.createElement('option');
+            option.value = item.inscripcionId;
+            option.textContent = item.dorsal + ' - ' + item.piloto;
+            pilotoSelect.appendChild(option);
+          });
+        })
+        .withFailureHandler(function(error) {
+          pilotoSelect.innerHTML = '<option value="">Error cargando pilotos</option>';
+          showMessage('registroMessage', error.message || 'Error cargando pilotos', 'error');
+        })
+        .getInscripcionesByCategoria(appState.pin, categoria);
+    }
+
+    function selectPasada(num) {
+      appState.selectedPasada = num;
+
+      for (let i = 1; i <= 6; i++) {
+        document.getElementById('pasada' + i).classList.remove('active');
+      }
+
+      document.getElementById('pasada' + num).classList.add('active');
+    }
+
+    function guardarResultado(overwrite) {
+      hideMessage('registroMessage');
+      document.getElementById('duplicateBox').style.display = 'none';
+
+      const inscripcionId = document.getElementById('pilotoSelect').value;
+      const minutos = document.getElementById('minutosInput').value.trim();
+      const segundos = document.getElementById('segundosInput').value.trim();
+      const decimas = document.getElementById('decimasInput').value.trim();
+      const penalizacion = document.getElementById('penalizacionInput').value.trim();
+
+      if (!document.getElementById('categoriaSelect').value) {
+        showMessage('registroMessage', 'Selecciona una categoría', 'error');
+        return;
+      }
+
+      if (!inscripcionId) {
+        showMessage('registroMessage', 'Selecciona un piloto', 'error');
+        return;
+      }
+
+      if (!appState.selectedPasada) {
+        showMessage('registroMessage', 'Selecciona una pasada', 'error');
+        return;
+      }
+
+      if (minutos === '' && segundos === '' && decimas === '') {
+        showMessage('registroMessage', 'Introduce un tiempo', 'error');
+        return;
+      }
+
+      const minNumber = Number(minutos || 0);
+      const secNumber = Number(segundos || 0);
+      const decNumber = Number(decimas || 0);
+
+      if (
+        isNaN(minNumber) || minNumber < 0 ||
+        isNaN(secNumber) || secNumber < 0 || secNumber > 59 ||
+        isNaN(decNumber) || decNumber < 0 || decNumber > 9
+      ) {
+        showMessage('registroMessage', 'El tiempo no es válido. Revisa minutos, segundos y décimas.', 'error');
+        return;
+      }
+
+      const payload = {
+        inscripcionId: inscripcionId,
+        pasada: appState.selectedPasada,
+        minutos: minNumber,
+        segundos: secNumber,
+        decimas: decNumber,
+        penalizacion: penalizacion || '0',
+        juez: appState.juez,
+        overwrite: overwrite
+      };
+
+      showMessage('registroMessage', 'Guardando resultado...', 'warning');
+
+      google.script.run
+        .withSuccessHandler(function(response) {
+          if (response.status === 'DUPLICATE') {
+            showDuplicate(response.existing);
+            showMessage(
+              'registroMessage',
+              'Ya existe un resultado para esta pasada. No se ha guardado ningún cambio.',
+              'error'
+            );
+            return;
+          }
+
+          const saved = response.saved;
+
+          showMessage(
+            'registroMessage',
+            response.message + ': ' +
+              saved.dorsal + ' - ' +
+              saved.piloto + ' - ' +
+              saved.pasadaLabel + ' - Total: ' +
+              saved.total,
+            'success'
+          );
+
+          document.getElementById('duplicateBox').style.display = 'none';
+          document.getElementById('minutosInput').value = '0';
+          document.getElementById('segundosInput').value = '';
+          document.getElementById('decimasInput').value = '';
+          document.getElementById('penalizacionInput').value = '0';
+          document.getElementById('segundosInput').focus();
+        })
+        .withFailureHandler(function(error) {
+          showMessage('registroMessage', error.message || 'Error guardando resultado', 'error');
+        })
+        .saveResultado(appState.pin, payload);
+    }
+
+    function showDuplicate(existing) {
+      const box = document.getElementById('duplicateBox');
+      const text = document.getElementById('duplicateText');
+
+      text.innerHTML =
+        '<div><strong>Piloto:</strong> ' + existing.dorsal + ' - ' + existing.piloto + '</div>' +
+        '<div><strong>Categoría:</strong> ' + existing.categoria + '</div>' +
+        '<div><strong>Pasada:</strong> ' + existing.pasadaLabel + '</div>' +
+        '<div><strong>Tiempo actual:</strong> ' + existing.tiempo + '</div>' +
+        '<div><strong>Penalización actual:</strong> ' + existing.penalizacion + '</div>' +
+        '<div><strong>Total actual:</strong> ' + existing.total + '</div>';
+
+      box.style.display = 'block';
+    }
+
+    function cancelOverwrite() {
+      document.getElementById('duplicateBox').style.display = 'none';
+      showMessage('registroMessage', 'No se ha modificado el resultado existente', 'warning');
+    }
+
+    function limpiarFormulario() {
+      document.getElementById('pilotoSelect').value = '';
+      document.getElementById('minutosInput').value = '0';
+      document.getElementById('segundosInput').value = '';
+      document.getElementById('decimasInput').value = '';
+      document.getElementById('penalizacionInput').value = '0';
+      document.getElementById('duplicateBox').style.display = 'none';
+      hideMessage('registroMessage');
+
+      appState.selectedPasada = null;
+
+      for (let i = 1; i <= 6; i++) {
+        document.getElementById('pasada' + i).classList.remove('active');
+      }
+    }
+
+    function showView(view) {
+      document.getElementById('registroView').classList.add('hidden');
+      document.getElementById('clasificacionView').classList.add('hidden');
+      document.getElementById('adminView').classList.add('hidden');
+
+      document.getElementById('navRegistro').classList.remove('active');
+      document.getElementById('navClasificacion').classList.remove('active');
+      document.getElementById('navAdmin').classList.remove('active');
+
+      if (view === 'registro') {
+        document.getElementById('registroView').classList.remove('hidden');
+        document.getElementById('navRegistro').classList.add('active');
+      }
+
+      if (view === 'clasificacion') {
+        document.getElementById('clasificacionView').classList.remove('hidden');
+        document.getElementById('navClasificacion').classList.add('active');
+        loadClasificacion();
+      }
+
+      if (view === 'admin') {
+        document.getElementById('adminView').classList.remove('hidden');
+        document.getElementById('navAdmin').classList.add('active');
+      }
+    }
+
+    function loadClasificacion() {
+      const categoria = document.getElementById('categoriaClasificacionSelect').value;
+
+      showMessage('clasificacionMessage', 'Cargando clasificación...', 'warning');
+
+      google.script.run
+        .withSuccessHandler(function(rows) {
+          renderClasificacion(rows);
+          hideMessage('clasificacionMessage');
+        })
+        .withFailureHandler(function(error) {
+          showMessage('clasificacionMessage', error.message || 'Error cargando clasificación', 'error');
+        })
+        .getClasificacion(appState.pin, categoria);
+    }
+
+    function isDiscarded(row, label) {
+      if (!row.descartada) {
+        return false;
+      }
+
+      return String(row.descartada).startsWith(label + ' -');
+    }
+
+    function renderTimeCell(row, key, label) {
+      const value = row[key];
+
+      if (isDiscarded(row, label)) {
+        return '<td class="discarded-time">' + safe(value) + '</td>';
+      }
+
+      return '<td>' + safe(value) + '</td>';
+    }
+
+    function renderClasificacion(rows) {
+      const body = document.getElementById('clasificacionBody');
+      body.innerHTML = '';
+
+      if (!rows || rows.length === 0) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = '<td colspan="11">No hay datos de clasificación</td>';
+        body.appendChild(tr);
+        return;
+      }
+
+      rows.forEach(function(row) {
+        const tr = document.createElement('tr');
+
+        tr.innerHTML =
+          '<td>' + safe(row.categoria) + '</td>' +
+          '<td>' + safe(row.dorsal) + '</td>' +
+          '<td>' + safe(row.piloto) + '</td>' +
+          renderTimeCell(row, 'ida1', 'Ida 1') +
+          renderTimeCell(row, 'vuelta1', 'Vuelta 1') +
+          renderTimeCell(row, 'ida2', 'Ida 2') +
+          renderTimeCell(row, 'vuelta2', 'Vuelta 2') +
+          renderTimeCell(row, 'ida3', 'Ida 3') +
+          renderTimeCell(row, 'vuelta3', 'Vuelta 3') +
+          '<td><strong>' + safe(row.total) + '</strong></td>' +
+          '<td><span class="pill">' + safe(row.estado) + '</span></td>';
+
+        body.appendChild(tr);
+      });
+    }
+    function entrarAdministracion() {
+      const adminPin = document.getElementById('adminPinInput').value.trim();
+
+      if (!adminPin) {
+        showMessage('adminLoginMessage', 'Introduce la contraseña de administración', 'error');
+        return;
+      }
+
+      showMessage('adminLoginMessage', 'Validando acceso de administración...', 'warning');
+
+      google.script.run
+        .withSuccessHandler(function(isValid) {
+          if (!isValid) {
+            document.getElementById('adminPanel').classList.add('hidden');
+            showMessage('adminLoginMessage', 'Contraseña de administración incorrecta', 'error');
+            return;
+          }
+
+          showMessage('adminLoginMessage', 'Acceso de administración correcto', 'success');
+          document.getElementById('adminPanel').classList.remove('hidden');
+        })
+        .withFailureHandler(function(error) {
+          document.getElementById('adminPanel').classList.add('hidden');
+          showMessage('adminLoginMessage', error.message || 'Error validando administración', 'error');
+        })
+        .validateAdminPin(adminPin);
+    }
+
+    function generarNuevaCarreraDesdeApp() {
+      const adminPin = document.getElementById('adminPinInput').value.trim();
+      const nombreCarrera = document.getElementById('nombreCarreraInput').value.trim();
+      const confirmacion = document.getElementById('confirmNuevaCarreraInput').value.trim();
+
+      if (!adminPin) {
+        showMessage('adminActionMessage', 'Introduce la contraseña de administración', 'error');
+        return;
+      }
+
+      if (!nombreCarrera) {
+        showMessage('adminActionMessage', 'Introduce el nombre de la nueva carrera', 'error');
+        return;
+      }
+
+      if (confirmacion !== 'NUEVA CARRERA') {
+        showMessage('adminActionMessage', 'Para confirmar, escribe exactamente: NUEVA CARRERA', 'error');
+        return;
+      }
+
+      const seguro = window.confirm(
+        'Vas a generar una nueva carrera. Se crearán backups y se limpiarán los resultados actuales. ¿Quieres continuar?'
+      );
+
+      if (!seguro) {
+        showMessage('adminActionMessage', 'Operación cancelada', 'warning');
+        return;
+      }
+
+      showMessage('adminActionMessage', 'Generando nueva carrera...', 'warning');
+
+      google.script.run
+        .withSuccessHandler(function(response) {
+          showMessage('adminActionMessage', response.message, 'success');
+
+          document.getElementById('nombreCarreraInput').value = '';
+          document.getElementById('confirmNuevaCarreraInput').value = '';
+
+          loadClasificacion();
+        })
+        .withFailureHandler(function(error) {
+          showMessage('adminActionMessage', error.message || 'Error generando nueva carrera', 'error');
+        })
+        .generarNuevaCarrera(appState.pin, adminPin, nombreCarrera);
+    }
+    
+    function onCorreccionCategoriaChange() {
+      const categoria = document.getElementById('correccionCategoriaSelect').value;
+      const pilotoSelect = document.getElementById('correccionPilotoSelect');
+
+      document.getElementById('correccionEditor').classList.add('hidden');
+      hideMessage('correccionMessage');
+
+      pilotoSelect.innerHTML = '<option value="">Cargando pilotos...</option>';
+
+      if (!categoria) {
+        pilotoSelect.innerHTML = '<option value="">Selecciona piloto</option>';
+        return;
+      }
+
+      google.script.run
+        .withSuccessHandler(function(inscripciones) {
+          pilotoSelect.innerHTML = '<option value="">Selecciona piloto</option>';
+
+          inscripciones.forEach(function(item) {
+            const option = document.createElement('option');
+            option.value = item.inscripcionId;
+            option.textContent = item.dorsal + ' - ' + item.piloto;
+            pilotoSelect.appendChild(option);
+          });
+        })
+        .withFailureHandler(function(error) {
+          pilotoSelect.innerHTML = '<option value="">Error cargando pilotos</option>';
+          showMessage('correccionMessage', error.message || 'Error cargando pilotos', 'error');
+        })
+        .getInscripcionesByCategoria(appState.pin, categoria);
+    }
+
+    function cargarResultadoCorreccion() {
+      const adminPin = document.getElementById('adminPinInput').value.trim();
+      const inscripcionId = document.getElementById('correccionPilotoSelect').value;
+      const pasada = document.getElementById('correccionPasadaSelect').value;
+
+      document.getElementById('correccionEditor').classList.add('hidden');
+
+      if (!adminPin) {
+        showMessage('correccionMessage', 'Introduce la contraseña de administración', 'error');
+        return;
+      }
+
+      if (!document.getElementById('correccionCategoriaSelect').value) {
+        showMessage('correccionMessage', 'Selecciona una categoría', 'error');
+        return;
+      }
+
+      if (!inscripcionId) {
+        showMessage('correccionMessage', 'Selecciona un piloto', 'error');
+        return;
+      }
+
+      if (!pasada) {
+        showMessage('correccionMessage', 'Selecciona una pasada', 'error');
+        return;
+      }
+
+      showMessage('correccionMessage', 'Cargando resultado...', 'warning');
+
+      google.script.run
+        .withSuccessHandler(function(response) {
+          if (response.status === 'NOT_FOUND') {
+            showMessage('correccionMessage', response.message, 'error');
+            return;
+          }
+
+          const r = response.resultado;
+
+          document.getElementById('correccionResumen').innerHTML =
+            '<strong>' + safe(r.dorsal) + ' - ' + safe(r.piloto) + '</strong><br>' +
+            safe(r.categoria) + ' / ' + safe(r.pasadaLabel) + '<br>' +
+            'Tiempo actual: ' + safe(r.tiempo) +
+            ' | Penalización actual: ' + safe(r.penalizacion) +
+            ' | Total actual: ' + safe(r.total) + '<br>' +
+            'Última modificación: ' + safe(r.timestamp) +
+            ' | Juez: ' + safe(r.juez);
+
+          document.getElementById('correccionMinutosInput').value = r.minutos;
+          document.getElementById('correccionSegundosInput').value = r.segundos;
+          document.getElementById('correccionDecimasInput').value = r.decimas;
+          document.getElementById('correccionPenalizacionInput').value = r.penalizacion;
+          document.getElementById('confirmCorreccionInput').value = '';
+
+          document.getElementById('correccionEditor').classList.remove('hidden');
+          showMessage('correccionMessage', 'Resultado cargado. Puedes modificarlo.', 'success');
+        })
+        .withFailureHandler(function(error) {
+          showMessage('correccionMessage', error.message || 'Error cargando resultado', 'error');
+        })
+        .getResultadoParaCorreccion(appState.pin, adminPin, inscripcionId, pasada);
+    }
+
+    function guardarCorreccionResultado() {
+      const adminPin = document.getElementById('adminPinInput').value.trim();
+      const inscripcionId = document.getElementById('correccionPilotoSelect').value;
+      const pasada = document.getElementById('correccionPasadaSelect').value;
+      const minutos = document.getElementById('correccionMinutosInput').value.trim();
+      const segundos = document.getElementById('correccionSegundosInput').value.trim();
+      const decimas = document.getElementById('correccionDecimasInput').value.trim();
+      const penalizacion = document.getElementById('correccionPenalizacionInput').value.trim();
+      const confirmacion = document.getElementById('confirmCorreccionInput').value.trim();
+
+      if (confirmacion !== 'CORREGIR') {
+        showMessage('correccionMessage', 'Para confirmar, escribe exactamente: CORREGIR', 'error');
+        return;
+      }
+
+      const minNumber = Number(minutos || 0);
+      const secNumber = Number(segundos || 0);
+      const decNumber = Number(decimas || 0);
+
+      if (
+        isNaN(minNumber) || minNumber < 0 ||
+        isNaN(secNumber) || secNumber < 0 || secNumber > 59 ||
+        isNaN(decNumber) || decNumber < 0 || decNumber > 9
+      ) {
+        showMessage('correccionMessage', 'El tiempo no es válido. Revisa minutos, segundos y décimas.', 'error');
+        return;
+      }
+
+      const seguro = window.confirm(
+        'Vas a modificar un resultado existente. ¿Quieres continuar?'
+      );
+
+      if (!seguro) {
+        showMessage('correccionMessage', 'Corrección cancelada', 'warning');
+        return;
+      }
+
+      const payload = {
+        inscripcionId: inscripcionId,
+        pasada: Number(pasada),
+        minutos: minNumber,
+        segundos: secNumber,
+        decimas: decNumber,
+        penalizacion: penalizacion || '0',
+        juez: appState.juez
+      };
+
+      showMessage('correccionMessage', 'Guardando corrección...', 'warning');
+
+      google.script.run
+        .withSuccessHandler(function(response) {
+          const saved = response.saved;
+
+          showMessage(
+            'correccionMessage',
+            response.message + ': ' +
+              saved.dorsal + ' - ' +
+              saved.piloto + ' - ' +
+              saved.pasadaLabel + ' - Total: ' +
+              saved.total,
+            'success'
+          );
+
+          document.getElementById('confirmCorreccionInput').value = '';
+          cargarResultadoCorreccion();
+          loadClasificacion();
+        })
+        .withFailureHandler(function(error) {
+          showMessage('correccionMessage', error.message || 'Error guardando corrección', 'error');
+        })
+        .corregirResultado(appState.pin, adminPin, payload);
+    }
+
+    function showMessage(id, text, type) {
+      const element = document.getElementById(id);
+      element.textContent = text;
+      element.className = 'message ' + type;
+    }
+
+    function hideMessage(id) {
+      const element = document.getElementById(id);
+      element.textContent = '';
+      element.className = 'message';
+    }
+
+    function safe(value) {
+      if (value === null || value === undefined) {
+        return '';
+      }
+
+      return String(value)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+    }
+  </script>
+</body>
+</html>
