@@ -874,3 +874,31 @@ function corregirResultado(pin, adminPin, payload) {
     lock.releaseLock();
   }
 }
+function getPasadasRegistradas(pin, inscripcionId) {
+  if (!validatePin_(pin)) {
+    throw new Error('PIN incorrecto');
+  }
+
+  const cleanInscripcionId = String(inscripcionId || '').trim();
+
+  if (!cleanInscripcionId) {
+    return [];
+  }
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_RESULTADOS);
+  const values = sheet.getDataRange().getValues();
+
+  const pasadas = [];
+
+  for (let i = 1; i < values.length; i++) {
+    const rowInscripcionId = String(values[i][2] || '').trim();
+    const rowPasada = Number(values[i][6]);
+
+    if (rowInscripcionId === cleanInscripcionId && rowPasada) {
+      pasadas.push(rowPasada);
+    }
+  }
+
+  return [...new Set(pasadas)].sort((a, b) => a - b);
+}

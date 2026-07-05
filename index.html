@@ -235,6 +235,20 @@
       opacity: 0.75;
     }
 
+    .pasadas button.registered {
+      background: #fee2e2;
+      color: #991b1b;
+      text-decoration: line-through;
+      border: 1px solid #fecaca;
+      opacity: 0.85;
+    }
+
+    .pasadas button.registered.active {
+      background: #991b1b;
+      color: white;
+      text-decoration: line-through;
+    }
+
     @media (max-width: 520px) {
       .container {
         padding: 10px;
@@ -306,7 +320,7 @@
         </select>
 
         <label for="pilotoSelect">Piloto</label>
-        <select id="pilotoSelect">
+        <select id="pilotoSelect" onchange="onPilotoChange()">
           <option value="">Selecciona piloto</option>
         </select>
 
@@ -512,7 +526,8 @@
       selectedPasada: null,
       categorias: [],
       clasificacionTimeFormat: 'seconds',
-      lastClasificacionRows: []
+      lastClasificacionRows: [],
+      pasadasRegistradas: []
     };
 
     function login() {
@@ -615,6 +630,11 @@
       const categoria = document.getElementById('categoriaSelect').value;
       const pilotoSelect = document.getElementById('pilotoSelect');
 
+      appState.selectedPasada = null;
+      appState.pasadasRegistradas = [];
+      resetPasadasButtons();
+      hideMessage('registroMessage');
+
       pilotoSelect.innerHTML = '<option value="">Cargando pilotos...</option>';
 
       if (!categoria) {
@@ -648,7 +668,66 @@
       }
 
       document.getElementById('pasada' + num).classList.add('active');
+
+      if (appState.pasadasRegistradas.includes(num)) {
+        showMessage(
+          'registroMessage',
+          'Aviso: esta pasada ya está registrada. Si intentas guardar, no se sobrescribirá.',
+          'warning'
+        );
+      } else {
+        hideMessage('registroMessage');
+      }
     }
+
+    function onPilotoChange() {
+  const inscripcionId = document.getElementById('pilotoSelect').value;
+
+  appState.selectedPasada = null;
+  appState.pasadasRegistradas = [];
+
+  resetPasadasButtons();
+
+  if (!inscripcionId) {
+    return;
+  }
+
+  google.script.run
+    .withSuccessHandler(function(pasadas) {
+      appState.pasadasRegistradas = pasadas || [];
+      updatePasadasButtonsState();
+    })
+    .withFailureHandler(function(error) {
+      showMessage(
+        'registroMessage',
+        error.message || 'Error cargando pasadas registradas',
+        'error'
+      );
+    })
+    .getPasadasRegistradas(appState.pin, inscripcionId);
+}
+
+function resetPasadasButtons() {
+  for (let i = 1; i <= 6; i++) {
+    const button = document.getElementById('pasada' + i);
+    button.classList.remove('active');
+    button.classList.remove('registered');
+    button.title = '';
+  }
+}
+
+function updatePasadasButtonsState() {
+  resetPasadasButtons();
+
+  for (let i = 1; i <= 6; i++) {
+    const button = document.getElementById('pasada' + i);
+
+    if (appState.pasadasRegistradas.includes(i)) {
+      button.classList.add('registered');
+      button.title = 'Esta pasada ya está registrada';
+    }
+  }
+}
 
     function guardarResultado(overwrite) {
       hideMessage('registroMessage');
@@ -736,6 +815,8 @@
           document.getElementById('decimasInput').value = '';
           document.getElementById('penalizacionInput').value = '0';
           document.getElementById('segundosInput').focus();
+
+          onPilotoChange();
         })
         .withFailureHandler(function(error) {
           showMessage('registroMessage', error.message || 'Error guardando resultado', 'error');
@@ -773,10 +854,9 @@
       hideMessage('registroMessage');
 
       appState.selectedPasada = null;
+      appState.pasadasRegistradas = [];
 
-      for (let i = 1; i <= 6; i++) {
-        document.getElementById('pasada' + i).classList.remove('active');
-      }
+      resetPasadasButtons();
     }
 
     function showView(view) {
