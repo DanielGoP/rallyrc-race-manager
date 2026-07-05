@@ -527,7 +527,9 @@
       categorias: [],
       clasificacionTimeFormat: 'seconds',
       lastClasificacionRows: [],
-      pasadasRegistradas: []
+      pasadasRegistradas: [],
+      pilotosLoadRequestId: 0,
+      pasadasLoadRequestId: 0
     };
 
     function login() {
@@ -573,7 +575,12 @@
         pin: '',
         juez: '',
         selectedPasada: null,
-        categorias: []
+        categorias: [],
+        clasificacionTimeFormat: 'seconds',
+        lastClasificacionRows: [],
+        pasadasRegistradas: [],
+        pilotosLoadRequestId: 0,
+        pasadasLoadRequestId: 0
       };
 
       document.getElementById('pinInput').value = '';
@@ -635,16 +642,48 @@
       resetPasadasButtons();
       hideMessage('registroMessage');
 
+      appState.pilotosLoadRequestId++;
+      const requestId = appState.pilotosLoadRequestId;
+
+      pilotoSelect.disabled = true;
       pilotoSelect.innerHTML = '<option value="">Cargando pilotos...</option>';
 
       if (!categoria) {
+        pilotoSelect.disabled = false;
         pilotoSelect.innerHTML = '<option value="">Selecciona piloto</option>';
         return;
       }
 
+      const timeoutId = setTimeout(function() {
+        if (requestId !== appState.pilotosLoadRequestId) {
+          return;
+        }
+
+        pilotoSelect.disabled = false;
+        pilotoSelect.innerHTML = '<option value="">No se pudieron cargar pilotos</option>';
+
+        showMessage(
+          'registroMessage',
+          'La carga de pilotos está tardando demasiado. Vuelve a seleccionar la categoría o recarga la app.',
+          'error'
+        );
+      }, 12000);
+
       google.script.run
         .withSuccessHandler(function(inscripciones) {
+          if (requestId !== appState.pilotosLoadRequestId) {
+            return;
+          }
+
+          clearTimeout(timeoutId);
+
+          pilotoSelect.disabled = false;
           pilotoSelect.innerHTML = '<option value="">Selecciona piloto</option>';
+
+          if (!inscripciones || !inscripciones.length) {
+            pilotoSelect.innerHTML = '<option value="">No hay pilotos en esta categoría</option>';
+            return;
+          }
 
           inscripciones.forEach(function(item) {
             const option = document.createElement('option');
@@ -654,8 +693,20 @@
           });
         })
         .withFailureHandler(function(error) {
+          if (requestId !== appState.pilotosLoadRequestId) {
+            return;
+          }
+
+          clearTimeout(timeoutId);
+
+          pilotoSelect.disabled = false;
           pilotoSelect.innerHTML = '<option value="">Error cargando pilotos</option>';
-          showMessage('registroMessage', error.message || 'Error cargando pilotos', 'error');
+
+          showMessage(
+            'registroMessage',
+            error.message || 'Error cargando pilotos',
+            'error'
+          );
         })
         .getInscripcionesByCategoria(appState.pin, categoria);
     }
@@ -681,31 +732,42 @@
     }
 
     function onPilotoChange() {
-  const inscripcionId = document.getElementById('pilotoSelect').value;
+      const inscripcionId = document.getElementById('pilotoSelect').value;
 
-  appState.selectedPasada = null;
-  appState.pasadasRegistradas = [];
+      appState.selectedPasada = null;
+      appState.pasadasRegistradas = [];
+      resetPasadasButtons();
+      hideMessage('registroMessage');
 
-  resetPasadasButtons();
+      appState.pasadasLoadRequestId++;
+      const requestId = appState.pasadasLoadRequestId;
 
-  if (!inscripcionId) {
-    return;
-  }
+      if (!inscripcionId) {
+        return;
+      }
 
-  google.script.run
-    .withSuccessHandler(function(pasadas) {
-      appState.pasadasRegistradas = pasadas || [];
-      updatePasadasButtonsState();
-    })
-    .withFailureHandler(function(error) {
-      showMessage(
-        'registroMessage',
-        error.message || 'Error cargando pasadas registradas',
-        'error'
-      );
-    })
-    .getPasadasRegistradas(appState.pin, inscripcionId);
-}
+      google.script.run
+        .withSuccessHandler(function(pasadas) {
+          if (requestId !== appState.pasadasLoadRequestId) {
+            return;
+          }
+
+          appState.pasadasRegistradas = pasadas || [];
+          updatePasadasButtonsState();
+        })
+        .withFailureHandler(function(error) {
+          if (requestId !== appState.pasadasLoadRequestId) {
+            return;
+          }
+
+          showMessage(
+            'registroMessage',
+            error.message || 'Error cargando pasadas registradas',
+            'error'
+          );
+        })
+        .getPasadasRegistradas(appState.pin, inscripcionId);
+    }
 
 function resetPasadasButtons() {
   for (let i = 1; i <= 6; i++) {
