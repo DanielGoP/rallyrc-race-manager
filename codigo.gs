@@ -4,12 +4,12 @@ const SHEET_RESULTADOS = 'Resultados';
 const SHEET_CLASIFICACION = 'Clasificacion';
 
 const PASADAS = [
-  { num: 1, label: 'Ida 1' },
-  { num: 2, label: 'Vuelta 1' },
-  { num: 3, label: 'Ida 2' },
-  { num: 4, label: 'Vuelta 2' },
-  { num: 5, label: 'Ida 3' },
-  { num: 6, label: 'Vuelta 3' }
+  { id: 'P1', num: 1, label: 'Ida 1', tipo: 'ida', orden: 1 },
+  { id: 'P2', num: 2, label: 'Vuelta 1', tipo: 'vuelta', orden: 2 },
+  { id: 'P3', num: 3, label: 'Ida 2', tipo: 'ida', orden: 3 },
+  { id: 'P4', num: 4, label: 'Vuelta 2', tipo: 'vuelta', orden: 4 },
+  { id: 'P5', num: 5, label: 'Ida 3', tipo: 'ida', orden: 5 },
+  { id: 'P6', num: 6, label: 'Vuelta 3', tipo: 'vuelta', orden: 6 }
 ];
 
 function doGet() {
@@ -901,4 +901,221 @@ function getPasadasRegistradas(pin, inscripcionId) {
   }
 
   return [...new Set(pasadas)].sort((a, b) => a - b);
+}
+function getDashboardPilotos(pin, categoria) {
+  if (!validatePin_(pin)) {
+    throw new Error('PIN incorrecto');
+  }
+
+  const cleanCategoria = String(categoria || '').trim();
+
+  const inscripciones = getInscripciones_()
+    .filter(item => !cleanCategoria || item.categoria === cleanCategoria);
+
+  const pilotos = [...new Set(inscripciones.map(item => item.piloto))]
+    .filter(Boolean)
+    .sort();
+
+  return pilotos;
+}
+function getDashboardData(pin) {
+  if (!validatePin_(pin)) {
+    throw new Error('PIN incorrecto');
+  }
+
+  const carreraActiva = getConfigValue_('CARRERA_ACTIVA') || 'Rally RC';
+  const rows = buildDashboardConstancia_();
+
+  const categorias = [...new Set(rows.map(row => row.categoria))]
+    .filter(Boolean)
+    .sort();
+
+  const pilotos = [...new Set(rows.map(row => row.piloto))]
+    .filter(Boolean)
+    .sort();
+
+  return {
+    carrera: carreraActiva,
+    updatedAt: Utilities.formatDate(
+      new Date(),
+      Session.getScriptTimeZone(),
+      'yyyy-MM-dd HH:mm:ss'
+    ),
+    categorias: categorias,
+    pilotos: pilotos,
+    pasadas: PASADAS,
+    rows: rows
+  };
+}
+function buildDashboardConstancia_() {
+  const inscripciones = getInscripciones_();
+  const resultados = getResultados_();
+
+  const rows = inscripciones.map(inscripcion => {
+    const pilotoResultados = resultados.filter(r =>
+      r.inscripcionId === inscripcion.inscripcionId
+    );
+
+    const tiempos = {};
+
+    PASADAS.forEach(pasada => {
+      const found = pilotoResultados.find(r => Number(r.pasada) === pasada.num);
+      tiempos[pasada.num] = found ? Number(found.total) : '';
+    });
+
+    const valores = PASADAS
+      .map(p => ({
+        pasada: p.num,
+        label: p.label,
+        tipo: p.tipo,
+        valor: tiempos[p.num] !== '' ? Number(tiempos[p.num]) : ''
+      }))
+      .filter(item => item.valor !== '');
+
+    const completadas = valores.length;
+
+    const metricasTodas = calcularMetricasConstancia_(valores, '');
+    const metricasIdas = calcularMetricasConstancia_(valores, 'ida');
+    const metricasVueltas = calcularMetricasConstancia_(valores, 'vuelta');
+
+    return {
+      categoria: inscripcion.categoria,
+      dorsal: inscripcion.dorsal,
+      piloto: inscripcion.piloto,
+      inscripcionId: inscripcion.inscripcionId,
+
+      ida1: tiempos[1],
+      vuelta1: tiempos[2],
+      ida2: tiempos[3],
+      vuelta2: tiempos[4],
+      ida3: tiempos[5],
+      vuelta3: tiempos[6],
+
+      completadas: completadas,
+      progreso: completadas + '/6',
+
+      mejor: metricasTodas.mejor,
+      peor: metricasTodas.peor,
+      media: metricasTodas.media,
+      diferencia: metricasTodas.diferencia,
+
+      mejorIdas: metricasIdas.mejor,
+      peorIdas: metricasIdas.peor,
+      mediaIdas: metricasIdas.media,
+      diferenciaIdas: metricasIdas.diferencia,
+
+      mejorVueltas: metricasVueltas.mejor,
+      peorVueltas: metricasVueltas.peor,
+      mediaVueltas: metricasVueltas.media,
+      diferenciaVueltas: metricasVueltas.diferencia,
+
+      tiemposPorPasada: buildTiemposPorPasada_(tiempos),
+      progresionAcumulada: buildProgresionAcumulada_(tiempos),
+
+      estado: completadas === 0
+        ? 'Sin resultados'
+        : completadas === 6
+          ? 'Completo'
+          : 'En curso'
+    };
+  });
+
+  rows.sort((a, b) => {
+    if (a.categoria !== b.categoria) {
+      return a.categoria.localeCompare(b.categoria);
+    }
+
+    const dorsalA = Number(a.dorsal);
+    const dorsalB = Number(b.dorsal);
+
+    if (!isNaN(dorsalA) && !isNaN(dorsalB)) {
+      return dorsalA - dorsalB;
+    }
+
+    return String(a.dorsal).localeCompare(String(b.dorsal));
+  });
+
+  return rows;
+}
+function calcularMetricasConstancia_(valores, tipoFilter) {
+  const filtrados = valores.filter(item => {
+    if (!tipoFilter) {
+      return true;
+    }
+
+    return item.tipo === tipoFilter;
+  });
+
+  if (!filtrados.length) {
+    return {
+      mejor: '',
+      peor: '',
+      media: '',
+      diferencia: ''
+    };
+  }
+
+  const numeros = filtrados.map(item => Number(item.valor));
+
+  const mejor = round3_(Math.min.apply(null, numeros));
+  const peor = round3_(Math.max.apply(null, numeros));
+  const media = round3_(
+    numeros.reduce((sum, value) => sum + value, 0) / numeros.length
+  );
+
+  const diferencia = numeros.length >= 2
+    ? round3_(peor - mejor)
+    : '';
+
+  return {
+    mejor: mejor,
+    peor: peor,
+    media: media,
+    diferencia: diferencia
+  };
+}
+
+function buildTiemposPorPasada_(tiempos) {
+  return PASADAS.map(pasada => {
+    const valor = tiempos[pasada.num];
+
+    return {
+      pasada: pasada.num,
+      label: pasada.label,
+      tipo: pasada.tipo,
+      valor: valor !== '' ? Number(valor) : ''
+    };
+  });
+}
+
+function buildProgresionAcumulada_(tiempos) {
+  let acumulado = 0;
+
+  return PASADAS.map(pasada => {
+    const valor = tiempos[pasada.num];
+
+    if (valor === '') {
+      return {
+        pasada: pasada.num,
+        label: pasada.label,
+        tipo: pasada.tipo,
+        valor: ''
+      };
+    }
+
+    acumulado = round3_(acumulado + Number(valor));
+
+    return {
+      pasada: pasada.num,
+      label: pasada.label,
+      tipo: pasada.tipo,
+      valor: acumulado
+    };
+  });
+}
+
+function testDashboardData() {
+  const data = getDashboardData('1234');
+
+  Logger.log(JSON.stringify(data, null, 2));
 }

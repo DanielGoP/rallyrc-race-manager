@@ -248,6 +248,89 @@
       color: white;
       text-decoration: line-through;
     }
+    .dashboard-filters {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.dashboard-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.dashboard-card {
+  background: #f9fafb;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px;
+}
+
+.metric-label {
+  color: var(--muted);
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+.metric-value {
+  font-size: 22px;
+  font-weight: bold;
+}
+
+.chart-card {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px;
+  margin: 12px 0 20px;
+  overflow-x: auto;
+}
+
+#dashboardChart {
+  width: 100%;
+  max-width: 100%;
+  min-height: 360px;
+}
+
+.time-ida {
+  background: #dbeafe;
+  color: #1e3a8a;
+  font-weight: bold;
+}
+
+.time-vuelta {
+  background: #ffedd5;
+  color: #9a3412;
+  font-weight: bold;
+}
+
+.best-dashboard-row {
+  outline: 2px solid #bbf7d0;
+  outline-offset: -2px;
+}
+
+@media (max-width: 900px) {
+  .dashboard-filters {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .dashboard-metrics {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .dashboard-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-metrics {
+    grid-template-columns: 1fr;
+  }
+}
 
     @media (max-width: 520px) {
       .container {
@@ -307,6 +390,7 @@
         <div class="button-row nav-buttons">
           <button id="navRegistro" onclick="showView('registro')">Registrar pasada</button>
           <button id="navClasificacion" class="secondary" onclick="showView('clasificacion')">Clasificación</button>
+          <button id="navDashboard" class="secondary" onclick="showView('dashboard')">Dashboard</button>
           <button id="navAdmin" class="secondary" onclick="showView('admin')">Administración</button>
         </div>
       </div>
@@ -410,6 +494,121 @@
               </tr>
             </thead>
             <tbody id="clasificacionBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card hidden" id="dashboardView">
+        <h2>Dashboard de constancia</h2>
+
+        <p class="muted">
+          Vista de seguimiento para analizar la constancia de los pilotos durante la carrera.
+        </p>
+
+        <div class="dashboard-filters">
+          <div>
+            <label for="dashboardCategoriaSelect">Categoría</label>
+            <select id="dashboardCategoriaSelect" onchange="onDashboardCategoriaChange()">
+              <option value="">Todas</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="dashboardPilotoSelect">Piloto</label>
+            <select id="dashboardPilotoSelect" onchange="renderDashboard()">
+              <option value="">Todos</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="dashboardTipoSelect">Tipo</label>
+            <select id="dashboardTipoSelect" onchange="renderDashboard()">
+              <option value="">Todas</option>
+              <option value="ida">Solo idas</option>
+              <option value="vuelta">Solo vueltas</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="dashboardOrdenSelect">Orden</label>
+            <select id="dashboardOrdenSelect" onchange="renderDashboard()">
+              <option value="constancia">Constancia</option>
+              <option value="media">Media</option>
+              <option value="mejor">Mejor tiempo</option>
+              <option value="progreso">Pasadas completadas</option>
+              <option value="dorsal">Dorsal</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="button-row">
+          <button class="secondary" onclick="loadDashboard()">Actualizar dashboard</button>
+        </div>
+
+        <div id="dashboardMessage" class="message"></div>
+
+        <div class="dashboard-metrics">
+          <div class="dashboard-card">
+            <div class="metric-label">Pilotos visibles</div>
+            <div class="metric-value" id="metricPilotos">-</div>
+          </div>
+
+          <div class="dashboard-card">
+            <div class="metric-label">Más constante</div>
+            <div class="metric-value" id="metricConstante">-</div>
+            <div class="muted" id="metricConstanteDetail"></div>
+          </div>
+
+          <div class="dashboard-card">
+            <div class="metric-label">Mejor tiempo</div>
+            <div class="metric-value" id="metricMejorTiempo">-</div>
+            <div class="muted" id="metricMejorTiempoDetail"></div>
+          </div>
+
+          <div class="dashboard-card">
+            <div class="metric-label">Mejor media</div>
+            <div class="metric-value" id="metricMedia">-</div>
+            <div class="muted" id="metricMediaDetail"></div>
+          </div>
+        </div>
+
+        <h3>Evolución de tiempos por pasada</h3>
+
+        <p class="muted">
+          La gráfica muestra tiempos individuales, no acumulados. Cuanto más bajo, mejor.
+        </p>
+
+        <div class="chart-card">
+          <canvas id="dashboardChart" width="1000" height="420"></canvas>
+        </div>
+
+        <h3>Tabla de constancia</h3>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Cat.</th>
+                <th>Dorsal</th>
+                <th>Piloto</th>
+                <th>Progreso</th>
+                <th>Ida 1</th>
+                <th>Vuelta 1</th>
+                <th>Ida 2</th>
+                <th>Vuelta 2</th>
+                <th>Ida 3</th>
+                <th>Vuelta 3</th>
+                <th>Mejor</th>
+                <th>Peor</th>
+                <th>Media</th>
+                <th>Constancia</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody id="dashboardBody">
+              <tr>
+                <td colspan="15">Sin datos cargados</td>
+              </tr>
+            </tbody>
           </table>
         </div>
       </div>
@@ -521,16 +720,21 @@
 
   <script>
     let appState = {
-      pin: '',
-      juez: '',
-      selectedPasada: null,
-      categorias: [],
-      clasificacionTimeFormat: 'seconds',
-      lastClasificacionRows: [],
-      pasadasRegistradas: [],
-      pilotosLoadRequestId: 0,
-      pasadasLoadRequestId: 0
-    };
+    pin: '',
+    juez: '',
+    selectedPasada: null,
+    categorias: [],
+    clasificacionTimeFormat: 'seconds',
+    lastClasificacionRows: [],
+    pasadasRegistradas: [],
+    pilotosLoadRequestId: 0,
+    pasadasLoadRequestId: 0,
+    dashboardRows: [],
+    dashboardCategorias: [],
+    dashboardPilotos: [],
+    dashboardPasadas: [],
+    dashboardInterval: null
+  };
 
     function login() {
       const pin = document.getElementById('pinInput').value.trim();
@@ -605,12 +809,17 @@
       const registroSelect = document.getElementById('categoriaSelect');
       const clasificacionSelect = document.getElementById('categoriaClasificacionSelect');
       const correccionSelect = document.getElementById('correccionCategoriaSelect');
+      const dashboardSelect = document.getElementById('dashboardCategoriaSelect');
 
       registroSelect.innerHTML = '<option value="">Selecciona categoría</option>';
       clasificacionSelect.innerHTML = '<option value="">Todas</option>';
 
       if (correccionSelect) {
         correccionSelect.innerHTML = '<option value="">Selecciona categoría</option>';
+      }
+
+      if (dashboardSelect) {
+        dashboardSelect.innerHTML = '<option value="">Todas</option>';
       }
 
       categorias.forEach(function(categoria) {
@@ -629,6 +838,13 @@
           option3.value = categoria;
           option3.textContent = categoria;
           correccionSelect.appendChild(option3);
+        }
+
+        if (dashboardSelect) {
+          const option4 = document.createElement('option');
+          option4.value = categoria;
+          option4.textContent = categoria;
+          dashboardSelect.appendChild(option4);
         }
       });
     }
@@ -921,14 +1137,636 @@ function updatePasadasButtonsState() {
       resetPasadasButtons();
     }
 
+    function startDashboardAutoRefresh() {
+      stopDashboardAutoRefresh();
+
+      appState.dashboardInterval = setInterval(function() {
+        const dashboardView = document.getElementById('dashboardView');
+
+        if (!dashboardView) {
+          return;
+        }
+
+        const dashboardVisible = !dashboardView.classList.contains('hidden');
+
+        if (dashboardVisible) {
+          loadDashboard();
+        }
+      }, 20000);
+    }
+
+    function stopDashboardAutoRefresh() {
+      if (appState.dashboardInterval) {
+        clearInterval(appState.dashboardInterval);
+        appState.dashboardInterval = null;
+      }
+    }
+function loadDashboard() {
+  showMessage('dashboardMessage', 'Cargando dashboard...', 'warning');
+
+  google.script.run
+    .withSuccessHandler(function(data) {
+      appState.dashboardRows = data.rows || [];
+      appState.dashboardCategorias = data.categorias || [];
+      appState.dashboardPilotos = data.pilotos || [];
+      appState.dashboardPasadas = data.pasadas || [];
+
+      fillDashboardFilters();
+      renderDashboard();
+
+      showMessage(
+        'dashboardMessage',
+        'Dashboard actualizado: ' + safe(data.updatedAt || ''),
+        'success'
+      );
+    })
+    .withFailureHandler(function(error) {
+      showMessage(
+        'dashboardMessage',
+        error.message || 'Error cargando dashboard',
+        'error'
+      );
+    })
+    .getDashboardData(appState.pin);
+}
+
+function fillDashboardFilters() {
+  const categoriaSelect = document.getElementById('dashboardCategoriaSelect');
+  const pilotoSelect = document.getElementById('dashboardPilotoSelect');
+
+  const selectedCategoria = categoriaSelect.value;
+  const selectedPiloto = pilotoSelect.value;
+
+  categoriaSelect.innerHTML = '<option value="">Todas</option>';
+
+  appState.dashboardCategorias.forEach(function(categoria) {
+    const option = document.createElement('option');
+    option.value = categoria;
+    option.textContent = categoria;
+    categoriaSelect.appendChild(option);
+  });
+
+  categoriaSelect.value = selectedCategoria;
+
+  fillDashboardPilotos(selectedCategoria, selectedPiloto);
+}
+
+function fillDashboardPilotos(categoria, selectedPiloto) {
+  const pilotoSelect = document.getElementById('dashboardPilotoSelect');
+
+  pilotoSelect.innerHTML = '<option value="">Todos</option>';
+
+  let rows = appState.dashboardRows.slice();
+
+  if (categoria) {
+    rows = rows.filter(row => row.categoria === categoria);
+  }
+
+  const pilotos = [...new Set(rows.map(row => row.piloto))]
+    .filter(Boolean)
+    .sort();
+
+  pilotos.forEach(function(piloto) {
+    const option = document.createElement('option');
+    option.value = piloto;
+    option.textContent = piloto;
+    pilotoSelect.appendChild(option);
+  });
+
+  if (selectedPiloto && pilotos.includes(selectedPiloto)) {
+    pilotoSelect.value = selectedPiloto;
+  } else {
+    pilotoSelect.value = '';
+  }
+}
+
+function onDashboardCategoriaChange() {
+  const categoria = document.getElementById('dashboardCategoriaSelect').value;
+  fillDashboardPilotos(categoria, '');
+  renderDashboard();
+}
+
+function renderDashboard() {
+  const categoria = document.getElementById('dashboardCategoriaSelect').value;
+  const piloto = document.getElementById('dashboardPilotoSelect').value;
+  const tipo = document.getElementById('dashboardTipoSelect').value;
+  const orden = document.getElementById('dashboardOrdenSelect').value;
+
+  let rows = appState.dashboardRows.slice();
+
+  if (categoria) {
+    rows = rows.filter(row => row.categoria === categoria);
+  }
+
+  if (piloto) {
+    rows = rows.filter(row => row.piloto === piloto);
+  }
+
+  rows = sortDashboardRows(rows, orden, tipo);
+
+  renderDashboardMetrics(rows, tipo);
+  drawDashboardChart(rows, tipo);
+  renderDashboardTable(rows, tipo);
+}
+
+function sortDashboardRows(rows, orden, tipo) {
+  return rows.sort(function(a, b) {
+    if (orden === 'constancia') {
+      return compareDashboardNumberWithEmpty(
+        getDashboardMetric(a, 'diferencia', tipo),
+        getDashboardMetric(b, 'diferencia', tipo)
+      );
+    }
+
+    if (orden === 'media') {
+      return compareDashboardNumberWithEmpty(
+        getDashboardMetric(a, 'media', tipo),
+        getDashboardMetric(b, 'media', tipo)
+      );
+    }
+
+    if (orden === 'mejor') {
+      return compareDashboardNumberWithEmpty(
+        getDashboardMetric(a, 'mejor', tipo),
+        getDashboardMetric(b, 'mejor', tipo)
+      );
+    }
+
+    if (orden === 'progreso') {
+      if (Number(a.completadas) !== Number(b.completadas)) {
+        return Number(b.completadas) - Number(a.completadas);
+      }
+
+      return compareDashboardNumberWithEmpty(
+        getDashboardMetric(a, 'media', tipo),
+        getDashboardMetric(b, 'media', tipo)
+      );
+    }
+
+    if (orden === 'dorsal') {
+      return compareDashboardDorsal(a, b);
+    }
+
+    return compareDashboardDorsal(a, b);
+  });
+}
+
+function compareDashboardNumberWithEmpty(a, b) {
+  const aHas = a !== '';
+  const bHas = b !== '';
+
+  if (aHas && !bHas) return -1;
+  if (!aHas && bHas) return 1;
+
+  if (aHas && bHas) {
+    const diff = Number(a) - Number(b);
+
+    if (diff !== 0) {
+      return diff;
+    }
+  }
+
+  return 0;
+}
+
+function compareDashboardDorsal(a, b) {
+  if (a.categoria !== b.categoria) {
+    return String(a.categoria).localeCompare(String(b.categoria));
+  }
+
+  const dorsalA = Number(a.dorsal);
+  const dorsalB = Number(b.dorsal);
+
+  if (!isNaN(dorsalA) && !isNaN(dorsalB)) {
+    return dorsalA - dorsalB;
+  }
+
+  return String(a.dorsal).localeCompare(String(b.dorsal));
+}
+
+function getDashboardMetric(row, metric, tipo) {
+  if (!tipo) {
+    return row[metric];
+  }
+
+  if (tipo === 'ida') {
+    return row[metric + 'Idas'];
+  }
+
+  if (tipo === 'vuelta') {
+    return row[metric + 'Vueltas'];
+  }
+
+  return row[metric];
+}
+
+function renderDashboardMetrics(rows, tipo) {
+  document.getElementById('metricPilotos').textContent = rows.length;
+
+  const rowsConConstancia = rows.filter(row =>
+    getDashboardMetric(row, 'diferencia', tipo) !== ''
+  );
+
+  const masConstante = rowsConConstancia.length
+    ? sortDashboardRows(rowsConConstancia.slice(), 'constancia', tipo)[0]
+    : null;
+
+  if (masConstante) {
+    document.getElementById('metricConstante').textContent =
+      secondsToDisplayTime(getDashboardMetric(masConstante, 'diferencia', tipo));
+
+    document.getElementById('metricConstanteDetail').textContent =
+      masConstante.dorsal + ' - ' + masConstante.piloto + ' - ' + masConstante.categoria;
+  } else {
+    document.getElementById('metricConstante').textContent = '-';
+    document.getElementById('metricConstanteDetail').textContent = '';
+  }
+
+  const rowsConMejor = rows.filter(row =>
+    getDashboardMetric(row, 'mejor', tipo) !== ''
+  );
+
+  const mejorTiempo = rowsConMejor.length
+    ? sortDashboardRows(rowsConMejor.slice(), 'mejor', tipo)[0]
+    : null;
+
+  if (mejorTiempo) {
+    document.getElementById('metricMejorTiempo').textContent =
+      secondsToDisplayTime(getDashboardMetric(mejorTiempo, 'mejor', tipo));
+
+    document.getElementById('metricMejorTiempoDetail').textContent =
+      mejorTiempo.dorsal + ' - ' + mejorTiempo.piloto + ' - ' + mejorTiempo.categoria;
+  } else {
+    document.getElementById('metricMejorTiempo').textContent = '-';
+    document.getElementById('metricMejorTiempoDetail').textContent = '';
+  }
+
+  const rowsConMedia = rows.filter(row =>
+    getDashboardMetric(row, 'media', tipo) !== ''
+  );
+
+  const mejorMedia = rowsConMedia.length
+    ? sortDashboardRows(rowsConMedia.slice(), 'media', tipo)[0]
+    : null;
+
+  if (mejorMedia) {
+    document.getElementById('metricMedia').textContent =
+      secondsToDisplayTime(getDashboardMetric(mejorMedia, 'media', tipo));
+
+    document.getElementById('metricMediaDetail').textContent =
+      mejorMedia.dorsal + ' - ' + mejorMedia.piloto + ' - ' + mejorMedia.categoria;
+  } else {
+    document.getElementById('metricMedia').textContent = '-';
+    document.getElementById('metricMediaDetail').textContent = '';
+  }
+}
+
+function renderDashboardTable(rows, tipo) {
+  const body = document.getElementById('dashboardBody');
+  body.innerHTML = '';
+
+  if (!rows.length) {
+    body.innerHTML = '<tr><td colspan="15">No hay datos para mostrar</td></tr>';
+    return;
+  }
+
+  rows.forEach(function(row, index) {
+    const tr = document.createElement('tr');
+
+    if (index === 0 && getDashboardMetric(row, 'diferencia', tipo) !== '') {
+      tr.classList.add('best-dashboard-row');
+    }
+
+    tr.innerHTML =
+      '<td>' + safe(row.categoria) + '</td>' +
+      '<td>' + safe(row.dorsal) + '</td>' +
+      '<td><strong>' + safe(row.piloto) + '</strong></td>' +
+      '<td><span class="pill">' + safe(row.progreso) + '</span></td>' +
+      renderDashboardTimeCell(row, 'ida1', 'ida', tipo) +
+      renderDashboardTimeCell(row, 'vuelta1', 'vuelta', tipo) +
+      renderDashboardTimeCell(row, 'ida2', 'ida', tipo) +
+      renderDashboardTimeCell(row, 'vuelta2', 'vuelta', tipo) +
+      renderDashboardTimeCell(row, 'ida3', 'ida', tipo) +
+      renderDashboardTimeCell(row, 'vuelta3', 'vuelta', tipo) +
+      '<td>' + safe(secondsToDisplayTime(getDashboardMetric(row, 'mejor', tipo))) + '</td>' +
+      '<td>' + safe(secondsToDisplayTime(getDashboardMetric(row, 'peor', tipo))) + '</td>' +
+      '<td>' + safe(secondsToDisplayTime(getDashboardMetric(row, 'media', tipo))) + '</td>' +
+      '<td><strong>' + safe(secondsToDisplayTime(getDashboardMetric(row, 'diferencia', tipo))) + '</strong></td>' +
+      '<td><span class="pill">' + safe(row.estado) + '</span></td>';
+
+    body.appendChild(tr);
+  });
+}
+
+function renderDashboardTimeCell(row, key, cellTipo, filtroTipo) {
+  if (filtroTipo && cellTipo !== filtroTipo) {
+    return '<td class="muted">-</td>';
+  }
+
+  const value = row[key];
+
+  if (value === '') {
+    return '<td></td>';
+  }
+
+  const className = cellTipo === 'ida' ? 'time-ida' : 'time-vuelta';
+
+  return '<td class="' + className + '">' + safe(secondsToDisplayTime(value)) + '</td>';
+}
+
+function drawDashboardChart(rows, tipo) {
+  const canvas = document.getElementById('dashboardChart');
+
+  if (!canvas) {
+    return;
+  }
+
+  const ctx = canvas.getContext('2d');
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const pasadas = getDashboardPasadasByTipo(tipo);
+  const series = buildDashboardChartSeries(rows, pasadas);
+
+  if (!series.length) {
+    drawChartEmptyMessage(ctx, canvas, 'No hay datos para pintar la gráfica');
+    return;
+  }
+
+  const padding = {
+    top: 30,
+    right: 30,
+    bottom: 85,
+    left: 65
+  };
+
+  const chartWidth = canvas.width - padding.left - padding.right;
+  const chartHeight = canvas.height - padding.top - padding.bottom;
+
+  const allValues = [];
+
+  series.forEach(function(serie) {
+    serie.points.forEach(function(point) {
+      if (point.value !== '') {
+        allValues.push(Number(point.value));
+      }
+    });
+  });
+
+  if (!allValues.length) {
+    drawChartEmptyMessage(ctx, canvas, 'No hay tiempos registrados');
+    return;
+  }
+
+  const minValue = Math.min.apply(null, allValues);
+  const maxValue = Math.max.apply(null, allValues);
+  const margin = Math.max(2, (maxValue - minValue) * 0.15);
+
+  const yMin = Math.max(0, minValue - margin);
+  const yMax = maxValue + margin;
+
+  drawChartGrid(ctx, padding, chartWidth, chartHeight, yMin, yMax);
+  drawChartAxisLabels(ctx, padding, chartWidth, chartHeight, pasadas);
+
+  series.forEach(function(serie, index) {
+    drawChartSerie(ctx, serie, index, padding, chartWidth, chartHeight, yMin, yMax, pasadas.length);
+  });
+
+  drawChartLegend(ctx, series, canvas, padding);
+}
+
+function getDashboardPasadasByTipo(tipo) {
+  let pasadas = appState.dashboardPasadas && appState.dashboardPasadas.length
+    ? appState.dashboardPasadas
+    : [
+        { num: 1, label: 'Ida 1', tipo: 'ida' },
+        { num: 2, label: 'Vuelta 1', tipo: 'vuelta' },
+        { num: 3, label: 'Ida 2', tipo: 'ida' },
+        { num: 4, label: 'Vuelta 2', tipo: 'vuelta' },
+        { num: 5, label: 'Ida 3', tipo: 'ida' },
+        { num: 6, label: 'Vuelta 3', tipo: 'vuelta' }
+      ];
+
+  if (!tipo) {
+    return pasadas;
+  }
+
+  return pasadas.filter(pasada => pasada.tipo === tipo);
+}
+
+function buildDashboardChartSeries(rows, pasadas) {
+  return rows
+    .map(function(row) {
+      const points = pasadas.map(function(pasada) {
+        const found = (row.tiemposPorPasada || []).find(item =>
+          Number(item.pasada) === Number(pasada.num)
+        );
+
+        return {
+          label: pasada.label,
+          value: found ? found.valor : ''
+        };
+      });
+
+      const hasAnyValue = points.some(point => point.value !== '');
+
+      return {
+        label: row.dorsal + ' - ' + row.piloto + ' - ' + row.categoria,
+        points: points,
+        hasAnyValue: hasAnyValue
+      };
+    })
+    .filter(serie => serie.hasAnyValue);
+}
+
+function drawChartEmptyMessage(ctx, canvas, message) {
+  ctx.save();
+  ctx.font = '16px Arial';
+  ctx.fillStyle = '#71717a';
+  ctx.textAlign = 'center';
+  ctx.fillText(message, canvas.width / 2, canvas.height / 2);
+  ctx.restore();
+}
+
+function drawChartGrid(ctx, padding, chartWidth, chartHeight, yMin, yMax) {
+  ctx.save();
+
+  ctx.strokeStyle = '#e5e7eb';
+  ctx.fillStyle = '#71717a';
+  ctx.font = '12px Arial';
+  ctx.textAlign = 'right';
+
+  const lines = 5;
+
+  for (let i = 0; i <= lines; i++) {
+    const ratio = i / lines;
+    const y = padding.top + chartHeight - ratio * chartHeight;
+    const value = yMin + ratio * (yMax - yMin);
+
+    ctx.beginPath();
+    ctx.moveTo(padding.left, y);
+    ctx.lineTo(padding.left + chartWidth, y);
+    ctx.stroke();
+
+    ctx.fillText(secondsToDisplayTime(round3_(value)), padding.left - 8, y + 4);
+  }
+
+  ctx.restore();
+}
+
+function drawChartAxisLabels(ctx, padding, chartWidth, chartHeight, pasadas) {
+  ctx.save();
+
+  ctx.fillStyle = '#111827';
+  ctx.font = '12px Arial';
+  ctx.textAlign = 'center';
+
+  const pointGap = pasadas.length > 1
+    ? chartWidth / (pasadas.length - 1)
+    : chartWidth;
+
+  pasadas.forEach(function(pasada, index) {
+    const x = padding.left + index * pointGap;
+    const y = padding.top + chartHeight + 24;
+
+    ctx.fillText(pasada.label, x, y);
+  });
+
+  ctx.restore();
+}
+
+function drawChartSerie(ctx, serie, index, padding, chartWidth, chartHeight, yMin, yMax, totalPoints) {
+  const colors = [
+    '#2563eb',
+    '#ea580c',
+    '#16a34a',
+    '#9333ea',
+    '#dc2626',
+    '#0891b2',
+    '#ca8a04',
+    '#4f46e5',
+    '#be123c',
+    '#15803d'
+  ];
+
+  const color = colors[index % colors.length];
+
+  const pointGap = totalPoints > 1
+    ? chartWidth / (totalPoints - 1)
+    : chartWidth;
+
+  const drawablePoints = serie.points
+    .map(function(point, pointIndex) {
+      if (point.value === '') {
+        return null;
+      }
+
+      const x = padding.left + pointIndex * pointGap;
+      const yRatio = (Number(point.value) - yMin) / (yMax - yMin);
+      const y = padding.top + chartHeight - yRatio * chartHeight;
+
+      return {
+        x: x,
+        y: y,
+        value: point.value
+      };
+    })
+    .filter(Boolean);
+
+  if (!drawablePoints.length) {
+    return;
+  }
+
+  ctx.save();
+
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = 2;
+
+  ctx.beginPath();
+
+  drawablePoints.forEach(function(point, pointIndex) {
+    if (pointIndex === 0) {
+      ctx.moveTo(point.x, point.y);
+    } else {
+      ctx.lineTo(point.x, point.y);
+    }
+  });
+
+  ctx.stroke();
+
+  drawablePoints.forEach(function(point) {
+    ctx.beginPath();
+    ctx.arc(point.x, point.y, 4, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  ctx.restore();
+}
+
+function drawChartLegend(ctx, series, canvas, padding) {
+  const colors = [
+    '#2563eb',
+    '#ea580c',
+    '#16a34a',
+    '#9333ea',
+    '#dc2626',
+    '#0891b2',
+    '#ca8a04',
+    '#4f46e5',
+    '#be123c',
+    '#15803d'
+  ];
+
+  ctx.save();
+
+  ctx.font = '12px Arial';
+  ctx.textAlign = 'left';
+
+  let x = padding.left;
+  let y = canvas.height - 38;
+
+  series.slice(0, 8).forEach(function(serie, index) {
+    const color = colors[index % colors.length];
+
+    ctx.fillStyle = color;
+    ctx.fillRect(x, y - 9, 10, 10);
+
+    ctx.fillStyle = '#111827';
+    ctx.fillText(serie.label, x + 15, y);
+
+    x += 210;
+
+    if (x > canvas.width - 220) {
+      x = padding.left;
+      y += 18;
+    }
+  });
+
+  if (series.length > 8) {
+    ctx.fillStyle = '#71717a';
+    ctx.fillText('+' + (series.length - 8) + ' pilotos más', x, y);
+  }
+
+  ctx.restore();
+}
+
+function round3_(value) {
+  return Math.round(Number(value) * 1000) / 1000;
+}
+
     function showView(view) {
       document.getElementById('registroView').classList.add('hidden');
       document.getElementById('clasificacionView').classList.add('hidden');
+      document.getElementById('dashboardView').classList.add('hidden');
       document.getElementById('adminView').classList.add('hidden');
 
       document.getElementById('navRegistro').classList.remove('active');
       document.getElementById('navClasificacion').classList.remove('active');
+      document.getElementById('navDashboard').classList.remove('active');
       document.getElementById('navAdmin').classList.remove('active');
+
+      stopDashboardAutoRefresh();
 
       if (view === 'registro') {
         document.getElementById('registroView').classList.remove('hidden');
@@ -939,6 +1777,13 @@ function updatePasadasButtonsState() {
         document.getElementById('clasificacionView').classList.remove('hidden');
         document.getElementById('navClasificacion').classList.add('active');
         loadClasificacion();
+      }
+
+      if (view === 'dashboard') {
+        document.getElementById('dashboardView').classList.remove('hidden');
+        document.getElementById('navDashboard').classList.add('active');
+        loadDashboard();
+        startDashboardAutoRefresh();
       }
 
       if (view === 'admin') {
