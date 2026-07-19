@@ -490,6 +490,7 @@
                 <th>Ida 3</th>
                 <th>Vuelta 3</th>
                 <th>Total</th>
+                <th>Gap</th>
                 <th>Estado</th>
               </tr>
             </thead>
@@ -1876,7 +1877,7 @@ function secondsToDisplayTime(value) {
 
       if (!rows || rows.length === 0) {
         const tr = document.createElement('tr');
-        tr.innerHTML = '<td colspan="11">No hay datos de clasificación</td>';
+        tr.innerHTML = '<td colspan="12">No hay datos de clasificación</td>';
         body.appendChild(tr);
         return;
       }
@@ -1895,6 +1896,7 @@ function secondsToDisplayTime(value) {
           renderTimeCell(row, 'ida3', 'Ida 3') +
           renderTimeCell(row, 'vuelta3', 'Vuelta 3') +
           '<td><strong>' + safe(formatClasificacionTime(row.total)) + '</strong></td>' +
+          '<td>' + safe(formatClasificacionTime(row.gap)) + '</td>' +
           '<td><span class="pill">' + safe(row.estado) + '</span></td>';
 
         body.appendChild(tr);

@@ -395,9 +395,9 @@ function refreshClasificacion_() {
       'vuelta2',
       'ida3',
       'vuelta3',
-      'descartada',
       'penalizaciones',
       'total',
+      'gap',
       'estado'
     ]
   ];
@@ -415,6 +415,7 @@ function refreshClasificacion_() {
     item.descartada,
     item.penalizaciones,
     item.total,
+    item.gap,
     item.estado
   ]);
 
@@ -499,47 +500,71 @@ function buildClasificacion_(categoriaFilter) {
       descartada,
       penalizaciones: round3_(penalizaciones),
       total,
+      gap: '',
+      completadas: completedCount,
       estado
     };
   });
 
-    rows.sort((a, b) => {
-      const aHasTotal = a.total !== '';
-      const bHasTotal = b.total !== '';
+  rows.sort((a, b) => {
+    const aHasTotal = a.total !== '';
+    const bHasTotal = b.total !== '';
 
-      // Los pilotos con algún tiempo registrado van arriba
-      if (aHasTotal && !bHasTotal) {
-        return -1;
+    if (aHasTotal && !bHasTotal) {
+      return -1;
+    }
+
+    if (!aHasTotal && bHasTotal) {
+      return 1;
+    }
+
+    if (aHasTotal && bHasTotal) {
+      const totalDiff = Number(a.total) - Number(b.total);
+
+      if (totalDiff !== 0) {
+        return totalDiff;
       }
+    }
 
-      if (!aHasTotal && bHasTotal) {
-        return 1;
-      }
+    if (a.categoria !== b.categoria) {
+      return a.categoria.localeCompare(b.categoria);
+    }
 
-      // Si ambos tienen total, ordenar siempre por mejor tiempo acumulado
-      if (aHasTotal && bHasTotal) {
-        const totalDiff = Number(a.total) - Number(b.total);
+    const dorsalA = Number(a.dorsal);
+    const dorsalB = Number(b.dorsal);
 
-        if (totalDiff !== 0) {
-          return totalDiff;
-        }
-      }
+    if (!isNaN(dorsalA) && !isNaN(dorsalB)) {
+      return dorsalA - dorsalB;
+    }
 
-      // En empate o sin tiempos, ordenar por categoría
-      if (a.categoria !== b.categoria) {
-        return a.categoria.localeCompare(b.categoria);
-      }
+    return String(a.dorsal).localeCompare(String(b.dorsal));
+  });
 
-      // Después por dorsal
-      const dorsalA = Number(a.dorsal);
-      const dorsalB = Number(b.dorsal);
+  rows.forEach(function(row, index) {
+    if (row.total === '') {
+      row.gap = '';
+      return;
+    }
 
-      if (!isNaN(dorsalA) && !isNaN(dorsalB)) {
-        return dorsalA - dorsalB;
-      }
+    if (index === 0) {
+      row.gap = '-';
+      return;
+    }
 
-      return String(a.dorsal).localeCompare(String(b.dorsal));
-    });
+    const previousRow = rows[index - 1];
+
+    const sameCompletedCount =
+      previousRow &&
+      previousRow.total !== '' &&
+      Number(previousRow.completadas) === Number(row.completadas);
+
+    if (!sameCompletedCount) {
+      row.gap = '-';
+      return;
+    }
+
+    row.gap = round3_(Number(row.total) - Number(previousRow.total));
+  });
 
   return rows;
 }
