@@ -354,6 +354,81 @@
         grid-template-columns: 1fr;
       }
     }
+
+    .admin-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0;
+}
+
+.admin-tabs button {
+  background: #e5e7eb;
+  color: #111827;
+}
+
+.admin-tabs button.active {
+  background: var(--primary);
+  color: var(--primaryText);
+}
+
+.admin-section {
+  margin-top: 16px;
+}
+
+.admin-form-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  align-items: end;
+  margin: 12px 0 16px;
+}
+
+.admin-form-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  align-items: end;
+  margin: 12px 0 16px;
+}
+
+.admin-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.admin-actions button {
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+.status-si {
+  color: #166534;
+  font-weight: bold;
+}
+
+.status-no {
+  color: #991b1b;
+  font-weight: bold;
+}
+
+@media (max-width: 900px) {
+  .admin-form-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .admin-form-grid-3 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .admin-form-grid,
+  .admin-form-grid-3 {
+    grid-template-columns: 1fr;
+  }
+}
   </style>
 </head>
 
@@ -714,6 +789,266 @@
             </div>
           </div>
         </div>
+        <hr>
+
+        <h3>Gestión de datos maestros</h3>
+
+        <p class="muted">
+          Desde aquí puedes gestionar la base de datos de pilotos y categorías disponibles para las carreras.
+        </p>
+
+        <div class="admin-tabs">
+          <button type="button" id="adminTabPilotos" onclick="showAdminCatalogSection('pilotos')">
+            Pilotos
+          </button>
+          <button type="button" id="adminTabCategorias" onclick="showAdminCatalogSection('categorias')">
+            Categorías
+          </button>
+          <button type="button" id="adminTabInscripciones" onclick="showAdminCatalogSection('inscripciones')">
+            Inscripciones
+          </button>
+        </div>
+
+        <div id="adminCatalogMessage" class="message"></div>
+
+        <div class="admin-section hidden" id="adminPilotosSection">
+          <h3>Pilotos</h3>
+
+          <div class="admin-form-grid">
+            <div>
+              <label for="adminPilotoNombreInput">Nombre</label>
+              <input id="adminPilotoNombreInput" type="text" placeholder="Nombre del piloto">
+            </div>
+
+            <div>
+              <label for="adminPilotoAliasInput">Alias</label>
+              <input id="adminPilotoAliasInput" type="text" placeholder="Opcional">
+            </div>
+
+            <div>
+              <label for="adminPilotoActivoSelect">Activo</label>
+              <select id="adminPilotoActivoSelect">
+                <option value="SI">Sí</option>
+                <option value="NO">No</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="adminPilotoNotasInput">Notas</label>
+              <input id="adminPilotoNotasInput" type="text" placeholder="Opcional">
+            </div>
+          </div>
+
+          <input id="adminPilotoIdInput" type="hidden">
+
+          <div class="button-row">
+            <button type="button" onclick="guardarPilotoAdmin()">
+              Guardar piloto
+            </button>
+            <button type="button" class="secondary" onclick="limpiarFormularioPilotoAdmin()">
+              Limpiar
+            </button>
+            <button type="button" class="secondary" onclick="loadAdminCatalogos()">
+              Actualizar listado
+            </button>
+          </div>
+
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Nombre</th>
+                  <th>Alias</th>
+                  <th>Activo</th>
+                  <th>Notas</th>
+                  <th>Actualizado</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="adminPilotosBody">
+                <tr>
+                  <td colspan="7">Sin datos cargados</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="admin-section hidden" id="adminCategoriasSection">
+          <h3>Categorías</h3>
+
+          <div class="admin-form-grid">
+            <div>
+              <label for="adminCategoriaNombreInput">Nombre</label>
+              <input id="adminCategoriaNombreInput" type="text" placeholder="Nombre de categoría">
+            </div>
+
+            <div>
+              <label for="adminCategoriaActivaSelect">Activa</label>
+              <select id="adminCategoriaActivaSelect">
+                <option value="SI">Sí</option>
+                <option value="NO">No</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="adminCategoriaOrdenInput">Orden</label>
+              <input id="adminCategoriaOrdenInput" type="number" min="1" placeholder="Orden">
+            </div>
+
+            <div>
+              <label for="adminCategoriaNotasInput">Notas</label>
+              <input id="adminCategoriaNotasInput" type="text" placeholder="Opcional">
+            </div>
+          </div>
+
+          <input id="adminCategoriaIdInput" type="hidden">
+
+          <div class="button-row">
+            <button type="button" onclick="guardarCategoriaAdmin()">
+              Guardar categoría
+            </button>
+            <button type="button" class="secondary" onclick="limpiarFormularioCategoriaAdmin()">
+              Limpiar
+            </button>
+            <button type="button" class="secondary" onclick="loadAdminCatalogos()">
+              Actualizar listado
+            </button>
+          </div>
+
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Nombre</th>
+                  <th>Activa</th>
+                  <th>Orden</th>
+                  <th>Notas</th>
+                  <th>Actualizado</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="adminCategoriasBody">
+                <tr>
+                  <td colspan="7">Sin datos cargados</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="admin-section hidden" id="adminInscripcionesSection">
+          <h3>Inscripciones de la carrera actual</h3>
+
+          <p class="muted">
+            Desde aquí puedes decidir qué pilotos corren en la carrera actual y en qué categoría.
+          </p>
+
+          <h4>Añadir o editar inscripción</h4>
+
+          <div class="admin-form-grid-3">
+            <div>
+              <label for="adminInscripcionPilotoSelect">Piloto</label>
+              <select id="adminInscripcionPilotoSelect">
+                <option value="">Selecciona piloto</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="adminInscripcionCategoriaSelect">Categoría</label>
+              <select id="adminInscripcionCategoriaSelect">
+                <option value="">Selecciona categoría</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="adminInscripcionDorsalInput">Dorsal</label>
+              <input id="adminInscripcionDorsalInput" type="text" placeholder="Ej: 001">
+            </div>
+          </div>
+
+          <input id="adminInscripcionIdInput" type="hidden">
+
+          <div class="button-row">
+            <button type="button" onclick="guardarInscripcionAdminDesdeApp()">
+              Guardar inscripción
+            </button>
+            <button type="button" class="secondary" onclick="limpiarFormularioInscripcionAdmin()">
+              Limpiar
+            </button>
+            <button type="button" class="secondary" onclick="loadAdminCatalogos()">
+              Actualizar listado
+            </button>
+          </div>
+
+          <hr style="margin: 24px 0; border: 0; border-top: 1px solid var(--border);">
+
+          <h4>Crear piloto nuevo e inscribir</h4>
+
+          <p class="muted">
+            Usa este bloque cuando el piloto todavía no exista en la base de datos.
+          </p>
+
+          <div class="admin-form-grid">
+            <div>
+              <label for="adminNuevoPilotoNombreInput">Nombre</label>
+              <input id="adminNuevoPilotoNombreInput" type="text" placeholder="Nombre del piloto">
+            </div>
+
+            <div>
+              <label for="adminNuevoPilotoAliasInput">Alias</label>
+              <input id="adminNuevoPilotoAliasInput" type="text" placeholder="Opcional">
+            </div>
+
+            <div>
+              <label for="adminNuevoPilotoCategoriaSelect">Categoría</label>
+              <select id="adminNuevoPilotoCategoriaSelect">
+                <option value="">Selecciona categoría</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="adminNuevoPilotoDorsalInput">Dorsal</label>
+              <input id="adminNuevoPilotoDorsalInput" type="text" placeholder="Ej: 001">
+            </div>
+          </div>
+
+          <label for="adminNuevoPilotoNotasInput">Notas</label>
+          <input id="adminNuevoPilotoNotasInput" type="text" placeholder="Opcional">
+
+          <div class="button-row">
+            <button type="button" class="success" onclick="crearPilotoEInscribirAdminDesdeApp()">
+              Crear piloto nuevo e inscribir
+            </button>
+            <button type="button" class="secondary" onclick="limpiarFormularioNuevoPilotoInscripcionAdmin()">
+              Limpiar nuevo piloto
+            </button>
+          </div>
+
+          <hr style="margin: 24px 0; border: 0; border-top: 1px solid var(--border);">
+
+          <h4>Inscritos actuales</h4>
+
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Dorsal</th>
+                  <th>Piloto</th>
+                  <th>Categoría</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="adminInscripcionesBody">
+                <tr>
+                  <td colspan="5">Sin datos cargados</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -734,7 +1069,12 @@
     dashboardCategorias: [],
     dashboardPilotos: [],
     dashboardPasadas: [],
-    dashboardInterval: null
+    dashboardInterval: null,
+    adminCatalogosLoaded: false,
+    adminPin: '',
+    adminPilotos: [],
+    adminCategorias: [],
+    adminInscripciones: []
   };
 
     function login() {
@@ -785,7 +1125,12 @@
         lastClasificacionRows: [],
         pasadasRegistradas: [],
         pilotosLoadRequestId: 0,
-        pasadasLoadRequestId: 0
+        pasadasLoadRequestId: 0,
+        adminCatalogosLoaded: false,
+        adminPin: '',
+        adminPilotos: [],
+        adminCategorias: [],
+        adminInscripciones: []
       };
 
       document.getElementById('pinInput').value = '';
@@ -1788,8 +2133,12 @@ function round3_(value) {
       }
 
       if (view === 'admin') {
-        document.getElementById('adminView').classList.remove('hidden');
-        document.getElementById('navAdmin').classList.add('active');
+      document.getElementById('adminView').classList.remove('hidden');
+      document.getElementById('navAdmin').classList.add('active');
+
+        if (document.getElementById('adminPilotosSection')) {
+          showAdminCatalogSection('pilotos');
+        }
       }
     }
 
@@ -1922,6 +2271,10 @@ function secondsToDisplayTime(value) {
 
           showMessage('adminLoginMessage', 'Acceso de administración correcto', 'success');
           document.getElementById('adminPanel').classList.remove('hidden');
+
+          appState.adminPin = adminPin;
+          appState.adminCatalogosLoaded = false;
+          loadAdminCatalogos();
         })
         .withFailureHandler(function(error) {
           document.getElementById('adminPanel').classList.add('hidden');
@@ -2167,6 +2520,725 @@ function secondsToDisplayTime(value) {
         .replaceAll('"', '&quot;')
         .replaceAll("'", '&#039;');
     }
+
+    function getAdminPinValue() {
+      const possibleIds = [
+        'adminPinInput',
+        'adminPasswordInput',
+        'adminLoginPinInput'
+      ];
+
+      for (let i = 0; i < possibleIds.length; i++) {
+        const el = document.getElementById(possibleIds[i]);
+
+        if (el && el.value) {
+          return el.value;
+        }
+      }
+
+      return appState.adminPin || '';
+    }
+    function showAdminCatalogSection(section) {
+      document.getElementById('adminPilotosSection').classList.add('hidden');
+      document.getElementById('adminCategoriasSection').classList.add('hidden');
+      document.getElementById('adminInscripcionesSection').classList.add('hidden');
+
+      document.getElementById('adminTabPilotos').classList.remove('active');
+      document.getElementById('adminTabCategorias').classList.remove('active');
+      document.getElementById('adminTabInscripciones').classList.remove('active');
+
+      if (section === 'pilotos') {
+        document.getElementById('adminPilotosSection').classList.remove('hidden');
+        document.getElementById('adminTabPilotos').classList.add('active');
+      }
+
+      if (section === 'categorias') {
+        document.getElementById('adminCategoriasSection').classList.remove('hidden');
+        document.getElementById('adminTabCategorias').classList.add('active');
+      }
+
+      if (section === 'inscripciones') {
+        document.getElementById('adminInscripcionesSection').classList.remove('hidden');
+        document.getElementById('adminTabInscripciones').classList.add('active');
+      }
+
+      if (!appState.adminCatalogosLoaded) {
+        loadAdminCatalogos();
+      }
+    }
+    function loadAdminCatalogos() {
+    const adminPin = getAdminPinValue();
+
+    if (!adminPin) {
+      showMessage('adminCatalogMessage', 'Introduce el PIN de administración', 'error');
+      return;
+    }
+
+    showMessage('adminCatalogMessage', 'Cargando datos maestros...', 'warning');
+
+    google.script.run
+      .withSuccessHandler(function(data) {
+        appState.adminPilotos = data.pilotos || [];
+        appState.adminCategorias = data.categorias || [];
+        appState.adminInscripciones = data.inscripciones || [];
+        appState.adminCatalogosLoaded = true;
+
+        renderAdminPilotos();
+        renderAdminCategorias();
+        fillAdminInscripcionSelects();
+        renderAdminInscripciones();
+
+        showMessage('adminCatalogMessage', 'Datos maestros actualizados', 'success');
+      })
+      .withFailureHandler(function(error) {
+        showMessage(
+          'adminCatalogMessage',
+          error.message || 'Error cargando datos maestros',
+          'error'
+        );
+      })
+      .getAdminCatalogosData(appState.pin, adminPin);
+  }
+function renderAdminPilotos() {
+  const body = document.getElementById('adminPilotosBody');
+  body.innerHTML = '';
+
+  if (!appState.adminPilotos.length) {
+    body.innerHTML = '<tr><td colspan="7">No hay pilotos en la base de datos</td></tr>';
+    return;
+  }
+
+  appState.adminPilotos.forEach(function(piloto) {
+    const tr = document.createElement('tr');
+
+    appendAdminCell_(tr, piloto.pilotoId);
+    appendAdminCell_(tr, piloto.nombre, '', true);
+    appendAdminCell_(tr, piloto.alias);
+
+    const activoClass = piloto.activo === 'SI' ? 'status-si' : 'status-no';
+    appendAdminCell_(tr, piloto.activo, activoClass);
+
+    appendAdminCell_(tr, piloto.notas);
+    appendAdminCell_(tr, piloto.updatedAt);
+
+    const actionsTd = document.createElement('td');
+    const actionsDiv = document.createElement('div');
+    actionsDiv.className = 'admin-actions';
+
+    const editButton = document.createElement('button');
+    editButton.type = 'button';
+    editButton.className = 'secondary';
+    editButton.textContent = 'Editar';
+    editButton.addEventListener('click', function() {
+      editarPilotoFormulario(piloto.pilotoId);
+    });
+
+    const toggleButton = document.createElement('button');
+    toggleButton.type = 'button';
+    toggleButton.className = 'secondary';
+    toggleButton.textContent = piloto.activo === 'SI' ? 'Desactivar' : 'Activar';
+    toggleButton.addEventListener('click', function() {
+      togglePilotoActivoAdmin(piloto.pilotoId);
+    });
+
+    actionsDiv.appendChild(editButton);
+    actionsDiv.appendChild(toggleButton);
+    actionsTd.appendChild(actionsDiv);
+    tr.appendChild(actionsTd);
+
+    body.appendChild(tr);
+  });
+}
+function renderAdminCategorias() {
+  const body = document.getElementById('adminCategoriasBody');
+  body.innerHTML = '';
+
+  if (!appState.adminCategorias.length) {
+    body.innerHTML = '<tr><td colspan="7">No hay categorías en la base de datos</td></tr>';
+    return;
+  }
+
+  appState.adminCategorias.forEach(function(categoria) {
+    const tr = document.createElement('tr');
+
+    appendAdminCell_(tr, categoria.categoriaId);
+    appendAdminCell_(tr, categoria.nombre, '', true);
+
+    const activaClass = categoria.activa === 'SI' ? 'status-si' : 'status-no';
+    appendAdminCell_(tr, categoria.activa, activaClass);
+
+    appendAdminCell_(tr, categoria.orden);
+    appendAdminCell_(tr, categoria.notas);
+    appendAdminCell_(tr, categoria.updatedAt);
+
+    const actionsTd = document.createElement('td');
+    const actionsDiv = document.createElement('div');
+    actionsDiv.className = 'admin-actions';
+
+    const editButton = document.createElement('button');
+    editButton.type = 'button';
+    editButton.className = 'secondary';
+    editButton.textContent = 'Editar';
+    editButton.addEventListener('click', function() {
+      editarCategoriaFormulario(categoria.categoriaId);
+    });
+
+    const toggleButton = document.createElement('button');
+    toggleButton.type = 'button';
+    toggleButton.className = 'secondary';
+    toggleButton.textContent = categoria.activa === 'SI' ? 'Desactivar' : 'Activar';
+    toggleButton.addEventListener('click', function() {
+      toggleCategoriaActivaAdmin(categoria.categoriaId);
+    });
+
+    actionsDiv.appendChild(editButton);
+    actionsDiv.appendChild(toggleButton);
+    actionsTd.appendChild(actionsDiv);
+    tr.appendChild(actionsTd);
+
+    body.appendChild(tr);
+  });
+}
+function appendAdminCell_(tr, value, className, bold) {
+  const td = document.createElement('td');
+
+  if (className) {
+    td.className = className;
+  }
+
+  if (bold) {
+    const strong = document.createElement('strong');
+    strong.textContent = value || '';
+    td.appendChild(strong);
+  } else {
+    td.textContent = value || '';
+  }
+
+  tr.appendChild(td);
+}
+  function editarPilotoFormulario(pilotoId) {
+    const piloto = appState.adminPilotos.find(function(item) {
+      return item.pilotoId === pilotoId;
+    });
+
+    if (!piloto) {
+      showMessage('adminCatalogMessage', 'No se ha encontrado el piloto', 'error');
+      return;
+    }
+
+    document.getElementById('adminPilotoIdInput').value = piloto.pilotoId;
+    document.getElementById('adminPilotoNombreInput').value = piloto.nombre;
+    document.getElementById('adminPilotoAliasInput').value = piloto.alias || '';
+    document.getElementById('adminPilotoActivoSelect').value = piloto.activo || 'SI';
+    document.getElementById('adminPilotoNotasInput').value = piloto.notas || '';
+
+    showMessage('adminCatalogMessage', 'Editando piloto ' + safe(piloto.nombre), 'warning');
+  }
+
+  function limpiarFormularioPilotoAdmin() {
+    document.getElementById('adminPilotoIdInput').value = '';
+    document.getElementById('adminPilotoNombreInput').value = '';
+    document.getElementById('adminPilotoAliasInput').value = '';
+    document.getElementById('adminPilotoActivoSelect').value = 'SI';
+    document.getElementById('adminPilotoNotasInput').value = '';
+  }
+
+  function editarCategoriaFormulario(categoriaId) {
+    const categoria = appState.adminCategorias.find(function(item) {
+      return item.categoriaId === categoriaId;
+    });
+
+    if (!categoria) {
+      showMessage('adminCatalogMessage', 'No se ha encontrado la categoría', 'error');
+      return;
+    }
+
+    document.getElementById('adminCategoriaIdInput').value = categoria.categoriaId;
+    document.getElementById('adminCategoriaNombreInput').value = categoria.nombre;
+    document.getElementById('adminCategoriaActivaSelect').value = categoria.activa || 'SI';
+    document.getElementById('adminCategoriaOrdenInput').value = categoria.orden || '';
+    document.getElementById('adminCategoriaNotasInput').value = categoria.notas || '';
+
+    showMessage('adminCatalogMessage', 'Editando categoría ' + safe(categoria.nombre), 'warning');
+  }
+
+  function limpiarFormularioCategoriaAdmin() {
+    document.getElementById('adminCategoriaIdInput').value = '';
+    document.getElementById('adminCategoriaNombreInput').value = '';
+    document.getElementById('adminCategoriaActivaSelect').value = 'SI';
+    document.getElementById('adminCategoriaOrdenInput').value = '';
+    document.getElementById('adminCategoriaNotasInput').value = '';
+  }
+  function guardarPilotoAdmin() {
+    const adminPin = getAdminPinValue();
+
+    const pilotoId = document.getElementById('adminPilotoIdInput').value.trim();
+    const nombre = document.getElementById('adminPilotoNombreInput').value.trim();
+    const alias = document.getElementById('adminPilotoAliasInput').value.trim();
+    const activo = document.getElementById('adminPilotoActivoSelect').value;
+    const notas = document.getElementById('adminPilotoNotasInput').value.trim();
+
+    if (!adminPin) {
+      showMessage('adminCatalogMessage', 'Introduce el PIN de administración', 'error');
+      return;
+    }
+
+    if (!nombre) {
+      showMessage('adminCatalogMessage', 'El nombre del piloto es obligatorio', 'error');
+      return;
+    }
+
+    const payload = {
+      pilotoId: pilotoId,
+      nombre: nombre,
+      alias: alias,
+      activo: activo,
+      notas: notas
+    };
+
+    showMessage('adminCatalogMessage', 'Guardando piloto...', 'warning');
+
+    const runner = google.script.run
+      .withSuccessHandler(function(response) {
+        showMessage('adminCatalogMessage', response.message || 'Piloto guardado', 'success');
+        limpiarFormularioPilotoAdmin();
+        appState.adminCatalogosLoaded = false;
+        loadAdminCatalogos();
+        loadCategorias();
+      })
+      .withFailureHandler(function(error) {
+        showMessage(
+          'adminCatalogMessage',
+          error.message || 'Error guardando piloto',
+          'error'
+        );
+      });
+
+    if (pilotoId) {
+      runner.editarPilotoAdmin(appState.pin, adminPin, payload);
+    } else {
+      runner.crearPilotoAdmin(appState.pin, adminPin, payload);
+    }
+  }
+  function guardarCategoriaAdmin() {
+    const adminPin = getAdminPinValue();
+
+    const categoriaId = document.getElementById('adminCategoriaIdInput').value.trim();
+    const nombre = document.getElementById('adminCategoriaNombreInput').value.trim();
+    const activa = document.getElementById('adminCategoriaActivaSelect').value;
+    const orden = document.getElementById('adminCategoriaOrdenInput').value;
+    const notas = document.getElementById('adminCategoriaNotasInput').value.trim();
+
+    if (!adminPin) {
+      showMessage('adminCatalogMessage', 'Introduce el PIN de administración', 'error');
+      return;
+    }
+
+    if (!nombre) {
+      showMessage('adminCatalogMessage', 'El nombre de la categoría es obligatorio', 'error');
+      return;
+    }
+
+    const payload = {
+      categoriaId: categoriaId,
+      nombre: nombre,
+      activa: activa,
+      orden: orden,
+      notas: notas
+    };
+
+    showMessage('adminCatalogMessage', 'Guardando categoría...', 'warning');
+
+    const runner = google.script.run
+      .withSuccessHandler(function(response) {
+        showMessage('adminCatalogMessage', response.message || 'Categoría guardada', 'success');
+        limpiarFormularioCategoriaAdmin();
+        appState.adminCatalogosLoaded = false;
+        loadAdminCatalogos();
+        loadCategorias();
+      })
+      .withFailureHandler(function(error) {
+        showMessage(
+          'adminCatalogMessage',
+          error.message || 'Error guardando categoría',
+          'error'
+        );
+      });
+
+    if (categoriaId) {
+      runner.editarCategoriaAdmin(appState.pin, adminPin, payload);
+    } else {
+      runner.crearCategoriaAdmin(appState.pin, adminPin, payload);
+    }
+  }
+  function togglePilotoActivoAdmin(pilotoId) {
+    const piloto = appState.adminPilotos.find(function(item) {
+      return item.pilotoId === pilotoId;
+    });
+
+    if (!piloto) {
+      showMessage('adminCatalogMessage', 'No se ha encontrado el piloto', 'error');
+      return;
+    }
+
+    const nuevoEstado = piloto.activo === 'SI' ? 'NO' : 'SI';
+
+    editarPilotoFormulario(pilotoId);
+    document.getElementById('adminPilotoActivoSelect').value = nuevoEstado;
+
+    guardarPilotoAdmin();
+  }
+  function toggleCategoriaActivaAdmin(categoriaId) {
+    const categoria = appState.adminCategorias.find(function(item) {
+      return item.categoriaId === categoriaId;
+    });
+
+    if (!categoria) {
+      showMessage('adminCatalogMessage', 'No se ha encontrado la categoría', 'error');
+      return;
+    }
+
+    const nuevoEstado = categoria.activa === 'SI' ? 'NO' : 'SI';
+
+    editarCategoriaFormulario(categoriaId);
+    document.getElementById('adminCategoriaActivaSelect').value = nuevoEstado;
+
+    guardarCategoriaAdmin();
+  }
+  function fillAdminInscripcionSelects() {
+  const pilotoSelect = document.getElementById('adminInscripcionPilotoSelect');
+  const categoriaSelect = document.getElementById('adminInscripcionCategoriaSelect');
+  const nuevoPilotoCategoriaSelect = document.getElementById('adminNuevoPilotoCategoriaSelect');
+
+  if (!pilotoSelect || !categoriaSelect || !nuevoPilotoCategoriaSelect) {
+    return;
+  }
+
+  const selectedPiloto = pilotoSelect.value;
+  const selectedCategoria = categoriaSelect.value;
+  const selectedNuevaCategoria = nuevoPilotoCategoriaSelect.value;
+
+  pilotoSelect.innerHTML = '<option value="">Selecciona piloto</option>';
+  categoriaSelect.innerHTML = '<option value="">Selecciona categoría</option>';
+  nuevoPilotoCategoriaSelect.innerHTML = '<option value="">Selecciona categoría</option>';
+
+  appState.adminPilotos
+    .filter(function(piloto) {
+      return piloto.activo !== 'NO';
+    })
+    .sort(function(a, b) {
+      return String(a.nombre).localeCompare(String(b.nombre));
+    })
+    .forEach(function(piloto) {
+      const option = document.createElement('option');
+      option.value = piloto.pilotoId;
+      option.textContent = piloto.nombre;
+      pilotoSelect.appendChild(option);
+    });
+
+  appState.adminCategorias
+    .filter(function(categoria) {
+      return categoria.activa !== 'NO';
+    })
+    .sort(function(a, b) {
+      if (Number(a.orden) !== Number(b.orden)) {
+        return Number(a.orden) - Number(b.orden);
+      }
+
+      return String(a.nombre).localeCompare(String(b.nombre));
+    })
+    .forEach(function(categoria) {
+      const option1 = document.createElement('option');
+      option1.value = categoria.nombre;
+      option1.textContent = categoria.nombre;
+      categoriaSelect.appendChild(option1);
+
+      const option2 = document.createElement('option');
+      option2.value = categoria.nombre;
+      option2.textContent = categoria.nombre;
+      nuevoPilotoCategoriaSelect.appendChild(option2);
+    });
+
+  pilotoSelect.value = selectedPiloto;
+  categoriaSelect.value = selectedCategoria;
+  nuevoPilotoCategoriaSelect.value = selectedNuevaCategoria;
+}
+
+function renderAdminInscripciones() {
+  const body = document.getElementById('adminInscripcionesBody');
+
+  if (!body) {
+    return;
+  }
+
+  body.innerHTML = '';
+
+  if (!appState.adminInscripciones.length) {
+    body.innerHTML = '<tr><td colspan="5">No hay inscripciones en la carrera actual</td></tr>';
+    return;
+  }
+
+  const rows = appState.adminInscripciones.slice().sort(function(a, b) {
+    if (a.categoria !== b.categoria) {
+      return String(a.categoria).localeCompare(String(b.categoria));
+    }
+
+    const dorsalA = Number(a.dorsal);
+    const dorsalB = Number(b.dorsal);
+
+    if (!isNaN(dorsalA) && !isNaN(dorsalB)) {
+      return dorsalA - dorsalB;
+    }
+
+    return String(a.dorsal).localeCompare(String(b.dorsal));
+  });
+
+  rows.forEach(function(inscripcion) {
+    const tr = document.createElement('tr');
+
+    appendAdminCell_(tr, inscripcion.inscripcionId);
+    appendAdminCell_(tr, inscripcion.dorsal);
+    appendAdminCell_(tr, inscripcion.piloto, '', true);
+    appendAdminCell_(tr, inscripcion.categoria);
+
+    const actionsTd = document.createElement('td');
+    const actionsDiv = document.createElement('div');
+    actionsDiv.className = 'admin-actions';
+
+    const editButton = document.createElement('button');
+    editButton.type = 'button';
+    editButton.className = 'secondary';
+    editButton.textContent = 'Editar';
+    editButton.addEventListener('click', function() {
+      editarInscripcionFormulario(inscripcion.inscripcionId);
+    });
+
+    const deleteButton = document.createElement('button');
+    deleteButton.type = 'button';
+    deleteButton.className = 'danger';
+    deleteButton.textContent = 'Quitar';
+    deleteButton.addEventListener('click', function() {
+      eliminarInscripcionDesdeAdmin(inscripcion.inscripcionId);
+    });
+
+    actionsDiv.appendChild(editButton);
+    actionsDiv.appendChild(deleteButton);
+    actionsTd.appendChild(actionsDiv);
+    tr.appendChild(actionsTd);
+
+    body.appendChild(tr);
+  });
+}
+
+function editarInscripcionFormulario(inscripcionId) {
+  const inscripcion = appState.adminInscripciones.find(function(item) {
+    return item.inscripcionId === inscripcionId;
+  });
+
+  if (!inscripcion) {
+    showMessage('adminCatalogMessage', 'No se ha encontrado la inscripción', 'error');
+    return;
+  }
+
+  document.getElementById('adminInscripcionIdInput').value = inscripcion.inscripcionId;
+  document.getElementById('adminInscripcionPilotoSelect').value = inscripcion.pilotoId || '';
+  document.getElementById('adminInscripcionCategoriaSelect').value = inscripcion.categoria || '';
+  document.getElementById('adminInscripcionDorsalInput').value = inscripcion.dorsal || '';
+
+  showMessage(
+    'adminCatalogMessage',
+    'Editando inscripción ' + safe(inscripcion.dorsal) + ' - ' + safe(inscripcion.piloto),
+    'warning'
+  );
+}
+
+function limpiarFormularioInscripcionAdmin() {
+  document.getElementById('adminInscripcionIdInput').value = '';
+  document.getElementById('adminInscripcionPilotoSelect').value = '';
+  document.getElementById('adminInscripcionCategoriaSelect').value = '';
+  document.getElementById('adminInscripcionDorsalInput').value = '';
+}
+
+function guardarInscripcionAdminDesdeApp() {
+  const adminPin = getAdminPinValue();
+
+  const inscripcionId = document.getElementById('adminInscripcionIdInput').value.trim();
+  const pilotoId = document.getElementById('adminInscripcionPilotoSelect').value;
+  const categoria = document.getElementById('adminInscripcionCategoriaSelect').value;
+  const dorsal = document.getElementById('adminInscripcionDorsalInput').value.trim();
+
+  if (!adminPin) {
+    showMessage('adminCatalogMessage', 'Introduce el PIN de administración', 'error');
+    return;
+  }
+
+  if (!pilotoId) {
+    showMessage('adminCatalogMessage', 'Selecciona un piloto', 'error');
+    return;
+  }
+
+  if (!categoria) {
+    showMessage('adminCatalogMessage', 'Selecciona una categoría', 'error');
+    return;
+  }
+
+  if (!dorsal) {
+    showMessage('adminCatalogMessage', 'Introduce un dorsal', 'error');
+    return;
+  }
+
+  const payload = {
+    inscripcionId: inscripcionId,
+    pilotoId: pilotoId,
+    categoria: categoria,
+    dorsal: dorsal
+  };
+
+  showMessage('adminCatalogMessage', 'Guardando inscripción...', 'warning');
+
+  const runner = google.script.run
+    .withSuccessHandler(function(response) {
+      showMessage('adminCatalogMessage', response.message || 'Inscripción guardada', 'success');
+
+      limpiarFormularioInscripcionAdmin();
+      appState.adminCatalogosLoaded = false;
+      loadAdminCatalogos();
+      loadCategorias();
+      loadClasificacion();
+    })
+    .withFailureHandler(function(error) {
+      showMessage(
+        'adminCatalogMessage',
+        error.message || 'Error guardando inscripción',
+        'error'
+      );
+    });
+
+  if (inscripcionId) {
+    runner.editarInscripcionAdmin(appState.pin, adminPin, payload);
+  } else {
+    runner.crearInscripcionAdmin(appState.pin, adminPin, payload);
+  }
+}
+
+function eliminarInscripcionDesdeAdmin(inscripcionId) {
+  const adminPin = getAdminPinValue();
+
+  if (!adminPin) {
+    showMessage('adminCatalogMessage', 'Introduce el PIN de administración', 'error');
+    return;
+  }
+
+  const inscripcion = appState.adminInscripciones.find(function(item) {
+    return item.inscripcionId === inscripcionId;
+  });
+
+  const label = inscripcion
+    ? inscripcion.dorsal + ' - ' + inscripcion.piloto + ' - ' + inscripcion.categoria
+    : inscripcionId;
+
+  const seguro = window.confirm(
+    'Vas a quitar esta inscripción de la carrera actual:\n\n' +
+    label +
+    '\n\n¿Quieres continuar?'
+  );
+
+  if (!seguro) {
+    showMessage('adminCatalogMessage', 'Operación cancelada', 'warning');
+    return;
+  }
+
+  showMessage('adminCatalogMessage', 'Eliminando inscripción...', 'warning');
+
+  google.script.run
+    .withSuccessHandler(function(response) {
+      showMessage('adminCatalogMessage', response.message || 'Inscripción eliminada', 'success');
+
+      appState.adminCatalogosLoaded = false;
+      loadAdminCatalogos();
+      loadCategorias();
+      loadClasificacion();
+    })
+    .withFailureHandler(function(error) {
+      showMessage(
+        'adminCatalogMessage',
+        error.message || 'Error eliminando inscripción',
+        'error'
+      );
+    })
+    .eliminarInscripcionAdmin(appState.pin, adminPin, inscripcionId);
+}
+
+function limpiarFormularioNuevoPilotoInscripcionAdmin() {
+  document.getElementById('adminNuevoPilotoNombreInput').value = '';
+  document.getElementById('adminNuevoPilotoAliasInput').value = '';
+  document.getElementById('adminNuevoPilotoCategoriaSelect').value = '';
+  document.getElementById('adminNuevoPilotoDorsalInput').value = '';
+  document.getElementById('adminNuevoPilotoNotasInput').value = '';
+}
+
+function crearPilotoEInscribirAdminDesdeApp() {
+  const adminPin = getAdminPinValue();
+
+  const nombre = document.getElementById('adminNuevoPilotoNombreInput').value.trim();
+  const alias = document.getElementById('adminNuevoPilotoAliasInput').value.trim();
+  const categoria = document.getElementById('adminNuevoPilotoCategoriaSelect').value;
+  const dorsal = document.getElementById('adminNuevoPilotoDorsalInput').value.trim();
+  const notas = document.getElementById('adminNuevoPilotoNotasInput').value.trim();
+
+  if (!adminPin) {
+    showMessage('adminCatalogMessage', 'Introduce el PIN de administración', 'error');
+    return;
+  }
+
+  if (!nombre) {
+    showMessage('adminCatalogMessage', 'Introduce el nombre del nuevo piloto', 'error');
+    return;
+  }
+
+  if (!categoria) {
+    showMessage('adminCatalogMessage', 'Selecciona una categoría', 'error');
+    return;
+  }
+
+  if (!dorsal) {
+    showMessage('adminCatalogMessage', 'Introduce un dorsal', 'error');
+    return;
+  }
+
+  const payload = {
+    nombre: nombre,
+    alias: alias,
+    categoria: categoria,
+    dorsal: dorsal,
+    notas: notas
+  };
+
+  showMessage('adminCatalogMessage', 'Creando piloto e inscripción...', 'warning');
+
+  google.script.run
+    .withSuccessHandler(function(response) {
+      showMessage(
+        'adminCatalogMessage',
+        response.message || 'Piloto creado e inscrito correctamente',
+        'success'
+      );
+
+      limpiarFormularioNuevoPilotoInscripcionAdmin();
+      appState.adminCatalogosLoaded = false;
+      loadAdminCatalogos();
+      loadCategorias();
+      loadClasificacion();
+    })
+    .withFailureHandler(function(error) {
+      showMessage(
+        'adminCatalogMessage',
+        error.message || 'Error creando piloto e inscripción',
+        'error'
+      );
+    })
+    .crearPilotoEInscribirAdmin(appState.pin, adminPin, payload);
+}
   </script>
 </body>
 </html>

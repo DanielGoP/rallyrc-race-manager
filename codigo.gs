@@ -2,6 +2,8 @@ const SHEET_CONFIG = 'Config';
 const SHEET_INSCRIPCIONES = 'Inscripciones';
 const SHEET_RESULTADOS = 'Resultados';
 const SHEET_CLASIFICACION = 'Clasificacion';
+const SHEET_PILOTOS_DB = 'PilotosDB';
+const SHEET_CATEGORIAS_DB = 'CategoriasDB';
 
 const PASADAS = [
   { id: 'P1', num: 1, label: 'Ida 1', tipo: 'ida', orden: 1 },
@@ -27,9 +29,32 @@ function setupSheets() {
 
   createSheetIfNotExists_(ss, SHEET_CONFIG, [
   ['key', 'value'],
-  ['PIN', '1234'],
-  ['ADMIN_PIN', '9999'],
+  ['PIN', 'CAMBIAR_PIN_ACCESO'],
+  ['ADMIN_PIN', 'CAMBIAR_PIN_ADMIN'],
   ['CARRERA_ACTIVA', 'Rally RC']
+]);
+  createSheetIfNotExists_(ss, SHEET_PILOTOS_DB, [
+  [
+    'pilotoId',
+    'nombre',
+    'alias',
+    'activo',
+    'notas',
+    'createdAt',
+    'updatedAt'
+  ]
+]);
+
+createSheetIfNotExists_(ss, SHEET_CATEGORIAS_DB, [
+  [
+    'categoriaId',
+    'nombre',
+    'activa',
+    'orden',
+    'notas',
+    'createdAt',
+    'updatedAt'
+  ]
 ]);
 
   createSheetIfNotExists_(ss, SHEET_INSCRIPCIONES, [
@@ -74,6 +99,7 @@ function setupSheets() {
     'estado'
   ]
   ]);
+  migrarPilotosYCategoriasDesdeInscripciones_();
 }
 
 function createSheetIfNotExists_(ss, sheetName, initialRows) {
@@ -131,12 +157,20 @@ function getCategorias(pin) {
     throw new Error('PIN incorrecto');
   }
 
+  const categoriasFromDb = getCategoriasDB_()
+    .filter(categoria => String(categoria.activa || '').toUpperCase() !== 'NO')
+    .map(categoria => categoria.nombre)
+    .filter(Boolean);
+
+  if (categoriasFromDb.length > 0) {
+    return categoriasFromDb;
+  }
+
   const inscripciones = getInscripciones_();
-  const categorias = [...new Set(inscripciones.map(item => item.categoria))]
+
+  return [...new Set(inscripciones.map(item => item.categoria))]
     .filter(Boolean)
     .sort();
-
-  return categorias;
 }
 
 function getInscripcionesByCategoria(pin, categoria) {
@@ -144,8 +178,10 @@ function getInscripcionesByCategoria(pin, categoria) {
     throw new Error('PIN incorrecto');
   }
 
+  const cleanCategoria = String(categoria || '').trim();
+
   return getInscripciones_()
-    .filter(item => item.categoria === categoria)
+    .filter(item => String(item.categoria || '').trim() === cleanCategoria)
     .sort((a, b) => {
       const dorsalA = Number(a.dorsal);
       const dorsalB = Number(b.dorsal);
@@ -161,9 +197,47 @@ function getInscripcionesByCategoria(pin, categoria) {
 function getInscripciones_() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(SHEET_INSCRIPCIONES);
+
+  if (!sheet || sheet.getLastRow() < 2) {
+    return [];
+  }
+
   const values = sheet.getDataRange().getValues();
+  const headers = values[0].map(function(header) {
+    return String(header || '').trim();
+  });
 
   const result = [];
+
+  const hasPilotoId = headers.includes('pilotoId');
+
+  if (hasPilotoId) {
+    const map = getHeaderMap_(sheet);
+
+    for (let i = 1; i < values.length; i++) {
+      const row = values[i];
+
+      const inscripcionId = String(row[map.inscripcionId] || '').trim();
+      const pilotoId = String(row[map.pilotoId] || '').trim();
+      const dorsal = String(row[map.dorsal] || '').trim();
+      const piloto = String(row[map.piloto] || '').trim();
+      const categoria = String(row[map.categoria] || '').trim();
+
+      if (!inscripcionId || !piloto || !categoria) {
+        continue;
+      }
+
+      result.push({
+        inscripcionId: inscripcionId,
+        pilotoId: pilotoId,
+        dorsal: dorsal,
+        piloto: piloto,
+        categoria: categoria
+      });
+    }
+
+    return result;
+  }
 
   for (let i = 1; i < values.length; i++) {
     const row = values[i];
@@ -178,10 +252,11 @@ function getInscripciones_() {
     }
 
     result.push({
-      inscripcionId,
-      dorsal,
-      piloto,
-      categoria
+      inscripcionId: inscripcionId,
+      pilotoId: '',
+      dorsal: dorsal,
+      piloto: piloto,
+      categoria: categoria
     });
   }
 
@@ -380,49 +455,50 @@ function refreshClasificacion_() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(SHEET_CLASIFICACION);
 
-  const allRows = buildClasificacion_();
+  const headers = [
+    'categoria',
+    'dorsal',
+    'piloto',
+    'ida1',
+    'vuelta1',
+    'ida2',
+    'vuelta2',
+    'ida3',
+    'vuelta3',
+    'descartada',
+    'penalizaciones',
+    'total',
+    'gap',
+    'estado'
+  ];
+
+  const rows = buildClasificacion_();
+
+  const values = rows.map(function(row) {
+    return [
+      row.categoria,
+      row.dorsal,
+      row.piloto,
+      row.ida1,
+      row.vuelta1,
+      row.ida2,
+      row.vuelta2,
+      row.ida3,
+      row.vuelta3,
+      row.descartada,
+      row.penalizaciones,
+      row.total,
+      row.gap,
+      row.estado
+    ];
+  });
 
   sheet.clearContents();
 
-  const headers = [
-    [
-      'categoria',
-      'dorsal',
-      'piloto',
-      'ida1',
-      'vuelta1',
-      'ida2',
-      'vuelta2',
-      'ida3',
-      'vuelta3',
-      'penalizaciones',
-      'total',
-      'gap',
-      'estado'
-    ]
-  ];
+  sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
 
-  const rows = allRows.map(item => [
-    item.categoria,
-    item.dorsal,
-    item.piloto,
-    item.ida1,
-    item.vuelta1,
-    item.ida2,
-    item.vuelta2,
-    item.ida3,
-    item.vuelta3,
-    item.descartada,
-    item.penalizaciones,
-    item.total,
-    item.gap,
-    item.estado
-  ]);
-
-  sheet.getRange(1, 1, headers.length, headers[0].length).setValues(headers);
-
-  if (rows.length > 0) {
-    sheet.getRange(2, 1, rows.length, headers[0].length).setValues(rows);
+  if (values.length > 0) {
+    sheet.getRange(2, 1, values.length, headers.length).setValues(values);
   }
 
   sheet.setFrozenRows(1);
@@ -1139,8 +1215,1135 @@ function buildProgresionAcumulada_(tiempos) {
   });
 }
 
+function getHeaderMap_(sheet) {
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const map = {};
+
+  headers.forEach(function(header, index) {
+    map[String(header || '').trim()] = index;
+  });
+
+  return map;
+}
+
+function normalizeText_(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+function nowString_() {
+  return Utilities.formatDate(
+    new Date(),
+    Session.getScriptTimeZone(),
+    'yyyy-MM-dd HH:mm:ss'
+  );
+}
+
+function getNextId_(prefix, existingIds) {
+  let max = 0;
+
+  existingIds.forEach(function(id) {
+    const cleanId = String(id || '').trim();
+
+    if (!cleanId.startsWith(prefix)) {
+      return;
+    }
+
+    const numberPart = Number(cleanId.replace(prefix, ''));
+
+    if (!isNaN(numberPart) && numberPart > max) {
+      max = numberPart;
+    }
+  });
+
+  return prefix + String(max + 1).padStart(3, '0');
+}
+
+function getPilotosDB_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_PILOTOS_DB);
+
+  if (!sheet || sheet.getLastRow() < 2) {
+    return [];
+  }
+
+  const values = sheet.getDataRange().getValues();
+  const map = getHeaderMap_(sheet);
+  const result = [];
+
+  for (let i = 1; i < values.length; i++) {
+    const row = values[i];
+
+    const pilotoId = String(row[map.pilotoId] || '').trim();
+    const nombre = String(row[map.nombre] || '').trim();
+
+    if (!pilotoId || !nombre) {
+      continue;
+    }
+
+    result.push({
+      pilotoId: pilotoId,
+      nombre: nombre,
+      alias: String(row[map.alias] || '').trim(),
+      activo: String(row[map.activo] || 'SI').trim() || 'SI',
+      notas: String(row[map.notas] || '').trim(),
+      createdAt: String(row[map.createdAt] || '').trim(),
+      updatedAt: String(row[map.updatedAt] || '').trim()
+    });
+  }
+
+  return result;
+}
+
+function getCategoriasDB_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_CATEGORIAS_DB);
+
+  if (!sheet || sheet.getLastRow() < 2) {
+    return [];
+  }
+
+  const values = sheet.getDataRange().getValues();
+  const map = getHeaderMap_(sheet);
+  const result = [];
+
+  for (let i = 1; i < values.length; i++) {
+    const row = values[i];
+
+    const categoriaId = String(row[map.categoriaId] || '').trim();
+    const nombre = String(row[map.nombre] || '').trim();
+
+    if (!categoriaId || !nombre) {
+      continue;
+    }
+
+    result.push({
+      categoriaId: categoriaId,
+      nombre: nombre,
+      activa: String(row[map.activa] || 'SI').trim() || 'SI',
+      orden: Number(row[map.orden] || 999),
+      notas: String(row[map.notas] || '').trim(),
+      createdAt: String(row[map.createdAt] || '').trim(),
+      updatedAt: String(row[map.updatedAt] || '').trim()
+    });
+  }
+
+  result.sort(function(a, b) {
+    if (Number(a.orden) !== Number(b.orden)) {
+      return Number(a.orden) - Number(b.orden);
+    }
+
+    return a.nombre.localeCompare(b.nombre);
+  });
+
+  return result;
+}
+
+function migrarPilotosYCategoriasDesdeInscripciones_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+
+  const inscripcionesSheet = ss.getSheetByName(SHEET_INSCRIPCIONES);
+  const pilotosSheet = ss.getSheetByName(SHEET_PILOTOS_DB);
+  const categoriasSheet = ss.getSheetByName(SHEET_CATEGORIAS_DB);
+
+  if (!inscripcionesSheet || inscripcionesSheet.getLastRow() < 2) {
+    return;
+  }
+
+  const inscripcionesValues = inscripcionesSheet.getDataRange().getValues();
+  const inscripcionesHeaders = inscripcionesValues[0].map(function(header) {
+    return String(header || '').trim();
+  });
+
+  const oldFormat = !inscripcionesHeaders.includes('pilotoId');
+
+  let inscripciones = [];
+
+  if (oldFormat) {
+    for (let i = 1; i < inscripcionesValues.length; i++) {
+      const row = inscripcionesValues[i];
+
+      const inscripcionId = String(row[0] || '').trim();
+      const dorsal = String(row[1] || '').trim();
+      const piloto = String(row[2] || '').trim();
+      const categoria = String(row[3] || '').trim();
+
+      if (!inscripcionId || !piloto || !categoria) {
+        continue;
+      }
+
+      inscripciones.push({
+        inscripcionId: inscripcionId,
+        pilotoId: '',
+        dorsal: dorsal,
+        piloto: piloto,
+        categoria: categoria
+      });
+    }
+  } else {
+    const map = getHeaderMap_(inscripcionesSheet);
+
+    for (let i = 1; i < inscripcionesValues.length; i++) {
+      const row = inscripcionesValues[i];
+
+      const inscripcionId = String(row[map.inscripcionId] || '').trim();
+      const pilotoId = String(row[map.pilotoId] || '').trim();
+      const dorsal = String(row[map.dorsal] || '').trim();
+      const piloto = String(row[map.piloto] || '').trim();
+      const categoria = String(row[map.categoria] || '').trim();
+
+      if (!inscripcionId || !piloto || !categoria) {
+        continue;
+      }
+
+      inscripciones.push({
+        inscripcionId: inscripcionId,
+        pilotoId: pilotoId,
+        dorsal: dorsal,
+        piloto: piloto,
+        categoria: categoria
+      });
+    }
+  }
+
+  const pilotosExistentes = getPilotosDB_();
+  const categoriasExistentes = getCategoriasDB_();
+
+  const pilotosByName = {};
+  pilotosExistentes.forEach(function(piloto) {
+    pilotosByName[normalizeText_(piloto.nombre)] = piloto;
+  });
+
+  const categoriasByName = {};
+  categoriasExistentes.forEach(function(categoria) {
+    categoriasByName[normalizeText_(categoria.nombre)] = categoria;
+  });
+
+  const existingPilotoIds = pilotosExistentes.map(function(p) {
+    return p.pilotoId;
+  });
+
+  const existingCategoriaIds = categoriasExistentes.map(function(c) {
+    return c.categoriaId;
+  });
+
+  const nuevosPilotos = [];
+  const nuevasCategorias = [];
+
+  inscripciones.forEach(function(inscripcion) {
+    const pilotoKey = normalizeText_(inscripcion.piloto);
+
+    if (!pilotosByName[pilotoKey]) {
+      const pilotoId = getNextId_(
+        'P',
+        existingPilotoIds.concat(nuevosPilotos.map(function(p) {
+          return p[0];
+        }))
+      );
+
+      const now = nowString_();
+
+      const pilotoRow = [
+        pilotoId,
+        inscripcion.piloto,
+        '',
+        'SI',
+        '',
+        now,
+        now
+      ];
+
+      nuevosPilotos.push(pilotoRow);
+
+      pilotosByName[pilotoKey] = {
+        pilotoId: pilotoId,
+        nombre: inscripcion.piloto
+      };
+    }
+
+    const categoriaKey = normalizeText_(inscripcion.categoria);
+
+    if (!categoriasByName[categoriaKey]) {
+      const categoriaId = getNextId_(
+        'C',
+        existingCategoriaIds.concat(nuevasCategorias.map(function(c) {
+          return c[0];
+        }))
+      );
+
+      const now = nowString_();
+
+      const categoriaRow = [
+        categoriaId,
+        inscripcion.categoria,
+        'SI',
+        categoriasExistentes.length + nuevasCategorias.length + 1,
+        '',
+        now,
+        now
+      ];
+
+      nuevasCategorias.push(categoriaRow);
+
+      categoriasByName[categoriaKey] = {
+        categoriaId: categoriaId,
+        nombre: inscripcion.categoria
+      };
+    }
+  });
+
+  if (nuevosPilotos.length > 0) {
+    pilotosSheet
+      .getRange(pilotosSheet.getLastRow() + 1, 1, nuevosPilotos.length, nuevosPilotos[0].length)
+      .setValues(nuevosPilotos);
+  }
+
+  if (nuevasCategorias.length > 0) {
+    categoriasSheet
+      .getRange(categoriasSheet.getLastRow() + 1, 1, nuevasCategorias.length, nuevasCategorias[0].length)
+      .setValues(nuevasCategorias);
+  }
+
+  migrarFormatoInscripciones_(inscripciones, pilotosByName);
+}
+
+function migrarFormatoInscripciones_(inscripciones, pilotosByName) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_INSCRIPCIONES);
+
+  const headers = [
+    'inscripcionId',
+    'pilotoId',
+    'dorsal',
+    'piloto',
+    'categoria'
+  ];
+
+  const rows = inscripciones.map(function(inscripcion) {
+    const pilotoKey = normalizeText_(inscripcion.piloto);
+    const piloto = pilotosByName[pilotoKey];
+
+    return [
+      inscripcion.inscripcionId,
+      piloto ? piloto.pilotoId : inscripcion.pilotoId,
+      inscripcion.dorsal,
+      inscripcion.piloto,
+      inscripcion.categoria
+    ];
+  });
+
+  sheet.clearContents();
+  sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+
+  if (rows.length > 0) {
+    sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
+  }
+
+  sheet.setFrozenRows(1);
+  autoResize_(sheet);
+}
+
+function getAdminCatalogosData(pin, adminPin) {
+  if (!validatePin_(pin)) {
+    throw new Error('PIN incorrecto');
+  }
+
+  if (!validateAdminPin_(adminPin)) {
+    throw new Error('PIN de administración incorrecto');
+  }
+
+  return {
+    pilotos: getPilotosDB_(),
+    categorias: getCategoriasDB_(),
+    inscripciones: getInscripciones_()
+  };
+}
+
+function crearPilotoAdmin(pin, adminPin, payload) {
+  if (!validatePin_(pin)) {
+    throw new Error('PIN incorrecto');
+  }
+
+  if (!validateAdminPin_(adminPin)) {
+    throw new Error('PIN de administración incorrecto');
+  }
+
+  const nombre = String(payload.nombre || '').trim();
+  const alias = String(payload.alias || '').trim();
+  const notas = String(payload.notas || '').trim();
+  const activo = String(payload.activo || 'SI').trim().toUpperCase() === 'NO'
+    ? 'NO'
+    : 'SI';
+
+  if (!nombre) {
+    throw new Error('El nombre del piloto es obligatorio');
+  }
+
+  const pilotos = getPilotosDB_();
+  const nombreNormalizado = normalizeText_(nombre);
+
+  const existe = pilotos.some(function(piloto) {
+    return normalizeText_(piloto.nombre) === nombreNormalizado;
+  });
+
+  if (existe) {
+    throw new Error('Ya existe un piloto con ese nombre');
+  }
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_PILOTOS_DB);
+
+  const pilotoId = getNextId_(
+    'P',
+    pilotos.map(function(piloto) {
+      return piloto.pilotoId;
+    })
+  );
+
+  const now = nowString_();
+
+  sheet.appendRow([
+    pilotoId,
+    nombre,
+    alias,
+    activo,
+    notas,
+    now,
+    now
+  ]);
+
+  autoResize_(sheet);
+
+  return {
+    status: 'OK',
+    message: 'Piloto creado correctamente',
+    piloto: {
+      pilotoId: pilotoId,
+      nombre: nombre,
+      alias: alias,
+      activo: activo,
+      notas: notas,
+      createdAt: now,
+      updatedAt: now
+    }
+  };
+}
+
+function editarPilotoAdmin(pin, adminPin, payload) {
+  if (!validatePin_(pin)) {
+    throw new Error('PIN incorrecto');
+  }
+
+  if (!validateAdminPin_(adminPin)) {
+    throw new Error('PIN de administración incorrecto');
+  }
+
+  const pilotoId = String(payload.pilotoId || '').trim();
+  const nombre = String(payload.nombre || '').trim();
+  const alias = String(payload.alias || '').trim();
+  const notas = String(payload.notas || '').trim();
+  const activo = String(payload.activo || 'SI').trim().toUpperCase() === 'NO'
+    ? 'NO'
+    : 'SI';
+
+  if (!pilotoId) {
+    throw new Error('El pilotoId es obligatorio');
+  }
+
+  if (!nombre) {
+    throw new Error('El nombre del piloto es obligatorio');
+  }
+
+  const pilotos = getPilotosDB_();
+  const nombreNormalizado = normalizeText_(nombre);
+
+  const duplicado = pilotos.some(function(piloto) {
+    return piloto.pilotoId !== pilotoId &&
+      normalizeText_(piloto.nombre) === nombreNormalizado;
+  });
+
+  if (duplicado) {
+    throw new Error('Ya existe otro piloto con ese nombre');
+  }
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_PILOTOS_DB);
+  const values = sheet.getDataRange().getValues();
+  const map = getHeaderMap_(sheet);
+
+  let rowIndex = -1;
+
+  for (let i = 1; i < values.length; i++) {
+    if (String(values[i][map.pilotoId] || '').trim() === pilotoId) {
+      rowIndex = i + 1;
+      break;
+    }
+  }
+
+  if (rowIndex === -1) {
+    throw new Error('No se ha encontrado el piloto');
+  }
+
+  const now = nowString_();
+
+  sheet.getRange(rowIndex, map.nombre + 1).setValue(nombre);
+  sheet.getRange(rowIndex, map.alias + 1).setValue(alias);
+  sheet.getRange(rowIndex, map.activo + 1).setValue(activo);
+  sheet.getRange(rowIndex, map.notas + 1).setValue(notas);
+  sheet.getRange(rowIndex, map.updatedAt + 1).setValue(now);
+
+  sincronizarNombrePilotoEnInscripciones_(pilotoId, nombre);
+
+  autoResize_(sheet);
+
+  return {
+    status: 'OK',
+    message: 'Piloto actualizado correctamente'
+  };
+}
+
+function sincronizarNombrePilotoEnInscripciones_(pilotoId, nombre) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_INSCRIPCIONES);
+
+  if (!sheet || sheet.getLastRow() < 2) {
+    return;
+  }
+
+  const values = sheet.getDataRange().getValues();
+  const map = getHeaderMap_(sheet);
+
+  if (map.pilotoId === undefined || map.piloto === undefined) {
+    return;
+  }
+
+  for (let i = 1; i < values.length; i++) {
+    const rowPilotoId = String(values[i][map.pilotoId] || '').trim();
+
+    if (rowPilotoId === pilotoId) {
+      sheet.getRange(i + 1, map.piloto + 1).setValue(nombre);
+    }
+  }
+}
+
+function crearCategoriaAdmin(pin, adminPin, payload) {
+  if (!validatePin_(pin)) {
+    throw new Error('PIN incorrecto');
+  }
+
+  if (!validateAdminPin_(adminPin)) {
+    throw new Error('PIN de administración incorrecto');
+  }
+
+  const nombre = String(payload.nombre || '').trim();
+  const notas = String(payload.notas || '').trim();
+  const activa = String(payload.activa || 'SI').trim().toUpperCase() === 'NO'
+    ? 'NO'
+    : 'SI';
+
+  let orden = Number(payload.orden || 0);
+
+  if (!nombre) {
+    throw new Error('El nombre de la categoría es obligatorio');
+  }
+
+  const categorias = getCategoriasDB_();
+  const nombreNormalizado = normalizeText_(nombre);
+
+  const existe = categorias.some(function(categoria) {
+    return normalizeText_(categoria.nombre) === nombreNormalizado;
+  });
+
+  if (existe) {
+    throw new Error('Ya existe una categoría con ese nombre');
+  }
+
+  if (isNaN(orden) || orden <= 0) {
+    orden = categorias.length + 1;
+  }
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_CATEGORIAS_DB);
+
+  const categoriaId = getNextId_(
+    'C',
+    categorias.map(function(categoria) {
+      return categoria.categoriaId;
+    })
+  );
+
+  const now = nowString_();
+
+  sheet.appendRow([
+    categoriaId,
+    nombre,
+    activa,
+    orden,
+    notas,
+    now,
+    now
+  ]);
+
+  autoResize_(sheet);
+
+  return {
+    status: 'OK',
+    message: 'Categoría creada correctamente',
+    categoria: {
+      categoriaId: categoriaId,
+      nombre: nombre,
+      activa: activa,
+      orden: orden,
+      notas: notas,
+      createdAt: now,
+      updatedAt: now
+    }
+  };
+}
+
+function editarCategoriaAdmin(pin, adminPin, payload) {
+  if (!validatePin_(pin)) {
+    throw new Error('PIN incorrecto');
+  }
+
+  if (!validateAdminPin_(adminPin)) {
+    throw new Error('PIN de administración incorrecto');
+  }
+
+  const categoriaId = String(payload.categoriaId || '').trim();
+  const nombre = String(payload.nombre || '').trim();
+  const notas = String(payload.notas || '').trim();
+  const activa = String(payload.activa || 'SI').trim().toUpperCase() === 'NO'
+    ? 'NO'
+    : 'SI';
+
+  let orden = Number(payload.orden || 0);
+
+  if (!categoriaId) {
+    throw new Error('El categoriaId es obligatorio');
+  }
+
+  if (!nombre) {
+    throw new Error('El nombre de la categoría es obligatorio');
+  }
+
+  if (isNaN(orden) || orden <= 0) {
+    orden = 999;
+  }
+
+  const categorias = getCategoriasDB_();
+  const categoriaActual = categorias.find(function(categoria) {
+    return categoria.categoriaId === categoriaId;
+  });
+
+  if (!categoriaActual) {
+    throw new Error('No se ha encontrado la categoría');
+  }
+
+  const nombreNormalizado = normalizeText_(nombre);
+
+  const duplicada = categorias.some(function(categoria) {
+    return categoria.categoriaId !== categoriaId &&
+      normalizeText_(categoria.nombre) === nombreNormalizado;
+  });
+
+  if (duplicada) {
+    throw new Error('Ya existe otra categoría con ese nombre');
+  }
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_CATEGORIAS_DB);
+  const values = sheet.getDataRange().getValues();
+  const map = getHeaderMap_(sheet);
+
+  let rowIndex = -1;
+
+  for (let i = 1; i < values.length; i++) {
+    if (String(values[i][map.categoriaId] || '').trim() === categoriaId) {
+      rowIndex = i + 1;
+      break;
+    }
+  }
+
+  if (rowIndex === -1) {
+    throw new Error('No se ha encontrado la categoría');
+  }
+
+  const oldName = categoriaActual.nombre;
+  const now = nowString_();
+
+  sheet.getRange(rowIndex, map.nombre + 1).setValue(nombre);
+  sheet.getRange(rowIndex, map.activa + 1).setValue(activa);
+  sheet.getRange(rowIndex, map.orden + 1).setValue(orden);
+  sheet.getRange(rowIndex, map.notas + 1).setValue(notas);
+  sheet.getRange(rowIndex, map.updatedAt + 1).setValue(now);
+
+  sincronizarNombreCategoriaEnInscripciones_(oldName, nombre);
+
+  autoResize_(sheet);
+
+  return {
+    status: 'OK',
+    message: 'Categoría actualizada correctamente'
+  };
+}
+
+function sincronizarNombreCategoriaEnInscripciones_(oldName, newName) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_INSCRIPCIONES);
+
+  if (!sheet || sheet.getLastRow() < 2) {
+    return;
+  }
+
+  const values = sheet.getDataRange().getValues();
+  const map = getHeaderMap_(sheet);
+
+  if (map.categoria === undefined) {
+    return;
+  }
+
+  const oldNameNormalized = normalizeText_(oldName);
+
+  for (let i = 1; i < values.length; i++) {
+    const rowCategoria = String(values[i][map.categoria] || '').trim();
+
+    if (normalizeText_(rowCategoria) === oldNameNormalized) {
+      sheet.getRange(i + 1, map.categoria + 1).setValue(newName);
+    }
+  }
+}
+function getNextInscripcionId_() {
+  const inscripciones = getInscripciones_();
+
+  return getNextId_(
+    'I',
+    inscripciones.map(function(item) {
+      return item.inscripcionId;
+    })
+  );
+}
+
+function getPilotoDBById_(pilotoId) {
+  return getPilotosDB_().find(function(piloto) {
+    return piloto.pilotoId === pilotoId;
+  });
+}
+
+function getCategoriaDBByNombre_(nombre) {
+  const nombreNormalizado = normalizeText_(nombre);
+
+  return getCategoriasDB_().find(function(categoria) {
+    return normalizeText_(categoria.nombre) === nombreNormalizado;
+  });
+}
+
+function getInscripcionRowIndex_(inscripcionId) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_INSCRIPCIONES);
+
+  if (!sheet || sheet.getLastRow() < 2) {
+    return -1;
+  }
+
+  const values = sheet.getDataRange().getValues();
+  const map = getHeaderMap_(sheet);
+
+  for (let i = 1; i < values.length; i++) {
+    const rowInscripcionId = String(values[i][map.inscripcionId] || '').trim();
+
+    if (rowInscripcionId === inscripcionId) {
+      return i + 1;
+    }
+  }
+
+  return -1;
+}
+
+function inscripcionTieneResultados_(inscripcionId) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_RESULTADOS);
+
+  if (!sheet || sheet.getLastRow() < 2) {
+    return false;
+  }
+
+  const values = sheet.getDataRange().getValues();
+  const map = getHeaderMap_(sheet);
+
+  const inscripcionIndex = map.inscripcionId !== undefined
+    ? map.inscripcionId
+    : 2;
+
+  for (let i = 1; i < values.length; i++) {
+    const rowInscripcionId = String(values[i][inscripcionIndex] || '').trim();
+
+    if (rowInscripcionId === inscripcionId) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function validarInscripcionAdmin_(payload, currentInscripcionId) {
+  const pilotoId = String(payload.pilotoId || '').trim();
+  const dorsal = String(payload.dorsal || '').trim();
+  const categoria = String(payload.categoria || '').trim();
+
+  if (!pilotoId) {
+    throw new Error('Selecciona un piloto');
+  }
+
+  if (!categoria) {
+    throw new Error('Selecciona una categoría');
+  }
+
+  if (!dorsal) {
+    throw new Error('Introduce un dorsal');
+  }
+
+  const piloto = getPilotoDBById_(pilotoId);
+
+  if (!piloto) {
+    throw new Error('No se ha encontrado el piloto en la base de datos');
+  }
+
+  if (String(piloto.activo || '').toUpperCase() === 'NO') {
+    throw new Error('El piloto seleccionado está inactivo');
+  }
+
+  const categoriaDB = getCategoriaDBByNombre_(categoria);
+
+  if (!categoriaDB) {
+    throw new Error('No se ha encontrado la categoría en la base de datos');
+  }
+
+  if (String(categoriaDB.activa || '').toUpperCase() === 'NO') {
+    throw new Error('La categoría seleccionada está inactiva');
+  }
+
+  const inscripciones = getInscripciones_();
+  const categoriaNormalizada = normalizeText_(categoria);
+
+  const duplicadoPilotoCategoria = inscripciones.some(function(item) {
+    return item.inscripcionId !== currentInscripcionId &&
+      String(item.pilotoId || '').trim() === pilotoId &&
+      normalizeText_(item.categoria) === categoriaNormalizada;
+  });
+
+  if (duplicadoPilotoCategoria) {
+    throw new Error('Este piloto ya está inscrito en esta categoría');
+  }
+
+  const duplicadoDorsalCategoria = inscripciones.some(function(item) {
+    return item.inscripcionId !== currentInscripcionId &&
+      String(item.dorsal || '').trim() === dorsal &&
+      normalizeText_(item.categoria) === categoriaNormalizada;
+  });
+
+  if (duplicadoDorsalCategoria) {
+    throw new Error('Ya existe una inscripción con ese dorsal en esta categoría');
+  }
+
+  return {
+    piloto: piloto,
+    categoria: categoriaDB,
+    dorsal: dorsal
+  };
+}
+function crearInscripcionAdmin(pin, adminPin, payload) {
+  if (!validatePin_(pin)) {
+    throw new Error('PIN incorrecto');
+  }
+
+  if (!validateAdminPin_(adminPin)) {
+    throw new Error('PIN de administración incorrecto');
+  }
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+
+  try {
+    const validated = validarInscripcionAdmin_(payload, '');
+
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName(SHEET_INSCRIPCIONES);
+
+    const inscripcionId = getNextInscripcionId_();
+
+    sheet.appendRow([
+      inscripcionId,
+      validated.piloto.pilotoId,
+      validated.dorsal,
+      validated.piloto.nombre,
+      validated.categoria.nombre
+    ]);
+
+    autoResize_(sheet);
+    refreshClasificacion_();
+
+    return {
+      status: 'OK',
+      message: 'Inscripción creada correctamente',
+      inscripcion: {
+        inscripcionId: inscripcionId,
+        pilotoId: validated.piloto.pilotoId,
+        dorsal: validated.dorsal,
+        piloto: validated.piloto.nombre,
+        categoria: validated.categoria.nombre
+      }
+    };
+  } finally {
+    lock.releaseLock();
+  }
+}
+function editarInscripcionAdmin(pin, adminPin, payload) {
+  if (!validatePin_(pin)) {
+    throw new Error('PIN incorrecto');
+  }
+
+  if (!validateAdminPin_(adminPin)) {
+    throw new Error('PIN de administración incorrecto');
+  }
+
+  const inscripcionId = String(payload.inscripcionId || '').trim();
+
+  if (!inscripcionId) {
+    throw new Error('El inscripcionId es obligatorio');
+  }
+
+  if (inscripcionTieneResultados_(inscripcionId)) {
+    throw new Error('No se puede editar una inscripción que ya tiene resultados registrados');
+  }
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+
+  try {
+    const validated = validarInscripcionAdmin_(payload, inscripcionId);
+
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName(SHEET_INSCRIPCIONES);
+    const rowIndex = getInscripcionRowIndex_(inscripcionId);
+
+    if (rowIndex === -1) {
+      throw new Error('No se ha encontrado la inscripción');
+    }
+
+    sheet.getRange(rowIndex, 1, 1, 5).setValues([[
+      inscripcionId,
+      validated.piloto.pilotoId,
+      validated.dorsal,
+      validated.piloto.nombre,
+      validated.categoria.nombre
+    ]]);
+
+    autoResize_(sheet);
+    refreshClasificacion_();
+
+    return {
+      status: 'OK',
+      message: 'Inscripción actualizada correctamente'
+    };
+  } finally {
+    lock.releaseLock();
+  }
+}
+function eliminarInscripcionAdmin(pin, adminPin, inscripcionId) {
+  if (!validatePin_(pin)) {
+    throw new Error('PIN incorrecto');
+  }
+
+  if (!validateAdminPin_(adminPin)) {
+    throw new Error('PIN de administración incorrecto');
+  }
+
+  const cleanInscripcionId = String(inscripcionId || '').trim();
+
+  if (!cleanInscripcionId) {
+    throw new Error('El inscripcionId es obligatorio');
+  }
+
+  if (inscripcionTieneResultados_(cleanInscripcionId)) {
+    throw new Error('No se puede eliminar una inscripción que ya tiene resultados registrados');
+  }
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName(SHEET_INSCRIPCIONES);
+    const rowIndex = getInscripcionRowIndex_(cleanInscripcionId);
+
+    if (rowIndex === -1) {
+      throw new Error('No se ha encontrado la inscripción');
+    }
+
+    sheet.deleteRow(rowIndex);
+
+    autoResize_(sheet);
+    refreshClasificacion_();
+
+    return {
+      status: 'OK',
+      message: 'Inscripción eliminada correctamente'
+    };
+  } finally {
+    lock.releaseLock();
+  }
+}
+function crearPilotoEInscribirAdmin(pin, adminPin, payload) {
+  if (!validatePin_(pin)) {
+    throw new Error('PIN incorrecto');
+  }
+
+  if (!validateAdminPin_(adminPin)) {
+    throw new Error('PIN de administración incorrecto');
+  }
+
+  const nombre = String(payload.nombre || '').trim();
+  const alias = String(payload.alias || '').trim();
+  const notas = String(payload.notas || '').trim();
+  const categoria = String(payload.categoria || '').trim();
+  const dorsal = String(payload.dorsal || '').trim();
+
+  if (!nombre) {
+    throw new Error('El nombre del piloto es obligatorio');
+  }
+
+  if (!categoria) {
+    throw new Error('Selecciona una categoría');
+  }
+
+  if (!dorsal) {
+    throw new Error('Introduce un dorsal');
+  }
+
+  const pilotoResult = crearPilotoAdmin(pin, adminPin, {
+    nombre: nombre,
+    alias: alias,
+    activo: 'SI',
+    notas: notas
+  });
+
+  const inscripcionResult = crearInscripcionAdmin(pin, adminPin, {
+    pilotoId: pilotoResult.piloto.pilotoId,
+    categoria: categoria,
+    dorsal: dorsal
+  });
+
+  return {
+    status: 'OK',
+    message: 'Piloto creado e inscrito correctamente',
+    piloto: pilotoResult.piloto,
+    inscripcion: inscripcionResult.inscripcion
+  };
+}
+/*
+function testAdminCatalogos() {
+  const pin = '1234';
+  const adminPin = '9999';
+
+  const data = getAdminCatalogosData(pin, adminPin);
+
+  Logger.log('Pilotos:');
+  Logger.log(JSON.stringify(data.pilotos, null, 2));
+
+  Logger.log('Categorías:');
+  Logger.log(JSON.stringify(data.categorias, null, 2));
+
+  Logger.log('Inscripciones:');
+  Logger.log(JSON.stringify(data.inscripciones, null, 2));
+}
+
+function testEditarCategoriaAdmin() {
+  const pin = '1234';
+  const adminPin = '9999';
+
+  const result = editarCategoriaAdmin(pin, adminPin, {
+    categoriaId: 'C004',
+    nombre: 'Categoria Test Editada',
+    activa: 'SI',
+    orden: 99,
+    notas: 'Editada desde test'
+  });
+
+  Logger.log(JSON.stringify(result, null, 2));
+}
+
+function testCrearPilotoAdmin() {
+  const pin = '1234';
+  const adminPin = '9999';
+
+  const result = crearPilotoAdmin(pin, adminPin, {
+    nombre: 'Piloto Test',
+    alias: '',
+    activo: 'SI',
+    notas: 'Creado desde test'
+  });
+
+  Logger.log(JSON.stringify(result, null, 2));
+}
+function testCrearCategoriaAdmin() {
+  const pin = '1234';
+  const adminPin = '9999';
+
+  const result = crearCategoriaAdmin(pin, adminPin, {
+    nombre: 'Categoria Test',
+    activa: 'SI',
+    orden: 99,
+    notas: 'Creada desde test'
+  });
+
+  Logger.log(JSON.stringify(result, null, 2));
+}
+
+function testEditarPilotoAdmin() {
+  const pin = '1234';
+  const adminPin = '9999';
+
+  const result = editarPilotoAdmin(pin, adminPin, {
+    pilotoId: 'P012',
+    nombre: 'Piloto Test Editado 3',
+    alias: '',
+    activo: 'SI',
+    notas: 'Editado desde test 3'
+  });
+
+  Logger.log(JSON.stringify(result, null, 2));
+}
+
 function testDashboardData() {
   const data = getDashboardData('1234');
 
   Logger.log(JSON.stringify(data, null, 2));
 }
+
+function testMigracionPilotosCategorias() {
+  setupSheets();
+
+  Logger.log('PilotosDB');
+  Logger.log(JSON.stringify(getPilotosDB_(), null, 2));
+
+  Logger.log('CategoriasDB');
+  Logger.log(JSON.stringify(getCategoriasDB_(), null, 2));
+
+  Logger.log('Inscripciones');
+  Logger.log(JSON.stringify(getInscripciones_(), null, 2));
+}
+function testRegistroInscripciones() {
+  const categorias = getCategorias('1234');
+  Logger.log('Categorías:');
+  Logger.log(JSON.stringify(categorias, null, 2));
+
+  if (categorias.length > 0) {
+    const inscripciones = getInscripcionesByCategoria('1234', categorias[0]);
+    Logger.log('Inscripciones de ' + categorias[0] + ':');
+    Logger.log(JSON.stringify(inscripciones, null, 2));
+  }
+}*/
