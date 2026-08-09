@@ -446,7 +446,7 @@
       <input id="juezInput" type="text" placeholder="Ej: Mesa 1">
 
       <div class="button-row">
-        <button onclick="login()">Entrar</button>
+        <button data-testid="login-submit" onclick="login()">Entrar</button>
       </div>
 
       <div id="loginMessage" class="message"></div>
@@ -459,7 +459,7 @@
             <h1>Rally RC</h1>
             <div class="muted">Registro de resultados</div>
           </div>
-          <button class="secondary" onclick="logout()">Salir</button>
+          <button class="secondary" data-testid="logout" onclick="logout()">Salir</button>
         </div>
 
         <div class="button-row nav-buttons">
@@ -482,6 +482,12 @@
         <select id="pilotoSelect" onchange="onPilotoChange()">
           <option value="">Selecciona piloto</option>
         </select>
+
+        <div class="button-row">
+          <button type="button" class="secondary" data-testid="registro-sync" onclick="syncRegistroData(true)">
+            Actualizar pilotos
+          </button>
+        </div>
 
         <label>Pasada</label>
         <div class="pasadas">
@@ -516,8 +522,8 @@
         <input id="penalizacionInput" type="text" inputmode="decimal" value="0">
 
         <div class="button-row">
-          <button class="success" onclick="guardarResultado(false)">Guardar resultado</button>
-          <button class="secondary" onclick="limpiarFormulario()">Limpiar</button>
+          <button id="guardarResultadoButton" data-testid="registro-save" class="success" onclick="guardarResultado(false)">Guardar resultado</button>
+          <button class="secondary" data-testid="registro-clear" onclick="limpiarFormulario()">Limpiar</button>
         </div>
 
         <div id="registroMessage" class="message"></div>
@@ -699,7 +705,7 @@
         <input id="adminPinInput" type="password" placeholder="Contraseña de administración">
 
         <div class="button-row">
-          <button onclick="entrarAdministracion()">Entrar en administración</button>
+          <button data-testid="admin-login-submit" onclick="entrarAdministracion()">Entrar en administración</button>
         </div>
 
         <div id="adminLoginMessage" class="message"></div>
@@ -714,7 +720,7 @@
           <input id="confirmNuevaCarreraInput" type="text" placeholder="Escribe NUEVA CARRERA">
 
           <div class="button-row">
-            <button class="danger" onclick="generarNuevaCarreraDesdeApp()">Generar nueva carrera</button>
+            <button class="danger" data-testid="nueva-carrera-submit" onclick="generarNuevaCarreraDesdeApp()">Generar nueva carrera</button>
           </div>
 
           <div id="adminActionMessage" class="message"></div>
@@ -1055,27 +1061,157 @@
   </div>
 
   <script>
-    let appState = {
-    pin: '',
-    juez: '',
-    selectedPasada: null,
-    categorias: [],
-    clasificacionTimeFormat: 'seconds',
-    lastClasificacionRows: [],
-    pasadasRegistradas: [],
-    pilotosLoadRequestId: 0,
-    pasadasLoadRequestId: 0,
-    dashboardRows: [],
-    dashboardCategorias: [],
-    dashboardPilotos: [],
-    dashboardPasadas: [],
-    dashboardInterval: null,
-    adminCatalogosLoaded: false,
-    adminPin: '',
-    adminPilotos: [],
-    adminCategorias: [],
-    adminInscripciones: []
-  };
+    const REGISTRO_CACHE_KEY = 'rallyRcRegistroDataV2';
+    const REGISTRO_CACHE_MAX_AGE_MS = 5 * 60 * 1000;
+    const REGISTRO_SYNC_MIN_INTERVAL_MS = 10000;
+
+    window.__rallyMetrics = window.__rallyMetrics || {
+      rpc: [],
+      renders: [],
+      cache: []
+    };
+
+    function createInitialAppState() {
+      return {
+        pin: '',
+        juez: '',
+        selectedPasada: null,
+        categorias: [],
+        inscripciones: [],
+        clasificacionTimeFormat: 'seconds',
+        lastClasificacionRows: [],
+        pasadasRegistradas: [],
+        pasadasLoadRequestId: 0,
+        registroDataLoading: false,
+        registroDataPendingForce: false,
+        registroDataRequestId: 0,
+        registroDataFetchedAt: 0,
+        resultadoSaveLoading: false,
+        dashboardRows: [],
+        dashboardCategorias: [],
+        dashboardPilotos: [],
+        dashboardPasadas: [],
+        dashboardInterval: null,
+        adminCatalogosLoaded: false,
+        adminPin: '',
+        adminPilotos: [],
+        adminCategorias: [],
+        adminInscripciones: []
+      };
+    }
+
+    let appState = createInitialAppState();
+    let appSessionGeneration = 0;
+
+    window.__rallyTest = {
+      resetMetrics: function() {
+        window.__rallyMetrics.rpc.length = 0;
+        window.__rallyMetrics.renders.length = 0;
+        window.__rallyMetrics.cache.length = 0;
+      },
+      expireRegistroData: function() {
+        appState.registroDataFetchedAt = 0;
+      }
+    };
+
+    function startRpcMetric_(name) {
+      const metric = {
+        name: name,
+        startedAt: performance.now(),
+        completedAt: null,
+        durationMs: null,
+        status: 'pending'
+      };
+
+      window.__rallyMetrics.rpc.push(metric);
+      return metric;
+    }
+
+    function finishRpcMetric_(metric, status) {
+      metric.completedAt = performance.now();
+      metric.durationMs = metric.completedAt - metric.startedAt;
+      metric.status = status;
+    }
+
+    function readRegistroCache_() {
+      try {
+        const raw = sessionStorage.getItem(REGISTRO_CACHE_KEY);
+
+        if (!raw) {
+          return null;
+        }
+
+        const cached = JSON.parse(raw);
+        const valid = cached &&
+          cached.schemaVersion === '2' &&
+          Array.isArray(cached.categorias) &&
+          Array.isArray(cached.inscripciones) &&
+          Number(cached.fetchedAt) > 0 &&
+          Date.now() - Number(cached.fetchedAt) <= REGISTRO_CACHE_MAX_AGE_MS;
+
+        window.__rallyMetrics.cache.push({
+          type: 'read',
+          hit: Boolean(valid),
+          at: performance.now()
+        });
+
+        return valid ? cached : null;
+      } catch (error) {
+        clearRegistroCache_();
+        return null;
+      }
+    }
+
+    function clearRegistroCache_() {
+      try {
+        sessionStorage.removeItem(REGISTRO_CACHE_KEY);
+      } catch (error) {
+        // Algunos navegadores bloquean por completo el almacenamiento de sesión.
+      }
+    }
+
+    function writeRegistroCache_(data) {
+      try {
+        sessionStorage.setItem(REGISTRO_CACHE_KEY, JSON.stringify({
+          categorias: data.categorias || [],
+          inscripciones: data.inscripciones || [],
+          fetchedAt: Number(data.fetchedAt) || Date.now(),
+          schemaVersion: String(data.schemaVersion || '2'),
+          environment: String(data.environment || 'PRODUCTION')
+        }));
+
+        window.__rallyMetrics.cache.push({
+          type: 'write',
+          at: performance.now()
+        });
+      } catch (error) {
+        // La aplicación sigue funcionando aunque el navegador bloquee sessionStorage.
+      }
+    }
+
+    function enterApplication_(pin, juez) {
+      appSessionGeneration++;
+      appState.pin = pin;
+      appState.juez = juez;
+      document.getElementById('loginCard').classList.add('hidden');
+      document.getElementById('app').classList.remove('hidden');
+      showView('registro');
+    }
+
+    function fetchRegistroData_(pin, onSuccess, onFailure) {
+      const metric = startRpcMetric_('getRegistroData');
+
+      google.script.run
+        .withSuccessHandler(function(data) {
+          finishRpcMetric_(metric, 'success');
+          onSuccess(data || {});
+        })
+        .withFailureHandler(function(error) {
+          finishRpcMetric_(metric, 'error');
+          onFailure(error);
+        })
+        .getRegistroData(pin);
+    }
 
     function login() {
       const pin = document.getElementById('pinInput').value.trim();
@@ -1092,46 +1228,51 @@
       }
 
       showMessage('loginMessage', 'Validando acceso...', 'warning');
+      const cached = readRegistroCache_();
 
-      google.script.run
-        .withSuccessHandler(function(isValid) {
-          if (!isValid) {
-            showMessage('loginMessage', 'PIN incorrecto', 'error');
-            return;
-          }
+      if (cached) {
+        const metric = startRpcMetric_('validatePin');
 
-          appState.pin = pin;
-          appState.juez = juez;
+        google.script.run
+          .withSuccessHandler(function(isValid) {
+            finishRpcMetric_(metric, 'success');
 
-          document.getElementById('loginCard').classList.add('hidden');
-          document.getElementById('app').classList.remove('hidden');
+            if (!isValid) {
+              clearRegistroCache_();
+              showMessage('loginMessage', 'PIN incorrecto', 'error');
+              return;
+            }
 
-          showView('registro');
-          loadCategorias();
-        })
-        .withFailureHandler(function(error) {
-          showMessage('loginMessage', error.message || 'Error validando PIN', 'error');
-        })
-        .validatePin(pin);
+            enterApplication_(pin, juez);
+            applyRegistroData_(cached, 'cache');
+            syncRegistroData(true);
+          })
+          .withFailureHandler(function(error) {
+            finishRpcMetric_(metric, 'error');
+            showMessage('loginMessage', error.message || 'Error validando PIN', 'error');
+          })
+          .validatePin(pin);
+
+        return;
+      }
+
+      fetchRegistroData_(pin, function(data) {
+        enterApplication_(pin, juez);
+        applyRegistroData_(data, 'network');
+        hideMessage('loginMessage');
+      }, function(error) {
+        showMessage('loginMessage', error.message || 'Error validando PIN', 'error');
+      });
     }
 
     function logout() {
-      appState = {
-        pin: '',
-        juez: '',
-        selectedPasada: null,
-        categorias: [],
-        clasificacionTimeFormat: 'seconds',
-        lastClasificacionRows: [],
-        pasadasRegistradas: [],
-        pilotosLoadRequestId: 0,
-        pasadasLoadRequestId: 0,
-        adminCatalogosLoaded: false,
-        adminPin: '',
-        adminPilotos: [],
-        adminCategorias: [],
-        adminInscripciones: []
-      };
+      appSessionGeneration++;
+      appState = createInitialAppState();
+      clearRegistroCache_();
+
+      document.getElementById('categoriaSelect').disabled = false;
+      document.getElementById('pilotoSelect').disabled = false;
+      document.getElementById('guardarResultadoButton').disabled = false;
 
       document.getElementById('pinInput').value = '';
       document.getElementById('juezInput').value = '';
@@ -1140,15 +1281,95 @@
     }
 
     function loadCategorias() {
-      google.script.run
-        .withSuccessHandler(function(categorias) {
-          appState.categorias = categorias;
-          fillCategoriaSelects(categorias);
-        })
-        .withFailureHandler(function(error) {
-          showMessage('registroMessage', error.message || 'Error cargando categorías', 'error');
-        })
-        .getCategorias(appState.pin);
+      syncRegistroData(true);
+    }
+
+    function syncRegistroData(force) {
+      if (!appState.pin) {
+        return;
+      }
+
+      if (appState.registroDataLoading) {
+        appState.registroDataPendingForce = appState.registroDataPendingForce || Boolean(force);
+        return;
+      }
+
+      const elapsed = Date.now() - Number(appState.registroDataFetchedAt || 0);
+
+      if (!force && elapsed < REGISTRO_SYNC_MIN_INTERVAL_MS) {
+        window.__rallyMetrics.rpc.push({
+          name: 'getRegistroData',
+          status: 'deduplicated',
+          startedAt: performance.now(),
+          completedAt: performance.now(),
+          durationMs: 0
+        });
+        return;
+      }
+
+      appState.registroDataLoading = true;
+      appState.registroDataRequestId++;
+      const requestId = appState.registroDataRequestId;
+
+      fetchRegistroData_(appState.pin, function(data) {
+        if (requestId !== appState.registroDataRequestId) {
+          return;
+        }
+
+        appState.registroDataLoading = false;
+        applyRegistroData_(data, 'network');
+
+        if (appState.registroDataPendingForce) {
+          appState.registroDataPendingForce = false;
+          syncRegistroData(true);
+        }
+      }, function(error) {
+        if (requestId !== appState.registroDataRequestId) {
+          return;
+        }
+
+        appState.registroDataLoading = false;
+
+        if (!appState.categorias.length) {
+          showMessage('registroMessage', error.message || 'Error actualizando pilotos', 'error');
+        }
+
+        if (appState.registroDataPendingForce) {
+          appState.registroDataPendingForce = false;
+          syncRegistroData(true);
+        }
+      });
+    }
+
+    function applyRegistroData_(data, source) {
+      appState.categorias = Array.isArray(data.categorias) ? data.categorias : [];
+      appState.inscripciones = Array.isArray(data.inscripciones) ? data.inscripciones : [];
+      appState.registroDataFetchedAt = Number(data.fetchedAt) || Date.now();
+      document.body.dataset.environment = String(data.environment || 'PRODUCTION');
+
+      fillCategoriaSelects(appState.categorias);
+      renderPilotosForCategoria_(
+        document.getElementById('categoriaSelect').value,
+        document.getElementById('pilotoSelect').value
+      );
+
+      if (source === 'network') {
+        writeRegistroCache_({
+          categorias: appState.categorias,
+          inscripciones: appState.inscripciones,
+          fetchedAt: appState.registroDataFetchedAt,
+          schemaVersion: data.schemaVersion || '2',
+          environment: data.environment || 'PRODUCTION'
+        });
+      }
+
+      window.__rallyMetrics.renders.push({
+        name: 'registroData',
+        source: source,
+        at: performance.now(),
+        categorias: appState.categorias.length,
+        inscripciones: appState.inscripciones.length
+      });
     }
 
     function fillCategoriaSelects(categorias) {
@@ -1156,6 +1377,10 @@
       const clasificacionSelect = document.getElementById('categoriaClasificacionSelect');
       const correccionSelect = document.getElementById('correccionCategoriaSelect');
       const dashboardSelect = document.getElementById('dashboardCategoriaSelect');
+      const selectedRegistro = registroSelect.value;
+      const selectedClasificacion = clasificacionSelect.value;
+      const selectedCorreccion = correccionSelect ? correccionSelect.value : '';
+      const selectedDashboard = dashboardSelect ? dashboardSelect.value : '';
 
       registroSelect.innerHTML = '<option value="">Selecciona categoría</option>';
       clasificacionSelect.innerHTML = '<option value="">Todas</option>';
@@ -1193,84 +1418,82 @@
           dashboardSelect.appendChild(option4);
         }
       });
+
+      registroSelect.value = categorias.includes(selectedRegistro) ? selectedRegistro : '';
+      clasificacionSelect.value = categorias.includes(selectedClasificacion) ? selectedClasificacion : '';
+
+      if (correccionSelect) {
+        correccionSelect.value = categorias.includes(selectedCorreccion) ? selectedCorreccion : '';
+      }
+
+      if (dashboardSelect) {
+        dashboardSelect.value = categorias.includes(selectedDashboard) ? selectedDashboard : '';
+      }
+    }
+
+    function renderPilotosForCategoria_(categoria, selectedInscripcionId) {
+      const renderStartedAt = performance.now();
+      const pilotoSelect = document.getElementById('pilotoSelect');
+      const inscripciones = appState.inscripciones
+        .filter(function(item) {
+          return String(item.categoria || '').trim() === String(categoria || '').trim();
+        })
+        .sort(function(a, b) {
+          const dorsalA = Number(a.dorsal);
+          const dorsalB = Number(b.dorsal);
+
+          if (!isNaN(dorsalA) && !isNaN(dorsalB)) {
+            return dorsalA - dorsalB;
+          }
+
+          return String(a.dorsal).localeCompare(String(b.dorsal));
+        });
+
+      pilotoSelect.disabled = false;
+      pilotoSelect.innerHTML = '<option value="">Selecciona piloto</option>';
+
+      if (categoria && !inscripciones.length) {
+        pilotoSelect.innerHTML = '<option value="">No hay pilotos en esta categoría</option>';
+        window.__rallyMetrics.renders.push({
+          name: 'pilotos',
+          durationMs: performance.now() - renderStartedAt,
+          categoria: categoria,
+          count: 0
+        });
+        return;
+      }
+
+      inscripciones.forEach(function(item) {
+        const option = document.createElement('option');
+        option.value = item.inscripcionId;
+        option.textContent = item.dorsal + ' - ' + item.piloto;
+        pilotoSelect.appendChild(option);
+      });
+
+      if (inscripciones.some(function(item) {
+        return item.inscripcionId === selectedInscripcionId;
+      })) {
+        pilotoSelect.value = selectedInscripcionId;
+      }
+
+      window.__rallyMetrics.renders.push({
+        name: 'pilotos',
+        durationMs: performance.now() - renderStartedAt,
+        categoria: categoria,
+        count: inscripciones.length
+      });
     }
 
     function onCategoriaChange() {
       const categoria = document.getElementById('categoriaSelect').value;
-      const pilotoSelect = document.getElementById('pilotoSelect');
 
       appState.selectedPasada = null;
       appState.pasadasRegistradas = [];
       resetPasadasButtons();
       hideMessage('registroMessage');
 
-      appState.pilotosLoadRequestId++;
-      const requestId = appState.pilotosLoadRequestId;
-
-      pilotoSelect.disabled = true;
-      pilotoSelect.innerHTML = '<option value="">Cargando pilotos...</option>';
-
-      if (!categoria) {
-        pilotoSelect.disabled = false;
-        pilotoSelect.innerHTML = '<option value="">Selecciona piloto</option>';
-        return;
-      }
-
-      const timeoutId = setTimeout(function() {
-        if (requestId !== appState.pilotosLoadRequestId) {
-          return;
-        }
-
-        pilotoSelect.disabled = false;
-        pilotoSelect.innerHTML = '<option value="">No se pudieron cargar pilotos</option>';
-
-        showMessage(
-          'registroMessage',
-          'La carga de pilotos está tardando demasiado. Vuelve a seleccionar la categoría o recarga la app.',
-          'error'
-        );
-      }, 12000);
-
-      google.script.run
-        .withSuccessHandler(function(inscripciones) {
-          if (requestId !== appState.pilotosLoadRequestId) {
-            return;
-          }
-
-          clearTimeout(timeoutId);
-
-          pilotoSelect.disabled = false;
-          pilotoSelect.innerHTML = '<option value="">Selecciona piloto</option>';
-
-          if (!inscripciones || !inscripciones.length) {
-            pilotoSelect.innerHTML = '<option value="">No hay pilotos en esta categoría</option>';
-            return;
-          }
-
-          inscripciones.forEach(function(item) {
-            const option = document.createElement('option');
-            option.value = item.inscripcionId;
-            option.textContent = item.dorsal + ' - ' + item.piloto;
-            pilotoSelect.appendChild(option);
-          });
-        })
-        .withFailureHandler(function(error) {
-          if (requestId !== appState.pilotosLoadRequestId) {
-            return;
-          }
-
-          clearTimeout(timeoutId);
-
-          pilotoSelect.disabled = false;
-          pilotoSelect.innerHTML = '<option value="">Error cargando pilotos</option>';
-
-          showMessage(
-            'registroMessage',
-            error.message || 'Error cargando pilotos',
-            'error'
-          );
-        })
-        .getInscripcionesByCategoria(appState.pin, categoria);
+      renderPilotosForCategoria_(categoria, '');
+      syncRegistroData(false);
     }
 
     function selectPasada(num) {
@@ -1308,8 +1531,12 @@
         return;
       }
 
+      const metric = startRpcMetric_('getPasadasRegistradas');
+
       google.script.run
         .withSuccessHandler(function(pasadas) {
+          finishRpcMetric_(metric, 'success');
+
           if (requestId !== appState.pasadasLoadRequestId) {
             return;
           }
@@ -1318,6 +1545,8 @@
           updatePasadasButtonsState();
         })
         .withFailureHandler(function(error) {
+          finishRpcMetric_(metric, 'error');
+
           if (requestId !== appState.pasadasLoadRequestId) {
             return;
           }
@@ -1329,6 +1558,8 @@
           );
         })
         .getPasadasRegistradas(appState.pin, inscripcionId);
+
+      syncRegistroData(false);
     }
 
 function resetPasadasButtons() {
@@ -1354,6 +1585,10 @@ function updatePasadasButtonsState() {
 }
 
     function guardarResultado(overwrite) {
+      if (appState.resultadoSaveLoading) {
+        return;
+      }
+
       hideMessage('registroMessage');
       document.getElementById('duplicateBox').style.display = 'none';
 
@@ -1408,9 +1643,27 @@ function updatePasadasButtonsState() {
       };
 
       showMessage('registroMessage', 'Guardando resultado...', 'warning');
+      appState.resultadoSaveLoading = true;
+      const submittedInscripcionId = inscripcionId;
+      const submittedSessionGeneration = appSessionGeneration;
+      document.getElementById('categoriaSelect').disabled = true;
+      document.getElementById('pilotoSelect').disabled = true;
+      document.getElementById('guardarResultadoButton').disabled = true;
+      const metric = startRpcMetric_('saveResultado');
 
       google.script.run
         .withSuccessHandler(function(response) {
+          finishRpcMetric_(metric, 'success');
+
+          if (submittedSessionGeneration !== appSessionGeneration) {
+            return;
+          }
+
+          appState.resultadoSaveLoading = false;
+          document.getElementById('categoriaSelect').disabled = false;
+          document.getElementById('pilotoSelect').disabled = false;
+          document.getElementById('guardarResultadoButton').disabled = false;
+
           if (response.status === 'DUPLICATE') {
             showDuplicate(response.existing);
             showMessage(
@@ -1440,9 +1693,23 @@ function updatePasadasButtonsState() {
           document.getElementById('penalizacionInput').value = '0';
           document.getElementById('segundosInput').focus();
 
-          onPilotoChange();
+          if (document.getElementById('pilotoSelect').value === submittedInscripcionId) {
+            appState.selectedPasada = null;
+            appState.pasadasRegistradas = response.pasadasRegistradas || [];
+            updatePasadasButtonsState();
+          }
         })
         .withFailureHandler(function(error) {
+          finishRpcMetric_(metric, 'error');
+
+          if (submittedSessionGeneration !== appSessionGeneration) {
+            return;
+          }
+
+          appState.resultadoSaveLoading = false;
+          document.getElementById('categoriaSelect').disabled = false;
+          document.getElementById('pilotoSelect').disabled = false;
+          document.getElementById('guardarResultadoButton').disabled = false;
           showMessage('registroMessage', error.message || 'Error guardando resultado', 'error');
         })
         .saveResultado(appState.pin, payload);
@@ -2233,6 +2500,8 @@ function secondsToDisplayTime(value) {
 
       rows.forEach(function(row) {
         const tr = document.createElement('tr');
+        tr.dataset.testid = 'clasificacion-row';
+        tr.dataset.inscripcionId = row.inscripcionId || '';
 
         tr.innerHTML =
           '<td>' + safe(row.categoria) + '</td>' +
@@ -2610,6 +2879,8 @@ function renderAdminPilotos() {
 
   appState.adminPilotos.forEach(function(piloto) {
     const tr = document.createElement('tr');
+    tr.dataset.testid = 'admin-piloto-row';
+    tr.dataset.pilotoId = piloto.pilotoId;
 
     appendAdminCell_(tr, piloto.pilotoId);
     appendAdminCell_(tr, piloto.nombre, '', true);
@@ -2629,6 +2900,8 @@ function renderAdminPilotos() {
     editButton.type = 'button';
     editButton.className = 'secondary';
     editButton.textContent = 'Editar';
+    editButton.dataset.testid = 'edit-piloto';
+    editButton.dataset.pilotoId = piloto.pilotoId;
     editButton.addEventListener('click', function() {
       editarPilotoFormulario(piloto.pilotoId);
     });
@@ -2637,6 +2910,8 @@ function renderAdminPilotos() {
     toggleButton.type = 'button';
     toggleButton.className = 'secondary';
     toggleButton.textContent = piloto.activo === 'SI' ? 'Desactivar' : 'Activar';
+    toggleButton.dataset.testid = 'toggle-piloto';
+    toggleButton.dataset.pilotoId = piloto.pilotoId;
     toggleButton.addEventListener('click', function() {
       togglePilotoActivoAdmin(piloto.pilotoId);
     });
@@ -2660,6 +2935,8 @@ function renderAdminCategorias() {
 
   appState.adminCategorias.forEach(function(categoria) {
     const tr = document.createElement('tr');
+    tr.dataset.testid = 'admin-categoria-row';
+    tr.dataset.categoriaId = categoria.categoriaId;
 
     appendAdminCell_(tr, categoria.categoriaId);
     appendAdminCell_(tr, categoria.nombre, '', true);
@@ -2679,6 +2956,8 @@ function renderAdminCategorias() {
     editButton.type = 'button';
     editButton.className = 'secondary';
     editButton.textContent = 'Editar';
+    editButton.dataset.testid = 'edit-categoria';
+    editButton.dataset.categoriaId = categoria.categoriaId;
     editButton.addEventListener('click', function() {
       editarCategoriaFormulario(categoria.categoriaId);
     });
@@ -2687,6 +2966,8 @@ function renderAdminCategorias() {
     toggleButton.type = 'button';
     toggleButton.className = 'secondary';
     toggleButton.textContent = categoria.activa === 'SI' ? 'Desactivar' : 'Activar';
+    toggleButton.dataset.testid = 'toggle-categoria';
+    toggleButton.dataset.categoriaId = categoria.categoriaId;
     toggleButton.addEventListener('click', function() {
       toggleCategoriaActivaAdmin(categoria.categoriaId);
     });
@@ -2995,6 +3276,8 @@ function renderAdminInscripciones() {
 
   rows.forEach(function(inscripcion) {
     const tr = document.createElement('tr');
+    tr.dataset.testid = 'admin-inscripcion-row';
+    tr.dataset.inscripcionId = inscripcion.inscripcionId;
 
     appendAdminCell_(tr, inscripcion.inscripcionId);
     appendAdminCell_(tr, inscripcion.dorsal);
@@ -3009,6 +3292,8 @@ function renderAdminInscripciones() {
     editButton.type = 'button';
     editButton.className = 'secondary';
     editButton.textContent = 'Editar';
+    editButton.dataset.testid = 'edit-inscripcion';
+    editButton.dataset.inscripcionId = inscripcion.inscripcionId;
     editButton.addEventListener('click', function() {
       editarInscripcionFormulario(inscripcion.inscripcionId);
     });
@@ -3017,6 +3302,8 @@ function renderAdminInscripciones() {
     deleteButton.type = 'button';
     deleteButton.className = 'danger';
     deleteButton.textContent = 'Quitar';
+    deleteButton.dataset.testid = 'delete-inscripcion';
+    deleteButton.dataset.inscripcionId = inscripcion.inscripcionId;
     deleteButton.addEventListener('click', function() {
       eliminarInscripcionDesdeAdmin(inscripcion.inscripcionId);
     });
