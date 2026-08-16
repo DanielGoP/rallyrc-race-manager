@@ -354,6 +354,918 @@
         grid-template-columns: 1fr;
       }
     }
+
+    .admin-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0;
+}
+
+.admin-tabs button {
+  background: #e5e7eb;
+  color: #111827;
+}
+
+.admin-tabs button.active {
+  background: var(--primary);
+  color: var(--primaryText);
+}
+
+.admin-section {
+  margin-top: 16px;
+}
+
+.admin-form-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  align-items: end;
+  margin: 12px 0 16px;
+}
+
+.admin-form-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  align-items: end;
+  margin: 12px 0 16px;
+}
+
+.admin-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.admin-actions button {
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+.status-si {
+  color: #166534;
+  font-weight: bold;
+}
+
+.status-no {
+  color: #991b1b;
+  font-weight: bold;
+}
+
+@media (max-width: 900px) {
+  .admin-form-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .admin-form-grid-3 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .admin-form-grid,
+  .admin-form-grid-3 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Mobile-first racing theme. Administration deliberately keeps the base theme above. */
+body:not([data-view="admin"]) {
+  --racing-bg: #080a0b;
+  --racing-panel: #111416;
+  --racing-panel-soft: #181c1f;
+  --racing-line: rgba(255, 255, 255, 0.12);
+  --racing-orange: #ff5a00;
+  --racing-orange-light: #ff8a33;
+  --racing-text: #f8fafc;
+  --racing-muted: #9ba3aa;
+  min-height: 100vh;
+  color: var(--racing-text);
+  background-color: var(--racing-bg);
+  background-image:
+    linear-gradient(27deg, rgba(255,255,255,0.018) 5px, transparent 5px),
+    linear-gradient(207deg, rgba(255,255,255,0.018) 5px, transparent 5px),
+    linear-gradient(27deg, rgba(0,0,0,0.32) 5px, transparent 5px),
+    linear-gradient(207deg, rgba(0,0,0,0.32) 5px, transparent 5px);
+  background-position: 0 8px, 10px 3px, 0 3px, 10px 8px;
+  background-size: 20px 20px;
+  padding-bottom: calc(84px + env(safe-area-inset-bottom));
+}
+
+body:not([data-view="admin"])::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 90% 2%, rgba(255, 90, 0, 0.18), transparent 28%),
+    linear-gradient(115deg, transparent 62%, rgba(255, 90, 0, 0.04) 62%, rgba(255, 90, 0, 0.04) 63%, transparent 63%);
+  z-index: -1;
+}
+
+body:not([data-view="admin"]) .container {
+  width: 100%;
+  max-width: 720px;
+  padding: 12px 12px 24px;
+}
+
+body[data-view="clasificacion"] .container {
+  max-width: none;
+}
+
+body:not([data-view="admin"]) .card {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(145deg, rgba(27,31,34,0.98), rgba(12,14,15,0.98));
+  border: 1px solid var(--racing-line);
+  border-radius: 4px 18px 4px 18px;
+  box-shadow: 0 18px 40px rgba(0,0,0,0.34);
+  padding: 18px 16px;
+}
+
+body:not([data-view="admin"]) .card::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 74px;
+  height: 3px;
+  background: var(--racing-orange);
+  box-shadow: 74px 0 rgba(255,90,0,0.35);
+}
+
+body:not([data-view="admin"]) h1,
+body:not([data-view="admin"]) h2,
+body:not([data-view="admin"]) h3 {
+  font-family: "Arial Narrow", "Roboto Condensed", Impact, sans-serif;
+  font-stretch: condensed;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+}
+
+body:not([data-view="admin"]) h1 {
+  font-size: clamp(27px, 8vw, 38px);
+  line-height: 0.95;
+}
+
+body:not([data-view="admin"]) h2 {
+  margin-bottom: 18px;
+  font-size: 22px;
+  line-height: 1;
+}
+
+body:not([data-view="admin"]) h2::before {
+  content: "";
+  display: inline-block;
+  width: 5px;
+  height: 19px;
+  margin-right: 9px;
+  background: var(--racing-orange);
+  transform: skewX(-14deg);
+  vertical-align: -2px;
+}
+
+body:not([data-view="admin"]) .muted,
+body:not([data-view="admin"]) .small-label {
+  color: var(--racing-muted);
+}
+
+body:not([data-view="admin"]) label {
+  color: #d8dde1;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+body:not([data-view="admin"]) input,
+body:not([data-view="admin"]) select {
+  min-height: 52px;
+  color: var(--racing-text);
+  background: #090b0c;
+  border: 1px solid #353a3e;
+  border-radius: 3px 12px 3px 12px;
+  box-shadow: inset 0 1px 8px rgba(0,0,0,0.36);
+  outline: none;
+}
+
+body:not([data-view="admin"]) input:focus,
+body:not([data-view="admin"]) select:focus {
+  border-color: var(--racing-orange);
+  box-shadow: 0 0 0 3px rgba(255,90,0,0.18), inset 0 1px 8px rgba(0,0,0,0.36);
+}
+
+body:not([data-view="admin"]) select {
+  color-scheme: dark;
+}
+
+body:not([data-view="admin"]) button {
+  min-height: 46px;
+  border-radius: 3px 11px 3px 11px;
+  background: linear-gradient(135deg, var(--racing-orange-light), var(--racing-orange) 58%, #d94300);
+  color: white;
+  box-shadow: 0 7px 18px rgba(255,90,0,0.18);
+  transition: transform 140ms ease, filter 140ms ease, box-shadow 140ms ease;
+}
+
+body:not([data-view="admin"]) button:active {
+  transform: translateY(2px) scale(0.985);
+  filter: brightness(0.92);
+}
+
+body:not([data-view="admin"]) button:focus-visible,
+body:not([data-view="admin"]) summary:focus-visible {
+  outline: 3px solid rgba(255,138,51,0.7);
+  outline-offset: 3px;
+}
+
+body:not([data-view="admin"]) button.secondary {
+  color: #e8ecef;
+  background: #252a2e;
+  border: 1px solid #3b4146;
+  box-shadow: none;
+}
+
+body:not([data-view="admin"]) button.success {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #ff7a1a, var(--racing-orange) 58%, #ca3f00);
+  box-shadow: 0 9px 24px rgba(255,90,0,0.28);
+}
+
+body:not([data-view="admin"]) button.success::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 35%, rgba(255,255,255,0.34) 50%, transparent 65%);
+  transform: translateX(-130%);
+  animation: racing-shine 3.8s ease-in-out infinite;
+}
+
+body:not([data-view="admin"]) #loginCard {
+  margin-top: max(8vh, 32px);
+  padding: 28px 20px 22px;
+}
+
+body:not([data-view="admin"]) #loginCard h1::after {
+  content: " RACE CONTROL";
+  display: block;
+  margin-top: 9px;
+  color: var(--racing-orange);
+  font: 700 11px Arial, sans-serif;
+  letter-spacing: 0.28em;
+}
+
+body:not([data-view="admin"]) #app > .card:first-child {
+  margin-bottom: 12px;
+  padding: 14px 15px;
+  background: linear-gradient(110deg, #171a1c 0%, #0b0d0e 68%, #291208 100%);
+}
+
+body:not([data-view="admin"]) #app > .card:first-child .muted {
+  color: var(--racing-orange-light);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+body:not([data-view="admin"]) #app > .card:first-child .topbar {
+  margin: 0;
+}
+
+body:not([data-view="admin"]) #app > .card:first-child .topbar > button {
+  min-height: 40px;
+  padding: 8px 13px;
+}
+
+body:not([data-view="admin"]) .nav-buttons {
+  position: fixed;
+  z-index: 100;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+  margin: 0;
+  padding: 7px 6px calc(7px + env(safe-area-inset-bottom));
+  background: rgba(10,12,13,0.96);
+  border-top: 1px solid #33383c;
+  box-shadow: 0 -12px 30px rgba(0,0,0,0.38);
+  backdrop-filter: blur(14px);
+}
+
+body:not([data-view="admin"]) .nav-buttons button,
+body:not([data-view="admin"]) .nav-buttons button.secondary {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 57px;
+  padding: 7px 2px 5px;
+  color: #8e969c;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  box-shadow: none;
+  font-size: 10px;
+  line-height: 1.15;
+}
+
+body:not([data-view="admin"]) .nav-buttons button::before {
+  content: attr(data-nav-index);
+  margin-bottom: 4px;
+  color: #c8cdd1;
+  font-family: Impact, "Arial Narrow", sans-serif;
+  font-size: 17px;
+  font-style: italic;
+  line-height: 1;
+}
+
+body:not([data-view="admin"]) .nav-buttons button.active {
+  color: white;
+  background: rgba(255,90,0,0.12);
+}
+
+body:not([data-view="admin"]) .nav-buttons button.active::before {
+  color: var(--racing-orange);
+}
+
+body:not([data-view="admin"]) .nav-buttons button.active::after {
+  content: "";
+  position: absolute;
+  top: -8px;
+  left: 15%;
+  width: 70%;
+  height: 3px;
+  background: var(--racing-orange);
+  box-shadow: 0 0 12px var(--racing-orange);
+  animation: racing-nav 260ms ease-out;
+}
+
+body:not([data-view="admin"]) #registroView,
+body:not([data-view="admin"]) #clasificacionView,
+body:not([data-view="admin"]) #dashboardView {
+  animation: racing-view 280ms cubic-bezier(.2,.75,.25,1) both;
+}
+
+body:not([data-view="admin"]) #registroView .pasadas {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+body:not([data-view="admin"]) .pasadas button {
+  min-height: 58px;
+  padding: 10px;
+  color: #d8dde1;
+  background: linear-gradient(135deg, #22272a, #131617);
+  border: 1px solid #3a4044;
+  box-shadow: none;
+  font-family: "Arial Narrow", Arial, sans-serif;
+  font-size: 15px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+body:not([data-view="admin"]) .pasadas button:nth-child(odd) {
+  border-left: 3px solid #4fa3ff;
+}
+
+body:not([data-view="admin"]) .pasadas button:nth-child(even) {
+  border-left: 3px solid var(--racing-orange);
+}
+
+body:not([data-view="admin"]) .pasadas button.active {
+  color: white;
+  background: linear-gradient(135deg, #ff7a1a, #e44c00);
+  border-color: #ff9654;
+  box-shadow: 0 0 0 2px rgba(255,90,0,0.18), 0 8px 20px rgba(255,90,0,0.22);
+  animation: racing-select 240ms ease-out;
+}
+
+body:not([data-view="admin"]) .pasadas button.registered {
+  color: #8f979c;
+  background: repeating-linear-gradient(135deg, #191c1e 0, #191c1e 8px, #202427 8px, #202427 16px);
+  border-color: #41464a;
+  text-decoration: line-through;
+  opacity: 0.72;
+}
+
+body:not([data-view="admin"]) .pasadas button.registered.active {
+  color: white;
+  background: #8f250c;
+  border-color: #ff5a32;
+}
+
+body:not([data-view="admin"]) .time-grid {
+  gap: 7px;
+  margin-top: 3px;
+  padding: 10px;
+  background: #090b0c;
+  border: 1px solid #2d3235;
+  border-radius: 3px 14px 3px 14px;
+}
+
+body:not([data-view="admin"]) .time-grid label {
+  text-align: center;
+}
+
+body:not([data-view="admin"]) .time-grid input {
+  min-height: 64px;
+  padding: 8px 4px;
+  color: #fff;
+  background: #171b1d;
+  border: 1px solid #3c4347;
+  border-radius: 4px;
+  font-family: "Courier New", monospace;
+  font-size: clamp(24px, 8vw, 34px);
+  font-weight: 800;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+body:not([data-view="admin"]) #guardarResultadoButton {
+  min-height: 58px;
+  font-size: 17px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+body:not([data-view="admin"]) .message,
+body:not([data-view="admin"]) .duplicate-box {
+  border-radius: 3px 12px 3px 12px;
+  border: 1px solid transparent;
+}
+
+body:not([data-view="admin"]) .message.success {
+  color: #caffda;
+  background: rgba(22,101,52,0.28);
+  border-color: rgba(74,222,128,0.35);
+}
+
+body:not([data-view="admin"]) .message.error {
+  color: #ffd2d2;
+  background: rgba(153,27,27,0.3);
+  border-color: rgba(248,113,113,0.38);
+}
+
+body:not([data-view="admin"]) .message.warning {
+  color: #ffd8bd;
+  background: rgba(146,64,14,0.3);
+  border-color: rgba(251,146,60,0.38);
+  animation: racing-pulse 1.2s ease-in-out infinite alternate;
+}
+
+body:not([data-view="admin"]) .duplicate-box {
+  color: #ffe2cf;
+  background: #24140d;
+  border-color: #7f3515;
+}
+
+body:not([data-view="admin"]) .dashboard-filters {
+  grid-template-columns: 1fr;
+  gap: 8px;
+  padding: 10px;
+  background: rgba(0,0,0,0.2);
+  border: 1px solid var(--racing-line);
+  border-radius: 3px 14px 3px 14px;
+}
+
+body:not([data-view="admin"]) .dashboard-filters label {
+  margin-top: 5px;
+}
+
+body:not([data-view="admin"]) .dashboard-filters select {
+  min-height: 46px;
+  padding: 8px;
+  font-size: 14px;
+}
+
+body:not([data-view="admin"]) .dashboard-metrics {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+body:not([data-view="admin"]) .dashboard-card {
+  min-height: 106px;
+  padding: 13px 11px;
+  background: linear-gradient(145deg, #202528, #111415);
+  border: 1px solid #343a3e;
+  border-radius: 3px 13px 3px 13px;
+  box-shadow: inset 3px 0 var(--racing-orange);
+}
+
+body:not([data-view="admin"]) .metric-label {
+  color: var(--racing-muted);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+body:not([data-view="admin"]) .metric-value {
+  margin-top: 7px;
+  color: white;
+  font-family: "Arial Narrow", Impact, sans-serif;
+  font-size: clamp(20px, 6vw, 27px);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+body:not([data-view="admin"]) .chart-card {
+  margin-bottom: 18px;
+  padding: 8px;
+  background: #090b0c;
+  border: 1px solid #30363a;
+  border-radius: 3px 14px 3px 14px;
+  overflow: hidden;
+}
+
+body:not([data-view="admin"]) #dashboardChart {
+  display: block;
+  width: 100%;
+  min-height: 300px;
+}
+
+.standings-list,
+.telemetry-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+#clasificacionView .classification-table-wrapper {
+  margin-top: 14px;
+  overflow-x: auto;
+  border: 1px solid #343a3e;
+  border-radius: 3px 13px 3px 13px;
+  -webkit-overflow-scrolling: touch;
+}
+
+#clasificacionView .classification-table {
+  width: max-content;
+  min-width: 100%;
+  margin: 0;
+  color: var(--racing-text);
+  background: #111415;
+  font-variant-numeric: tabular-nums;
+}
+
+#clasificacionView .classification-table th {
+  position: sticky;
+  top: 0;
+  color: var(--racing-orange-light);
+  background: #202528;
+  border-color: #343a3e;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+#clasificacionView .classification-table td {
+  border-color: #343a3e;
+  white-space: nowrap;
+}
+
+#clasificacionView .classification-table tbody tr:nth-child(even) {
+  background: #181c1e;
+}
+
+#clasificacionView .classification-table td:nth-child(4) {
+  min-width: 150px;
+  white-space: normal;
+}
+
+.race-entry {
+  overflow: hidden;
+  color: var(--racing-text);
+  background: linear-gradient(140deg, #1c2022, #101213);
+  border: 1px solid #343a3e;
+  border-radius: 3px 15px 3px 15px;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.2);
+}
+
+.race-entry[open] {
+  border-color: rgba(255,90,0,0.62);
+  box-shadow: 0 12px 28px rgba(0,0,0,0.28), inset 3px 0 var(--racing-orange);
+}
+
+.race-entry summary {
+  position: relative;
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 76px;
+  padding: 11px 32px 11px 10px;
+  cursor: pointer;
+  list-style: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.race-entry summary::-webkit-details-marker {
+  display: none;
+}
+
+.race-entry summary::after {
+  content: "+";
+  position: absolute;
+  right: 11px;
+  color: var(--racing-orange);
+  font: 24px/1 "Arial Narrow", Arial, sans-serif;
+}
+
+.race-entry[open] summary::after {
+  content: "−";
+}
+
+.race-position,
+.race-dorsal {
+  display: flex;
+  gap: 1px;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  color: white;
+  background: #292e31;
+  border-left: 3px solid var(--racing-orange);
+  border-radius: 2px 9px 2px 9px;
+  font: italic 800 21px/1 Impact, "Arial Narrow", sans-serif;
+}
+
+.race-position::before {
+  content: "P";
+  margin-right: 1px;
+  color: var(--racing-orange-light);
+  font-size: 10px;
+}
+
+.race-entry:first-child .race-position {
+  color: #111;
+  background: linear-gradient(135deg, #ffe58a, #e9aa23);
+  border-left-color: #fff1a8;
+}
+
+.race-entry:first-child .race-position::before {
+  color: #6b4600;
+}
+
+.race-driver {
+  min-width: 0;
+}
+
+.race-driver strong {
+  display: block;
+  overflow: hidden;
+  color: white;
+  font-size: 15px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.race-driver small {
+  display: block;
+  margin-top: 5px;
+  overflow: hidden;
+  color: var(--racing-muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.race-total {
+  color: white;
+  font: 800 18px/1 "Courier New", monospace;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.race-total small {
+  display: block;
+  margin-top: 6px;
+  color: var(--racing-orange-light);
+  font: 700 10px Arial, sans-serif;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.race-entry-content {
+  padding: 0 11px 13px;
+  border-top: 1px solid #303538;
+  animation: racing-detail 200ms ease-out both;
+}
+
+.race-splits {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 11px;
+}
+
+.race-split {
+  min-width: 0;
+  padding: 9px;
+  background: #0b0d0e;
+  border: 1px solid #2d3235;
+  border-radius: 3px 9px 3px 9px;
+}
+
+.race-split.ida {
+  border-left: 3px solid #4fa3ff;
+}
+
+.race-split.vuelta {
+  border-left: 3px solid var(--racing-orange);
+}
+
+.race-split.discarded {
+  opacity: 0.58;
+  text-decoration: line-through;
+}
+
+.race-split span {
+  display: block;
+  color: var(--racing-muted);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.race-split strong {
+  display: block;
+  margin-top: 5px;
+  color: white;
+  font: 700 15px "Courier New", monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.race-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.race-meta .pill {
+  color: #dce1e4;
+  background: #252a2d;
+  border: 1px solid #3b4145;
+}
+
+.telemetry-entry summary {
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+}
+
+.telemetry-entry .race-dorsal {
+  color: white;
+  background: #292e31;
+}
+
+.telemetry-entry:first-child .race-dorsal {
+  color: white;
+  background: #292e31;
+}
+
+.telemetry-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 11px;
+}
+
+.telemetry-stat {
+  padding: 9px;
+  background: #0b0d0e;
+  border: 1px solid #2d3235;
+  border-radius: 3px 9px 3px 9px;
+}
+
+.telemetry-stat span {
+  display: block;
+  color: var(--racing-muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.telemetry-stat strong {
+  display: block;
+  margin-top: 5px;
+  color: white;
+  font: 700 16px "Courier New", monospace;
+}
+
+.empty-race-state {
+  padding: 28px 16px;
+  color: var(--racing-muted);
+  background: #101314;
+  border: 1px dashed #3c4246;
+  border-radius: 3px 14px 3px 14px;
+  text-align: center;
+}
+
+body[data-view="admin"] {
+  padding-bottom: 0;
+}
+
+body[data-view="admin"] .container {
+  max-width: 760px;
+}
+
+@keyframes racing-view {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes racing-detail {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes racing-select {
+  0% { transform: scale(0.96); }
+  65% { transform: scale(1.025); }
+  100% { transform: scale(1); }
+}
+
+@keyframes racing-nav {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+@keyframes racing-pulse {
+  from { border-color: rgba(251,146,60,0.2); }
+  to { border-color: rgba(251,146,60,0.58); }
+}
+
+@keyframes racing-shine {
+  0%, 70% { transform: translateX(-130%); }
+  88%, 100% { transform: translateX(130%); }
+}
+
+@media (min-width: 600px) {
+  body:not([data-view="admin"]) .container {
+    padding-top: 20px;
+  }
+
+  body:not([data-view="admin"]) .dashboard-filters {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  body:not([data-view="admin"]) .dashboard-metrics {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 430px) and (max-width: 599px) {
+  body:not([data-view="admin"]) .dashboard-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 360px) {
+  body:not([data-view="admin"]) .container {
+    padding-right: 8px;
+    padding-left: 8px;
+  }
+
+  body:not([data-view="admin"]) .card {
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+
+  body:not([data-view="admin"]) .nav-buttons button,
+  body:not([data-view="admin"]) .nav-buttons button.secondary {
+    font-size: 9px;
+  }
+
+  .race-entry summary {
+    grid-template-columns: 43px minmax(0, 1fr) auto;
+    gap: 8px;
+    padding-right: 28px;
+  }
+
+  .race-position,
+  .race-dorsal {
+    width: 43px;
+    height: 45px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
   </style>
 </head>
 
@@ -371,7 +1283,7 @@
       <input id="juezInput" type="text" placeholder="Ej: Mesa 1">
 
       <div class="button-row">
-        <button onclick="login()">Entrar</button>
+        <button data-testid="login-submit" onclick="login()">Entrar</button>
       </div>
 
       <div id="loginMessage" class="message"></div>
@@ -384,14 +1296,14 @@
             <h1>Rally RC</h1>
             <div class="muted">Registro de resultados</div>
           </div>
-          <button class="secondary" onclick="logout()">Salir</button>
+          <button class="secondary" data-testid="logout" onclick="logout()">Salir</button>
         </div>
 
-        <div class="button-row nav-buttons">
-          <button id="navRegistro" onclick="showView('registro')">Registrar pasada</button>
-          <button id="navClasificacion" class="secondary" onclick="showView('clasificacion')">Clasificación</button>
-          <button id="navDashboard" class="secondary" onclick="showView('dashboard')">Dashboard</button>
-          <button id="navAdmin" class="secondary" onclick="showView('admin')">Administración</button>
+        <div class="button-row nav-buttons" aria-label="Navegación principal">
+          <button id="navRegistro" data-nav-index="01" onclick="showView('registro')">Registro</button>
+          <button id="navClasificacion" data-nav-index="02" class="secondary" onclick="showView('clasificacion')">Clasificación</button>
+          <button id="navDashboard" data-nav-index="03" class="secondary" onclick="showView('dashboard')">Dashboard</button>
+          <button id="navAdmin" data-nav-index="04" class="secondary" onclick="showView('admin')">Admin</button>
         </div>
       </div>
 
@@ -407,6 +1319,12 @@
         <select id="pilotoSelect" onchange="onPilotoChange()">
           <option value="">Selecciona piloto</option>
         </select>
+
+        <div class="button-row">
+          <button type="button" class="secondary" data-testid="registro-sync" onclick="syncRegistroData(true)">
+            Actualizar pilotos
+          </button>
+        </div>
 
         <label>Pasada</label>
         <div class="pasadas">
@@ -441,8 +1359,8 @@
         <input id="penalizacionInput" type="text" inputmode="decimal" value="0">
 
         <div class="button-row">
-          <button class="success" onclick="guardarResultado(false)">Guardar resultado</button>
-          <button class="secondary" onclick="limpiarFormulario()">Limpiar</button>
+          <button id="guardarResultadoButton" data-testid="registro-save" class="success" onclick="guardarResultado(false)">Guardar resultado</button>
+          <button class="secondary" data-testid="registro-clear" onclick="limpiarFormulario()">Limpiar</button>
         </div>
 
         <div id="registroMessage" class="message"></div>
@@ -472,31 +1390,16 @@
           <button class="secondary" id="toggleTimeFormatButton" onclick="toggleClasificacionTimeFormat()">
             Ver en minutos
           </button>
+          <button class="secondary" id="toggleClasificacionViewButton" data-testid="classification-view-toggle" onclick="toggleClasificacionViewMode()">
+            Ver tabla
+          </button>
         </div>
+
+        <p class="muted" id="clasificacionViewHint">Toca un piloto para ver el detalle de sus seis pasadas.</p>
 
         <div id="clasificacionMessage" class="message"></div>
 
-        <div class="table-wrapper">
-          <table>
-            <thead>
-              <tr>
-                <th>Cat.</th>
-                <th>Dorsal</th>
-                <th>Piloto</th>
-                <th>Ida 1</th>
-                <th>Vuelta 1</th>
-                <th>Ida 2</th>
-                <th>Vuelta 2</th>
-                <th>Ida 3</th>
-                <th>Vuelta 3</th>
-                <th>Total</th>
-                <th>Gap</th>
-                <th>Estado</th>
-              </tr>
-            </thead>
-            <tbody id="clasificacionBody"></tbody>
-          </table>
-        </div>
+        <div id="clasificacionBody" class="standings-list" aria-live="polite"></div>
       </div>
       <div class="card hidden" id="dashboardView">
         <h2>Dashboard de constancia</h2>
@@ -582,35 +1485,12 @@
           <canvas id="dashboardChart" width="1000" height="420"></canvas>
         </div>
 
-        <h3>Tabla de constancia</h3>
+        <h3>Pilotos y constancia</h3>
 
-        <div class="table-wrapper">
-          <table>
-            <thead>
-              <tr>
-                <th>Cat.</th>
-                <th>Dorsal</th>
-                <th>Piloto</th>
-                <th>Progreso</th>
-                <th>Ida 1</th>
-                <th>Vuelta 1</th>
-                <th>Ida 2</th>
-                <th>Vuelta 2</th>
-                <th>Ida 3</th>
-                <th>Vuelta 3</th>
-                <th>Mejor</th>
-                <th>Peor</th>
-                <th>Media</th>
-                <th>Constancia</th>
-                <th>Estado</th>
-              </tr>
-            </thead>
-            <tbody id="dashboardBody">
-              <tr>
-                <td colspan="15">Sin datos cargados</td>
-              </tr>
-            </tbody>
-          </table>
+        <p class="muted">Toca una tarjeta para desplegar tiempos y métricas.</p>
+
+        <div id="dashboardBody" class="telemetry-list" aria-live="polite">
+          <div class="empty-race-state">Sin datos cargados</div>
         </div>
       </div>
       <div class="card hidden" id="adminView">
@@ -624,12 +1504,44 @@
         <input id="adminPinInput" type="password" placeholder="Contraseña de administración">
 
         <div class="button-row">
-          <button onclick="entrarAdministracion()">Entrar en administración</button>
+          <button data-testid="admin-login-submit" onclick="entrarAdministracion()">Entrar en administración</button>
         </div>
 
         <div id="adminLoginMessage" class="message"></div>
 
         <div id="adminPanel" class="hidden" style="margin-top: 16px;">
+          <h2>Publicación del campeonato</h2>
+
+          <p class="muted">
+            Envía una fotografía definitiva de la carrera a la aplicación pública del campeonato.
+            Una carrera publicada no se puede volver a enviar desde esta aplicación.
+          </p>
+
+          <div id="campeonatoPublicationStatus" class="message warning" role="status" aria-live="polite" aria-atomic="true">
+            Consultando estado de publicación...
+          </div>
+
+          <label for="confirmPublicarCampeonatoInput">Confirmación</label>
+          <input id="confirmPublicarCampeonatoInput" type="text" placeholder="Escribe PUBLICAR CAMPEONATO">
+
+          <div class="button-row">
+            <button
+              type="button"
+              id="publicarCampeonatoButton"
+              class="success"
+              onclick="publicarCampeonatoDesdeApp()"
+            >
+              Publicar resultados en el campeonato
+            </button>
+            <button type="button" class="secondary" onclick="loadEstadoPublicacionCampeonato()">
+              Actualizar estado
+            </button>
+          </div>
+
+          <div id="campeonatoPublicationMessage" class="message" role="status" aria-live="polite" aria-atomic="true"></div>
+
+          <hr style="margin: 24px 0; border: 0; border-top: 1px solid var(--border);">
+
           <h2>Nueva carrera</h2>
 
           <label for="nombreCarreraInput">Nombre de la nueva carrera</label>
@@ -639,7 +1551,7 @@
           <input id="confirmNuevaCarreraInput" type="text" placeholder="Escribe NUEVA CARRERA">
 
           <div class="button-row">
-            <button class="danger" onclick="generarNuevaCarreraDesdeApp()">Generar nueva carrera</button>
+            <button id="generarNuevaCarreraButton" class="danger" data-testid="nueva-carrera-submit" onclick="generarNuevaCarreraDesdeApp()" disabled>Generar nueva carrera</button>
           </div>
 
           <div id="adminActionMessage" class="message"></div>
@@ -714,32 +1626,543 @@
             </div>
           </div>
         </div>
+        <hr>
+
+        <h3>Gestión de datos maestros</h3>
+
+        <p class="muted">
+          Desde aquí puedes gestionar la base de datos de pilotos y categorías disponibles para las carreras.
+        </p>
+
+        <div class="admin-tabs">
+          <button type="button" id="adminTabPilotos" onclick="showAdminCatalogSection('pilotos')">
+            Pilotos
+          </button>
+          <button type="button" id="adminTabCategorias" onclick="showAdminCatalogSection('categorias')">
+            Categorías
+          </button>
+          <button type="button" id="adminTabInscripciones" onclick="showAdminCatalogSection('inscripciones')">
+            Inscripciones
+          </button>
+        </div>
+
+        <div id="adminCatalogMessage" class="message"></div>
+
+        <div class="admin-section hidden" id="adminPilotosSection">
+          <h3>Pilotos</h3>
+
+          <div class="admin-form-grid">
+            <div>
+              <label for="adminPilotoNombreInput">Nombre</label>
+              <input id="adminPilotoNombreInput" type="text" placeholder="Nombre del piloto">
+            </div>
+
+            <div>
+              <label for="adminPilotoAliasInput">Alias</label>
+              <input id="adminPilotoAliasInput" type="text" placeholder="Opcional">
+            </div>
+
+            <div>
+              <label for="adminPilotoActivoSelect">Activo</label>
+              <select id="adminPilotoActivoSelect">
+                <option value="SI">Sí</option>
+                <option value="NO">No</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="adminPilotoNotasInput">Notas</label>
+              <input id="adminPilotoNotasInput" type="text" placeholder="Opcional">
+            </div>
+          </div>
+
+          <input id="adminPilotoIdInput" type="hidden">
+
+          <div class="button-row">
+            <button type="button" onclick="guardarPilotoAdmin()">
+              Guardar piloto
+            </button>
+            <button type="button" class="secondary" onclick="limpiarFormularioPilotoAdmin()">
+              Limpiar
+            </button>
+            <button type="button" class="secondary" onclick="loadAdminCatalogos()">
+              Actualizar listado
+            </button>
+          </div>
+
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Nombre</th>
+                  <th>Alias</th>
+                  <th>Activo</th>
+                  <th>Notas</th>
+                  <th>Actualizado</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="adminPilotosBody">
+                <tr>
+                  <td colspan="7">Sin datos cargados</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="admin-section hidden" id="adminCategoriasSection">
+          <h3>Categorías</h3>
+
+          <div class="admin-form-grid">
+            <div>
+              <label for="adminCategoriaNombreInput">Nombre</label>
+              <input id="adminCategoriaNombreInput" type="text" placeholder="Nombre de categoría">
+            </div>
+
+            <div>
+              <label for="adminCategoriaActivaSelect">Activa</label>
+              <select id="adminCategoriaActivaSelect">
+                <option value="SI">Sí</option>
+                <option value="NO">No</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="adminCategoriaOrdenInput">Orden</label>
+              <input id="adminCategoriaOrdenInput" type="number" min="1" placeholder="Orden">
+            </div>
+
+            <div>
+              <label for="adminCategoriaNotasInput">Notas</label>
+              <input id="adminCategoriaNotasInput" type="text" placeholder="Opcional">
+            </div>
+          </div>
+
+          <input id="adminCategoriaIdInput" type="hidden">
+
+          <div class="button-row">
+            <button type="button" onclick="guardarCategoriaAdmin()">
+              Guardar categoría
+            </button>
+            <button type="button" class="secondary" onclick="limpiarFormularioCategoriaAdmin()">
+              Limpiar
+            </button>
+            <button type="button" class="secondary" onclick="loadAdminCatalogos()">
+              Actualizar listado
+            </button>
+          </div>
+
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Nombre</th>
+                  <th>Activa</th>
+                  <th>Orden</th>
+                  <th>Notas</th>
+                  <th>Actualizado</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="adminCategoriasBody">
+                <tr>
+                  <td colspan="7">Sin datos cargados</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="admin-section hidden" id="adminInscripcionesSection">
+          <h3>Inscripciones de la carrera actual</h3>
+
+          <p class="muted">
+            Desde aquí puedes decidir qué pilotos corren en la carrera actual y en qué categoría.
+          </p>
+
+          <h4>Añadir o editar inscripción</h4>
+
+          <div class="admin-form-grid-3">
+            <div>
+              <label for="adminInscripcionPilotoSelect">Piloto</label>
+              <select id="adminInscripcionPilotoSelect">
+                <option value="">Selecciona piloto</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="adminInscripcionCategoriaSelect">Categoría</label>
+              <select id="adminInscripcionCategoriaSelect">
+                <option value="">Selecciona categoría</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="adminInscripcionDorsalInput">Dorsal</label>
+              <input id="adminInscripcionDorsalInput" type="text" placeholder="Ej: 001">
+            </div>
+          </div>
+
+          <input id="adminInscripcionIdInput" type="hidden">
+
+          <div class="button-row">
+            <button type="button" onclick="guardarInscripcionAdminDesdeApp()">
+              Guardar inscripción
+            </button>
+            <button type="button" class="secondary" onclick="limpiarFormularioInscripcionAdmin()">
+              Limpiar
+            </button>
+            <button type="button" class="secondary" onclick="loadAdminCatalogos()">
+              Actualizar listado
+            </button>
+          </div>
+
+          <hr style="margin: 24px 0; border: 0; border-top: 1px solid var(--border);">
+
+          <h4>Crear piloto nuevo e inscribir</h4>
+
+          <p class="muted">
+            Usa este bloque cuando el piloto todavía no exista en la base de datos.
+          </p>
+
+          <div class="admin-form-grid">
+            <div>
+              <label for="adminNuevoPilotoNombreInput">Nombre</label>
+              <input id="adminNuevoPilotoNombreInput" type="text" placeholder="Nombre del piloto">
+            </div>
+
+            <div>
+              <label for="adminNuevoPilotoAliasInput">Alias</label>
+              <input id="adminNuevoPilotoAliasInput" type="text" placeholder="Opcional">
+            </div>
+
+            <div>
+              <label for="adminNuevoPilotoCategoriaSelect">Categoría</label>
+              <select id="adminNuevoPilotoCategoriaSelect">
+                <option value="">Selecciona categoría</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="adminNuevoPilotoDorsalInput">Dorsal</label>
+              <input id="adminNuevoPilotoDorsalInput" type="text" placeholder="Ej: 001">
+            </div>
+          </div>
+
+          <label for="adminNuevoPilotoNotasInput">Notas</label>
+          <input id="adminNuevoPilotoNotasInput" type="text" placeholder="Opcional">
+
+          <div class="button-row">
+            <button type="button" class="success" onclick="crearPilotoEInscribirAdminDesdeApp()">
+              Crear piloto nuevo e inscribir
+            </button>
+            <button type="button" class="secondary" onclick="limpiarFormularioNuevoPilotoInscripcionAdmin()">
+              Limpiar nuevo piloto
+            </button>
+          </div>
+
+          <hr style="margin: 24px 0; border: 0; border-top: 1px solid var(--border);">
+
+          <h4>Inscritos actuales</h4>
+
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Dorsal</th>
+                  <th>Piloto</th>
+                  <th>Categoría</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="adminInscripcionesBody">
+                <tr>
+                  <td colspan="5">Sin datos cargados</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
 
   </div>
 
   <script>
-    let appState = {
-    pin: '',
-    juez: '',
-    selectedPasada: null,
-    categorias: [],
-    clasificacionTimeFormat: 'seconds',
-    lastClasificacionRows: [],
-    pasadasRegistradas: [],
-    pilotosLoadRequestId: 0,
-    pasadasLoadRequestId: 0,
-    dashboardRows: [],
-    dashboardCategorias: [],
-    dashboardPilotos: [],
-    dashboardPasadas: [],
-    dashboardInterval: null
-  };
+    const REGISTRO_CACHE_KEY = 'rallyRcRegistroDataV2';
+    const REGISTRO_CACHE_MAX_AGE_MS = 5 * 60 * 1000;
+    const REGISTRO_SYNC_MIN_INTERVAL_MS = 10000;
+    const LOGIN_COOKIE_NAME = 'rallyRcLoginV1';
+    const LOGIN_STORAGE_KEY = 'rallyRcLoginV1';
+    const LOGIN_COOKIE_MAX_AGE_SECONDS = 24 * 60 * 60;
+    const LOGIN_COOKIE_ATTRIBUTES = '; Path=/; SameSite=None; Secure; Partitioned';
 
-    function login() {
+    window.__rallyMetrics = window.__rallyMetrics || {
+      rpc: [],
+      renders: [],
+      cache: []
+    };
+
+    function createInitialAppState() {
+      return {
+        pin: '',
+        juez: '',
+        selectedPasada: null,
+        categorias: [],
+        inscripciones: [],
+        clasificacionTimeFormat: 'seconds',
+        clasificacionViewMode: 'cards',
+        lastClasificacionRows: [],
+        pasadasRegistradas: [],
+        pasadasLoadRequestId: 0,
+        registroDataLoading: false,
+        registroDataPendingForce: false,
+        registroDataRequestId: 0,
+        registroDataFetchedAt: 0,
+        resultadoSaveLoading: false,
+        dashboardRows: [],
+        dashboardCategorias: [],
+        dashboardPilotos: [],
+        dashboardPasadas: [],
+        dashboardInterval: null,
+        adminCatalogosLoaded: false,
+        adminPin: '',
+        campeonatoPublication: null,
+        campeonatoStatusRequestId: 0,
+        adminPilotos: [],
+        adminCategorias: [],
+        adminInscripciones: []
+      };
+    }
+
+    let appState = createInitialAppState();
+    let appSessionGeneration = 0;
+
+    window.__rallyTest = {
+      resetMetrics: function() {
+        window.__rallyMetrics.rpc.length = 0;
+        window.__rallyMetrics.renders.length = 0;
+        window.__rallyMetrics.cache.length = 0;
+      },
+      expireRegistroData: function() {
+        appState.registroDataFetchedAt = 0;
+      }
+    };
+
+    function startRpcMetric_(name) {
+      const metric = {
+        name: name,
+        startedAt: performance.now(),
+        completedAt: null,
+        durationMs: null,
+        status: 'pending'
+      };
+
+      window.__rallyMetrics.rpc.push(metric);
+      return metric;
+    }
+
+    function finishRpcMetric_(metric, status) {
+      metric.completedAt = performance.now();
+      metric.durationMs = metric.completedAt - metric.startedAt;
+      metric.status = status;
+    }
+
+    function readRegistroCache_() {
+      try {
+        const raw = sessionStorage.getItem(REGISTRO_CACHE_KEY);
+
+        if (!raw) {
+          return null;
+        }
+
+        const cached = JSON.parse(raw);
+        const valid = cached &&
+          cached.schemaVersion === '3' &&
+          Array.isArray(cached.categorias) &&
+          Array.isArray(cached.inscripciones) &&
+          Number(cached.fetchedAt) > 0 &&
+          Date.now() - Number(cached.fetchedAt) <= REGISTRO_CACHE_MAX_AGE_MS;
+
+        window.__rallyMetrics.cache.push({
+          type: 'read',
+          hit: Boolean(valid),
+          at: performance.now()
+        });
+
+        return valid ? cached : null;
+      } catch (error) {
+        clearRegistroCache_();
+        return null;
+      }
+    }
+
+    function clearRegistroCache_() {
+      try {
+        sessionStorage.removeItem(REGISTRO_CACHE_KEY);
+      } catch (error) {
+        // Algunos navegadores bloquean por completo el almacenamiento de sesión.
+      }
+    }
+
+    function writeRegistroCache_(data) {
+      try {
+        sessionStorage.setItem(REGISTRO_CACHE_KEY, JSON.stringify({
+          categorias: data.categorias || [],
+          inscripciones: data.inscripciones || [],
+          fetchedAt: Number(data.fetchedAt) || Date.now(),
+          schemaVersion: String(data.schemaVersion || '3'),
+          environment: String(data.environment || 'PRODUCTION')
+        }));
+
+        window.__rallyMetrics.cache.push({
+          type: 'write',
+          at: performance.now()
+        });
+      } catch (error) {
+        // La aplicación sigue funcionando aunque el navegador bloquee sessionStorage.
+      }
+    }
+
+    function enterApplication_(pin, juez) {
+      appSessionGeneration++;
+      appState.pin = pin;
+      appState.juez = juez;
+      document.getElementById('loginCard').classList.add('hidden');
+      document.getElementById('app').classList.remove('hidden');
+      showView('registro');
+    }
+
+    function writeLoginCookie_(pin, juez) {
+      const payload = encodeURIComponent(JSON.stringify({
+        pin: pin,
+        juez: juez,
+        expiresAt: Date.now() + LOGIN_COOKIE_MAX_AGE_SECONDS * 1000
+      }));
+
+      try {
+        document.cookie = LOGIN_COOKIE_NAME + '=' + payload +
+          '; Max-Age=' + LOGIN_COOKIE_MAX_AGE_SECONDS +
+          LOGIN_COOKIE_ATTRIBUTES;
+      } catch (error) {
+        // localStorage cubre navegadores que bloquean cookies de terceros.
+      }
+
+      try {
+        localStorage.setItem(LOGIN_STORAGE_KEY, payload);
+      } catch (error) {
+        // La cookie sigue siendo suficiente si el navegador bloquea localStorage.
+      }
+    }
+
+    function readLoginCookie_() {
+      const prefix = LOGIN_COOKIE_NAME + '=';
+      let storedPayload = '';
+
+      try {
+        const cookie = document.cookie
+          .split(';')
+          .map(function(value) {
+            return value.trim();
+          })
+          .find(function(value) {
+            return value.startsWith(prefix);
+          });
+
+        storedPayload = cookie ? cookie.slice(prefix.length) : '';
+      } catch (error) {
+        storedPayload = '';
+      }
+
+      if (!storedPayload) {
+        try {
+          storedPayload = localStorage.getItem(LOGIN_STORAGE_KEY) || '';
+        } catch (error) {
+          storedPayload = '';
+        }
+      }
+
+      if (!storedPayload) {
+        return null;
+      }
+
+      try {
+        const payload = JSON.parse(decodeURIComponent(storedPayload));
+        const valid = payload &&
+          String(payload.pin || '').trim() &&
+          String(payload.juez || '').trim() &&
+          Number(payload.expiresAt) > Date.now();
+
+        if (!valid) {
+          clearLoginCookie_();
+          return null;
+        }
+
+        return payload;
+      } catch (error) {
+        clearLoginCookie_();
+        return null;
+      }
+    }
+
+    function clearLoginCookie_() {
+      try {
+        document.cookie = LOGIN_COOKIE_NAME + '=; Max-Age=0' + LOGIN_COOKIE_ATTRIBUTES;
+      } catch (error) {
+        // El cierre de sesión debe continuar aunque las cookies estén bloqueadas.
+      }
+
+      try {
+        localStorage.removeItem(LOGIN_STORAGE_KEY);
+      } catch (error) {
+        // No hay nada más que limpiar si el almacenamiento está bloqueado.
+      }
+    }
+
+    function restoreLogin_() {
+      const rememberedLogin = readLoginCookie_();
+
+      if (!rememberedLogin) {
+        return;
+      }
+
+      document.getElementById('pinInput').value = rememberedLogin.pin;
+      document.getElementById('juezInput').value = rememberedLogin.juez;
+      login({ restoring: true });
+    }
+
+    function setLoginPending_(pending) {
+      document.getElementById('pinInput').disabled = pending;
+      document.getElementById('juezInput').disabled = pending;
+      document.querySelector('[data-testid="login-submit"]').disabled = pending;
+    }
+
+    function isInvalidPinError_(error) {
+      return String(error && error.message ? error.message : error || '').includes('PIN incorrecto');
+    }
+
+    function fetchRegistroData_(pin, onSuccess, onFailure) {
+      const metric = startRpcMetric_('getRegistroData');
+
+      google.script.run
+        .withSuccessHandler(function(data) {
+          finishRpcMetric_(metric, 'success');
+          onSuccess(data || {});
+        })
+        .withFailureHandler(function(error) {
+          finishRpcMetric_(metric, 'error');
+          onFailure(error);
+        })
+        .getRegistroData(pin);
+    }
+
+    function login(options) {
       const pin = document.getElementById('pinInput').value.trim();
       const juez = document.getElementById('juezInput').value.trim();
+      const restoring = Boolean(options && options.restoring);
 
       if (!pin) {
         showMessage('loginMessage', 'Introduce el PIN', 'error');
@@ -751,42 +2174,74 @@
         return;
       }
 
+      setLoginPending_(true);
       showMessage('loginMessage', 'Validando acceso...', 'warning');
+      const cached = readRegistroCache_();
 
-      google.script.run
-        .withSuccessHandler(function(isValid) {
-          if (!isValid) {
-            showMessage('loginMessage', 'PIN incorrecto', 'error');
-            return;
-          }
+      if (cached) {
+        const metric = startRpcMetric_('validatePin');
 
-          appState.pin = pin;
-          appState.juez = juez;
+        google.script.run
+          .withSuccessHandler(function(isValid) {
+            finishRpcMetric_(metric, 'success');
 
-          document.getElementById('loginCard').classList.add('hidden');
-          document.getElementById('app').classList.remove('hidden');
+            if (!isValid) {
+              clearRegistroCache_();
+              if (restoring) {
+                clearLoginCookie_();
+              }
+              setLoginPending_(false);
+              showMessage('loginMessage', 'PIN incorrecto', 'error');
+              return;
+            }
 
-          showView('registro');
-          loadCategorias();
-        })
-        .withFailureHandler(function(error) {
-          showMessage('loginMessage', error.message || 'Error validando PIN', 'error');
-        })
-        .validatePin(pin);
+            if (!restoring) {
+              writeLoginCookie_(pin, juez);
+            }
+            enterApplication_(pin, juez);
+            applyRegistroData_(cached, 'cache');
+            syncRegistroData(true);
+          })
+          .withFailureHandler(function(error) {
+            finishRpcMetric_(metric, 'error');
+            if (restoring && isInvalidPinError_(error)) {
+              clearLoginCookie_();
+            }
+            setLoginPending_(false);
+            showMessage('loginMessage', error.message || 'Error validando PIN', 'error');
+          })
+          .validatePin(pin);
+
+        return;
+      }
+
+      fetchRegistroData_(pin, function(data) {
+        if (!restoring) {
+          writeLoginCookie_(pin, juez);
+        }
+        enterApplication_(pin, juez);
+        applyRegistroData_(data, 'network');
+        hideMessage('loginMessage');
+      }, function(error) {
+        if (restoring && isInvalidPinError_(error)) {
+          clearLoginCookie_();
+        }
+        setLoginPending_(false);
+        showMessage('loginMessage', error.message || 'Error validando PIN', 'error');
+      });
     }
 
     function logout() {
-      appState = {
-        pin: '',
-        juez: '',
-        selectedPasada: null,
-        categorias: [],
-        clasificacionTimeFormat: 'seconds',
-        lastClasificacionRows: [],
-        pasadasRegistradas: [],
-        pilotosLoadRequestId: 0,
-        pasadasLoadRequestId: 0
-      };
+      appSessionGeneration++;
+      appState = createInitialAppState();
+      clearRegistroCache_();
+      clearLoginCookie_();
+      setLoginPending_(false);
+      delete document.body.dataset.view;
+
+      document.getElementById('categoriaSelect').disabled = false;
+      document.getElementById('pilotoSelect').disabled = false;
+      document.getElementById('guardarResultadoButton').disabled = false;
 
       document.getElementById('pinInput').value = '';
       document.getElementById('juezInput').value = '';
@@ -795,15 +2250,95 @@
     }
 
     function loadCategorias() {
-      google.script.run
-        .withSuccessHandler(function(categorias) {
-          appState.categorias = categorias;
-          fillCategoriaSelects(categorias);
-        })
-        .withFailureHandler(function(error) {
-          showMessage('registroMessage', error.message || 'Error cargando categorías', 'error');
-        })
-        .getCategorias(appState.pin);
+      syncRegistroData(true);
+    }
+
+    function syncRegistroData(force) {
+      if (!appState.pin) {
+        return;
+      }
+
+      if (appState.registroDataLoading) {
+        appState.registroDataPendingForce = appState.registroDataPendingForce || Boolean(force);
+        return;
+      }
+
+      const elapsed = Date.now() - Number(appState.registroDataFetchedAt || 0);
+
+      if (!force && elapsed < REGISTRO_SYNC_MIN_INTERVAL_MS) {
+        window.__rallyMetrics.rpc.push({
+          name: 'getRegistroData',
+          status: 'deduplicated',
+          startedAt: performance.now(),
+          completedAt: performance.now(),
+          durationMs: 0
+        });
+        return;
+      }
+
+      appState.registroDataLoading = true;
+      appState.registroDataRequestId++;
+      const requestId = appState.registroDataRequestId;
+
+      fetchRegistroData_(appState.pin, function(data) {
+        if (requestId !== appState.registroDataRequestId) {
+          return;
+        }
+
+        appState.registroDataLoading = false;
+        applyRegistroData_(data, 'network');
+
+        if (appState.registroDataPendingForce) {
+          appState.registroDataPendingForce = false;
+          syncRegistroData(true);
+        }
+      }, function(error) {
+        if (requestId !== appState.registroDataRequestId) {
+          return;
+        }
+
+        appState.registroDataLoading = false;
+
+        if (!appState.categorias.length) {
+          showMessage('registroMessage', error.message || 'Error actualizando pilotos', 'error');
+        }
+
+        if (appState.registroDataPendingForce) {
+          appState.registroDataPendingForce = false;
+          syncRegistroData(true);
+        }
+      });
+    }
+
+    function applyRegistroData_(data, source) {
+      appState.categorias = Array.isArray(data.categorias) ? data.categorias : [];
+      appState.inscripciones = Array.isArray(data.inscripciones) ? data.inscripciones : [];
+      appState.registroDataFetchedAt = Number(data.fetchedAt) || Date.now();
+      document.body.dataset.environment = String(data.environment || 'PRODUCTION');
+
+      fillCategoriaSelects(appState.categorias);
+      renderPilotosForCategoria_(
+        document.getElementById('categoriaSelect').value,
+        document.getElementById('pilotoSelect').value
+      );
+
+      if (source === 'network') {
+        writeRegistroCache_({
+          categorias: appState.categorias,
+          inscripciones: appState.inscripciones,
+          fetchedAt: appState.registroDataFetchedAt,
+          schemaVersion: data.schemaVersion || '3',
+          environment: data.environment || 'PRODUCTION'
+        });
+      }
+
+      window.__rallyMetrics.renders.push({
+        name: 'registroData',
+        source: source,
+        at: performance.now(),
+        categorias: appState.categorias.length,
+        inscripciones: appState.inscripciones.length
+      });
     }
 
     function fillCategoriaSelects(categorias) {
@@ -811,6 +2346,10 @@
       const clasificacionSelect = document.getElementById('categoriaClasificacionSelect');
       const correccionSelect = document.getElementById('correccionCategoriaSelect');
       const dashboardSelect = document.getElementById('dashboardCategoriaSelect');
+      const selectedRegistro = registroSelect.value;
+      const selectedClasificacion = clasificacionSelect.value;
+      const selectedCorreccion = correccionSelect ? correccionSelect.value : '';
+      const selectedDashboard = dashboardSelect ? dashboardSelect.value : '';
 
       registroSelect.innerHTML = '<option value="">Selecciona categoría</option>';
       clasificacionSelect.innerHTML = '<option value="">Todas</option>';
@@ -848,84 +2387,82 @@
           dashboardSelect.appendChild(option4);
         }
       });
+
+      registroSelect.value = categorias.includes(selectedRegistro) ? selectedRegistro : '';
+      clasificacionSelect.value = categorias.includes(selectedClasificacion) ? selectedClasificacion : '';
+
+      if (correccionSelect) {
+        correccionSelect.value = categorias.includes(selectedCorreccion) ? selectedCorreccion : '';
+      }
+
+      if (dashboardSelect) {
+        dashboardSelect.value = categorias.includes(selectedDashboard) ? selectedDashboard : '';
+      }
+    }
+
+    function renderPilotosForCategoria_(categoria, selectedInscripcionId) {
+      const renderStartedAt = performance.now();
+      const pilotoSelect = document.getElementById('pilotoSelect');
+      const inscripciones = appState.inscripciones
+        .filter(function(item) {
+          return String(item.categoria || '').trim() === String(categoria || '').trim();
+        })
+        .sort(function(a, b) {
+          const dorsalA = Number(a.dorsal);
+          const dorsalB = Number(b.dorsal);
+
+          if (!isNaN(dorsalA) && !isNaN(dorsalB)) {
+            return dorsalA - dorsalB;
+          }
+
+          return String(a.dorsal).localeCompare(String(b.dorsal));
+        });
+
+      pilotoSelect.disabled = false;
+      pilotoSelect.innerHTML = '<option value="">Selecciona piloto</option>';
+
+      if (categoria && !inscripciones.length) {
+        pilotoSelect.innerHTML = '<option value="">No hay pilotos en esta categoría</option>';
+        window.__rallyMetrics.renders.push({
+          name: 'pilotos',
+          durationMs: performance.now() - renderStartedAt,
+          categoria: categoria,
+          count: 0
+        });
+        return;
+      }
+
+      inscripciones.forEach(function(item) {
+        const option = document.createElement('option');
+        option.value = item.inscripcionId;
+        option.textContent = item.dorsal + ' - ' + item.piloto;
+        pilotoSelect.appendChild(option);
+      });
+
+      if (inscripciones.some(function(item) {
+        return item.inscripcionId === selectedInscripcionId;
+      })) {
+        pilotoSelect.value = selectedInscripcionId;
+      }
+
+      window.__rallyMetrics.renders.push({
+        name: 'pilotos',
+        durationMs: performance.now() - renderStartedAt,
+        categoria: categoria,
+        count: inscripciones.length
+      });
     }
 
     function onCategoriaChange() {
       const categoria = document.getElementById('categoriaSelect').value;
-      const pilotoSelect = document.getElementById('pilotoSelect');
 
       appState.selectedPasada = null;
       appState.pasadasRegistradas = [];
       resetPasadasButtons();
       hideMessage('registroMessage');
 
-      appState.pilotosLoadRequestId++;
-      const requestId = appState.pilotosLoadRequestId;
-
-      pilotoSelect.disabled = true;
-      pilotoSelect.innerHTML = '<option value="">Cargando pilotos...</option>';
-
-      if (!categoria) {
-        pilotoSelect.disabled = false;
-        pilotoSelect.innerHTML = '<option value="">Selecciona piloto</option>';
-        return;
-      }
-
-      const timeoutId = setTimeout(function() {
-        if (requestId !== appState.pilotosLoadRequestId) {
-          return;
-        }
-
-        pilotoSelect.disabled = false;
-        pilotoSelect.innerHTML = '<option value="">No se pudieron cargar pilotos</option>';
-
-        showMessage(
-          'registroMessage',
-          'La carga de pilotos está tardando demasiado. Vuelve a seleccionar la categoría o recarga la app.',
-          'error'
-        );
-      }, 12000);
-
-      google.script.run
-        .withSuccessHandler(function(inscripciones) {
-          if (requestId !== appState.pilotosLoadRequestId) {
-            return;
-          }
-
-          clearTimeout(timeoutId);
-
-          pilotoSelect.disabled = false;
-          pilotoSelect.innerHTML = '<option value="">Selecciona piloto</option>';
-
-          if (!inscripciones || !inscripciones.length) {
-            pilotoSelect.innerHTML = '<option value="">No hay pilotos en esta categoría</option>';
-            return;
-          }
-
-          inscripciones.forEach(function(item) {
-            const option = document.createElement('option');
-            option.value = item.inscripcionId;
-            option.textContent = item.dorsal + ' - ' + item.piloto;
-            pilotoSelect.appendChild(option);
-          });
-        })
-        .withFailureHandler(function(error) {
-          if (requestId !== appState.pilotosLoadRequestId) {
-            return;
-          }
-
-          clearTimeout(timeoutId);
-
-          pilotoSelect.disabled = false;
-          pilotoSelect.innerHTML = '<option value="">Error cargando pilotos</option>';
-
-          showMessage(
-            'registroMessage',
-            error.message || 'Error cargando pilotos',
-            'error'
-          );
-        })
-        .getInscripcionesByCategoria(appState.pin, categoria);
+      renderPilotosForCategoria_(categoria, '');
+      syncRegistroData(false);
     }
 
     function selectPasada(num) {
@@ -963,8 +2500,12 @@
         return;
       }
 
+      const metric = startRpcMetric_('getPasadasRegistradas');
+
       google.script.run
         .withSuccessHandler(function(pasadas) {
+          finishRpcMetric_(metric, 'success');
+
           if (requestId !== appState.pasadasLoadRequestId) {
             return;
           }
@@ -973,6 +2514,8 @@
           updatePasadasButtonsState();
         })
         .withFailureHandler(function(error) {
+          finishRpcMetric_(metric, 'error');
+
           if (requestId !== appState.pasadasLoadRequestId) {
             return;
           }
@@ -984,6 +2527,8 @@
           );
         })
         .getPasadasRegistradas(appState.pin, inscripcionId);
+
+      syncRegistroData(false);
     }
 
 function resetPasadasButtons() {
@@ -1009,6 +2554,10 @@ function updatePasadasButtonsState() {
 }
 
     function guardarResultado(overwrite) {
+      if (appState.resultadoSaveLoading) {
+        return;
+      }
+
       hideMessage('registroMessage');
       document.getElementById('duplicateBox').style.display = 'none';
 
@@ -1063,9 +2612,27 @@ function updatePasadasButtonsState() {
       };
 
       showMessage('registroMessage', 'Guardando resultado...', 'warning');
+      appState.resultadoSaveLoading = true;
+      const submittedInscripcionId = inscripcionId;
+      const submittedSessionGeneration = appSessionGeneration;
+      document.getElementById('categoriaSelect').disabled = true;
+      document.getElementById('pilotoSelect').disabled = true;
+      document.getElementById('guardarResultadoButton').disabled = true;
+      const metric = startRpcMetric_('saveResultado');
 
       google.script.run
         .withSuccessHandler(function(response) {
+          finishRpcMetric_(metric, 'success');
+
+          if (submittedSessionGeneration !== appSessionGeneration) {
+            return;
+          }
+
+          appState.resultadoSaveLoading = false;
+          document.getElementById('categoriaSelect').disabled = false;
+          document.getElementById('pilotoSelect').disabled = false;
+          document.getElementById('guardarResultadoButton').disabled = false;
+
           if (response.status === 'DUPLICATE') {
             showDuplicate(response.existing);
             showMessage(
@@ -1095,9 +2662,23 @@ function updatePasadasButtonsState() {
           document.getElementById('penalizacionInput').value = '0';
           document.getElementById('segundosInput').focus();
 
-          onPilotoChange();
+          if (document.getElementById('pilotoSelect').value === submittedInscripcionId) {
+            appState.selectedPasada = null;
+            appState.pasadasRegistradas = response.pasadasRegistradas || [];
+            updatePasadasButtonsState();
+          }
         })
         .withFailureHandler(function(error) {
+          finishRpcMetric_(metric, 'error');
+
+          if (submittedSessionGeneration !== appSessionGeneration) {
+            return;
+          }
+
+          appState.resultadoSaveLoading = false;
+          document.getElementById('categoriaSelect').disabled = false;
+          document.getElementById('pilotoSelect').disabled = false;
+          document.getElementById('guardarResultadoButton').disabled = false;
           showMessage('registroMessage', error.message || 'Error guardando resultado', 'error');
         })
         .saveResultado(appState.pin, payload);
@@ -1424,55 +3005,84 @@ function renderDashboardMetrics(rows, tipo) {
 
 function renderDashboardTable(rows, tipo) {
   const body = document.getElementById('dashboardBody');
+  const openEntries = new Set(
+    Array.from(body.querySelectorAll('details[open]')).map(function(entry) {
+      return entry.dataset.entryKey || '';
+    })
+  );
   body.innerHTML = '';
 
   if (!rows.length) {
-    body.innerHTML = '<tr><td colspan="15">No hay datos para mostrar</td></tr>';
+    body.innerHTML = '<div class="empty-race-state">No hay datos para mostrar</div>';
     return;
   }
 
-  rows.forEach(function(row, index) {
-    const tr = document.createElement('tr');
+  rows.forEach(function(row) {
+    const details = document.createElement('details');
+    const entryKey = getRaceEntryKey_(row);
+    const diferencia = secondsToDisplayTime(getDashboardMetric(row, 'diferencia', tipo));
+    const mejor = secondsToDisplayTime(getDashboardMetric(row, 'mejor', tipo));
+    const peor = secondsToDisplayTime(getDashboardMetric(row, 'peor', tipo));
+    const media = secondsToDisplayTime(getDashboardMetric(row, 'media', tipo));
 
-    if (index === 0 && getDashboardMetric(row, 'diferencia', tipo) !== '') {
-      tr.classList.add('best-dashboard-row');
-    }
+    details.className = 'race-entry telemetry-entry';
+    details.dataset.testid = 'dashboard-row';
+    details.dataset.entryKey = entryKey;
+    details.open = openEntries.has(entryKey);
+    details.innerHTML =
+      '<summary>' +
+        '<span class="race-dorsal">' + safe(row.dorsal) + '</span>' +
+        '<span class="race-driver">' +
+          '<strong>' + safe(row.piloto) + '</strong>' +
+          '<small>' + safe(row.categoria) + ' · ' + safe(row.progreso) + '</small>' +
+        '</span>' +
+        '<span class="race-total">' + safe(diferencia || '-') + '<small>Constancia</small></span>' +
+      '</summary>' +
+      '<div class="race-entry-content">' +
+        '<div class="telemetry-stats">' +
+          renderTelemetryStat_('Mejor', mejor) +
+          renderTelemetryStat_('Peor', peor) +
+          renderTelemetryStat_('Media', media) +
+          renderTelemetryStat_('Constancia', diferencia) +
+        '</div>' +
+        '<div class="race-splits">' +
+          renderDashboardSplit_(row, 'ida1', 'Ida 1', 'ida', tipo) +
+          renderDashboardSplit_(row, 'vuelta1', 'Vuelta 1', 'vuelta', tipo) +
+          renderDashboardSplit_(row, 'ida2', 'Ida 2', 'ida', tipo) +
+          renderDashboardSplit_(row, 'vuelta2', 'Vuelta 2', 'vuelta', tipo) +
+          renderDashboardSplit_(row, 'ida3', 'Ida 3', 'ida', tipo) +
+          renderDashboardSplit_(row, 'vuelta3', 'Vuelta 3', 'vuelta', tipo) +
+        '</div>' +
+        '<div class="race-meta">' +
+          '<span class="pill">' + safe(row.progreso) + '</span>' +
+          '<span class="pill">' + safe(row.estado) + '</span>' +
+        '</div>' +
+      '</div>';
 
-    tr.innerHTML =
-      '<td>' + safe(row.categoria) + '</td>' +
-      '<td>' + safe(row.dorsal) + '</td>' +
-      '<td><strong>' + safe(row.piloto) + '</strong></td>' +
-      '<td><span class="pill">' + safe(row.progreso) + '</span></td>' +
-      renderDashboardTimeCell(row, 'ida1', 'ida', tipo) +
-      renderDashboardTimeCell(row, 'vuelta1', 'vuelta', tipo) +
-      renderDashboardTimeCell(row, 'ida2', 'ida', tipo) +
-      renderDashboardTimeCell(row, 'vuelta2', 'vuelta', tipo) +
-      renderDashboardTimeCell(row, 'ida3', 'ida', tipo) +
-      renderDashboardTimeCell(row, 'vuelta3', 'vuelta', tipo) +
-      '<td>' + safe(secondsToDisplayTime(getDashboardMetric(row, 'mejor', tipo))) + '</td>' +
-      '<td>' + safe(secondsToDisplayTime(getDashboardMetric(row, 'peor', tipo))) + '</td>' +
-      '<td>' + safe(secondsToDisplayTime(getDashboardMetric(row, 'media', tipo))) + '</td>' +
-      '<td><strong>' + safe(secondsToDisplayTime(getDashboardMetric(row, 'diferencia', tipo))) + '</strong></td>' +
-      '<td><span class="pill">' + safe(row.estado) + '</span></td>';
-
-    body.appendChild(tr);
+    body.appendChild(details);
   });
 }
 
-function renderDashboardTimeCell(row, key, cellTipo, filtroTipo) {
-  if (filtroTipo && cellTipo !== filtroTipo) {
-    return '<td class="muted">-</td>';
-  }
+function getRaceEntryKey_(row) {
+  return [row.inscripcionId, row.categoria, row.dorsal, row.piloto]
+    .map(function(value) {
+      return String(value || '');
+    })
+    .join('|');
+}
 
-  const value = row[key];
+function renderTelemetryStat_(label, value) {
+  return '<div class="telemetry-stat"><span>' + safe(label) + '</span><strong>' + safe(value || '-') + '</strong></div>';
+}
 
-  if (value === '') {
-    return '<td></td>';
-  }
+function renderDashboardSplit_(row, key, label, cellTipo, filtroTipo) {
+  const hiddenByFilter = filtroTipo && cellTipo !== filtroTipo;
+  const value = hiddenByFilter ? '' : secondsToDisplayTime(row[key]);
 
-  const className = cellTipo === 'ida' ? 'time-ida' : 'time-vuelta';
-
-  return '<td class="' + className + '">' + safe(secondsToDisplayTime(value)) + '</td>';
+  return '<div class="race-split ' + cellTipo + '">' +
+    '<span>' + safe(label) + '</span>' +
+    '<strong>' + safe(value || '-') + '</strong>' +
+  '</div>';
 }
 
 function drawDashboardChart(rows, tipo) {
@@ -1482,27 +3092,41 @@ function drawDashboardChart(rows, tipo) {
     return;
   }
 
-  const ctx = canvas.getContext('2d');
+  const containerWidth = canvas.parentElement
+    ? canvas.parentElement.clientWidth - 16
+    : window.innerWidth - 40;
+  const cssWidth = Math.max(240, Math.floor(containerWidth));
+  const cssHeight = 320;
+  const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
 
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  canvas.style.width = cssWidth + 'px';
+  canvas.style.height = cssHeight + 'px';
+  canvas.width = Math.floor(cssWidth * pixelRatio);
+  canvas.height = Math.floor(cssHeight * pixelRatio);
+
+  const ctx = canvas.getContext('2d');
+  const chartSize = { width: cssWidth, height: cssHeight };
+
+  ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+  ctx.clearRect(0, 0, cssWidth, cssHeight);
 
   const pasadas = getDashboardPasadasByTipo(tipo);
   const series = buildDashboardChartSeries(rows, pasadas);
 
   if (!series.length) {
-    drawChartEmptyMessage(ctx, canvas, 'No hay datos para pintar la gráfica');
+    drawChartEmptyMessage(ctx, chartSize, 'No hay datos para pintar la gráfica');
     return;
   }
 
   const padding = {
-    top: 30,
-    right: 30,
-    bottom: 85,
-    left: 65
+    top: 24,
+    right: 14,
+    bottom: 74,
+    left: 54
   };
 
-  const chartWidth = canvas.width - padding.left - padding.right;
-  const chartHeight = canvas.height - padding.top - padding.bottom;
+  const chartWidth = chartSize.width - padding.left - padding.right;
+  const chartHeight = chartSize.height - padding.top - padding.bottom;
 
   const allValues = [];
 
@@ -1515,7 +3139,7 @@ function drawDashboardChart(rows, tipo) {
   });
 
   if (!allValues.length) {
-    drawChartEmptyMessage(ctx, canvas, 'No hay tiempos registrados');
+    drawChartEmptyMessage(ctx, chartSize, 'No hay tiempos registrados');
     return;
   }
 
@@ -1533,7 +3157,7 @@ function drawDashboardChart(rows, tipo) {
     drawChartSerie(ctx, serie, index, padding, chartWidth, chartHeight, yMin, yMax, pasadas.length);
   });
 
-  drawChartLegend(ctx, series, canvas, padding);
+  drawChartLegend(ctx, series, chartSize, padding);
 }
 
 function getDashboardPasadasByTipo(tipo) {
@@ -1582,8 +3206,8 @@ function buildDashboardChartSeries(rows, pasadas) {
 
 function drawChartEmptyMessage(ctx, canvas, message) {
   ctx.save();
-  ctx.font = '16px Arial';
-  ctx.fillStyle = '#71717a';
+  ctx.font = '14px Arial';
+  ctx.fillStyle = '#9ba3aa';
   ctx.textAlign = 'center';
   ctx.fillText(message, canvas.width / 2, canvas.height / 2);
   ctx.restore();
@@ -1592,9 +3216,9 @@ function drawChartEmptyMessage(ctx, canvas, message) {
 function drawChartGrid(ctx, padding, chartWidth, chartHeight, yMin, yMax) {
   ctx.save();
 
-  ctx.strokeStyle = '#e5e7eb';
-  ctx.fillStyle = '#71717a';
-  ctx.font = '12px Arial';
+  ctx.strokeStyle = '#2d3336';
+  ctx.fillStyle = '#9ba3aa';
+  ctx.font = '11px Arial';
   ctx.textAlign = 'right';
 
   const lines = 5;
@@ -1618,8 +3242,8 @@ function drawChartGrid(ctx, padding, chartWidth, chartHeight, yMin, yMax) {
 function drawChartAxisLabels(ctx, padding, chartWidth, chartHeight, pasadas) {
   ctx.save();
 
-  ctx.fillStyle = '#111827';
-  ctx.font = '12px Arial';
+  ctx.fillStyle = '#dce1e4';
+  ctx.font = '11px Arial';
   ctx.textAlign = 'center';
 
   const pointGap = pasadas.length > 1
@@ -1638,16 +3262,16 @@ function drawChartAxisLabels(ctx, padding, chartWidth, chartHeight, pasadas) {
 
 function drawChartSerie(ctx, serie, index, padding, chartWidth, chartHeight, yMin, yMax, totalPoints) {
   const colors = [
-    '#2563eb',
-    '#ea580c',
-    '#16a34a',
-    '#9333ea',
-    '#dc2626',
-    '#0891b2',
-    '#ca8a04',
-    '#4f46e5',
-    '#be123c',
-    '#15803d'
+    '#ff5a00',
+    '#4fa3ff',
+    '#8ee85e',
+    '#ffcd45',
+    '#d978ff',
+    '#31d7c7',
+    '#ff7890',
+    '#8d9dff',
+    '#f1f5f9',
+    '#b0ff45'
   ];
 
   const color = colors[index % colors.length];
@@ -1682,7 +3306,9 @@ function drawChartSerie(ctx, serie, index, padding, chartWidth, chartHeight, yMi
 
   ctx.strokeStyle = color;
   ctx.fillStyle = color;
-  ctx.lineWidth = 2;
+  ctx.lineWidth = 2.5;
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 5;
 
   ctx.beginPath();
 
@@ -1707,46 +3333,50 @@ function drawChartSerie(ctx, serie, index, padding, chartWidth, chartHeight, yMi
 
 function drawChartLegend(ctx, series, canvas, padding) {
   const colors = [
-    '#2563eb',
-    '#ea580c',
-    '#16a34a',
-    '#9333ea',
-    '#dc2626',
-    '#0891b2',
-    '#ca8a04',
-    '#4f46e5',
-    '#be123c',
-    '#15803d'
+    '#ff5a00',
+    '#4fa3ff',
+    '#8ee85e',
+    '#ffcd45',
+    '#d978ff',
+    '#31d7c7',
+    '#ff7890',
+    '#8d9dff',
+    '#f1f5f9',
+    '#b0ff45'
   ];
 
   ctx.save();
 
-  ctx.font = '12px Arial';
+  ctx.font = '10px Arial';
   ctx.textAlign = 'left';
 
-  let x = padding.left;
-  let y = canvas.height - 38;
+  const columns = canvas.width >= 480 ? 2 : 1;
+  const maxLegendItems = columns * 2;
+  const columnWidth = (canvas.width - padding.left - 8) / columns;
+  const startY = canvas.height - 44;
 
-  series.slice(0, 8).forEach(function(serie, index) {
+  series.slice(0, maxLegendItems).forEach(function(serie, index) {
     const color = colors[index % colors.length];
+    const x = padding.left + (index % columns) * columnWidth;
+    const y = startY + Math.floor(index / columns) * 16;
 
     ctx.fillStyle = color;
-    ctx.fillRect(x, y - 9, 10, 10);
+    ctx.fillRect(x, y - 8, 8, 8);
 
-    ctx.fillStyle = '#111827';
-    ctx.fillText(serie.label, x + 15, y);
-
-    x += 210;
-
-    if (x > canvas.width - 220) {
-      x = padding.left;
-      y += 18;
-    }
+    ctx.fillStyle = '#dce1e4';
+    const compactLabel = serie.label.length > 20
+      ? serie.label.slice(0, 19) + '…'
+      : serie.label;
+    ctx.fillText(compactLabel, x + 12, y);
   });
 
-  if (series.length > 8) {
-    ctx.fillStyle = '#71717a';
-    ctx.fillText('+' + (series.length - 8) + ' pilotos más', x, y);
+  if (series.length > maxLegendItems) {
+    ctx.fillStyle = '#9ba3aa';
+    ctx.fillText(
+      '+' + (series.length - maxLegendItems) + ' pilotos más',
+      padding.left,
+      startY + 32
+    );
   }
 
   ctx.restore();
@@ -1757,6 +3387,7 @@ function round3_(value) {
 }
 
     function showView(view) {
+      document.body.dataset.view = view;
       document.getElementById('registroView').classList.add('hidden');
       document.getElementById('clasificacionView').classList.add('hidden');
       document.getElementById('dashboardView').classList.add('hidden');
@@ -1788,8 +3419,12 @@ function round3_(value) {
       }
 
       if (view === 'admin') {
-        document.getElementById('adminView').classList.remove('hidden');
-        document.getElementById('navAdmin').classList.add('active');
+      document.getElementById('adminView').classList.remove('hidden');
+      document.getElementById('navAdmin').classList.add('active');
+
+        if (document.getElementById('adminPilotosSection')) {
+          showAdminCatalogSection('pilotos');
+        }
       }
     }
 
@@ -1853,6 +3488,32 @@ function formatClasificacionTime(value) {
   return secondsToDisplayTime(value);
 }
 
+function formatClasificacionTimeOrDash_(value) {
+  const formattedValue = formatClasificacionTime(value);
+  return formattedValue === '' ? '-' : formattedValue;
+}
+
+function toggleClasificacionViewMode() {
+  appState.clasificacionViewMode = appState.clasificacionViewMode === 'cards'
+    ? 'table'
+    : 'cards';
+
+  updateClasificacionViewControls_();
+  renderClasificacion(appState.lastClasificacionRows || []);
+}
+
+function updateClasificacionViewControls_() {
+  const tableMode = appState.clasificacionViewMode === 'table';
+  const button = document.getElementById('toggleClasificacionViewButton');
+  const hint = document.getElementById('clasificacionViewHint');
+
+  button.textContent = tableMode ? 'Ver tarjetas' : 'Ver tabla';
+  button.setAttribute('aria-pressed', String(tableMode));
+  hint.textContent = tableMode
+    ? 'Desliza horizontalmente para consultar todas las columnas.'
+    : 'Toca un piloto para ver el detalle de sus seis pasadas.';
+}
+
 function secondsToDisplayTime(value) {
   const numericValue = Number(value);
 
@@ -1873,19 +3534,104 @@ function secondsToDisplayTime(value) {
 
     function renderClasificacion(rows) {
       const body = document.getElementById('clasificacionBody');
+      const openEntries = new Set(
+        Array.from(body.querySelectorAll('details[open]')).map(function(entry) {
+          return entry.dataset.entryKey || '';
+        })
+      );
       body.innerHTML = '';
+      body.className = appState.clasificacionViewMode === 'table'
+        ? 'classification-table-wrapper'
+        : 'standings-list';
 
       if (!rows || rows.length === 0) {
-        const tr = document.createElement('tr');
-        tr.innerHTML = '<td colspan="12">No hay datos de clasificación</td>';
-        body.appendChild(tr);
+        body.innerHTML = '<div class="empty-race-state">No hay datos de clasificación</div>';
         return;
       }
 
-      rows.forEach(function(row) {
-        const tr = document.createElement('tr');
+      if (appState.clasificacionViewMode === 'table') {
+        renderClasificacionTable_(body, rows);
+        return;
+      }
 
-        tr.innerHTML =
+      const categoryPositions = {};
+
+      rows.forEach(function(row) {
+        const details = document.createElement('details');
+        const entryKey = getRaceEntryKey_(row);
+        const total = formatClasificacionTimeOrDash_(row.total);
+        const gap = formatClasificacionTimeOrDash_(row.gap);
+        const categoryKey = String(row.categoria || '');
+
+        categoryPositions[categoryKey] = (categoryPositions[categoryKey] || 0) + 1;
+
+        details.className = 'race-entry';
+        details.dataset.testid = 'clasificacion-row';
+        details.dataset.inscripcionId = row.inscripcionId || '';
+        details.dataset.entryKey = entryKey;
+        details.open = openEntries.has(entryKey);
+        details.innerHTML =
+          '<summary>' +
+            '<span class="race-position">' + safe(categoryPositions[categoryKey]) + '</span>' +
+            '<span class="race-driver">' +
+              '<strong>' + safe(row.dorsal) + ' · ' + safe(row.piloto) + '</strong>' +
+              '<small>' + safe(row.categoria) + ' · ' + safe(row.estado) + '</small>' +
+            '</span>' +
+            '<span class="race-total">' + safe(total) + '<small>Gap ' + safe(gap) + '</small></span>' +
+          '</summary>' +
+          '<div class="race-entry-content">' +
+            '<div class="race-splits">' +
+              renderClasificacionSplit_(row, 'ida1', 'Ida 1', 'ida') +
+              renderClasificacionSplit_(row, 'vuelta1', 'Vuelta 1', 'vuelta') +
+              renderClasificacionSplit_(row, 'ida2', 'Ida 2', 'ida') +
+              renderClasificacionSplit_(row, 'vuelta2', 'Vuelta 2', 'vuelta') +
+              renderClasificacionSplit_(row, 'ida3', 'Ida 3', 'ida') +
+              renderClasificacionSplit_(row, 'vuelta3', 'Vuelta 3', 'vuelta') +
+            '</div>' +
+            '<div class="race-meta">' +
+              '<span class="pill">Total ' + safe(total) + '</span>' +
+              '<span class="pill">Gap ' + safe(gap) + '</span>' +
+              '<span class="pill">' + safe(row.estado) + '</span>' +
+            '</div>' +
+          '</div>';
+
+        body.appendChild(details);
+      });
+    }
+
+    function renderClasificacionTable_(body, rows) {
+      const categoryPositions = {};
+      const table = document.createElement('table');
+      const tableBody = document.createElement('tbody');
+
+      table.className = 'classification-table';
+      table.innerHTML =
+        '<thead><tr>' +
+          '<th>Pos.</th>' +
+          '<th>Categoría</th>' +
+          '<th>Dorsal</th>' +
+          '<th>Piloto</th>' +
+          '<th>Ida 1</th>' +
+          '<th>Vuelta 1</th>' +
+          '<th>Ida 2</th>' +
+          '<th>Vuelta 2</th>' +
+          '<th>Ida 3</th>' +
+          '<th>Vuelta 3</th>' +
+          '<th>Penalizaciones</th>' +
+          '<th>Total</th>' +
+          '<th>Gap</th>' +
+          '<th>Estado</th>' +
+        '</tr></thead>';
+
+      rows.forEach(function(row) {
+        const categoryKey = String(row.categoria || '');
+        const tableRow = document.createElement('tr');
+
+        categoryPositions[categoryKey] = (categoryPositions[categoryKey] || 0) + 1;
+        tableRow.dataset.testid = 'clasificacion-row';
+        tableRow.dataset.inscripcionId = row.inscripcionId || '';
+        tableRow.innerHTML =
+          '<td>' + safe(categoryPositions[categoryKey]) + '</td>' +
           '<td>' + safe(row.categoria) + '</td>' +
           '<td>' + safe(row.dorsal) + '</td>' +
           '<td>' + safe(row.piloto) + '</td>' +
@@ -1895,12 +3641,27 @@ function secondsToDisplayTime(value) {
           renderTimeCell(row, 'vuelta2', 'Vuelta 2') +
           renderTimeCell(row, 'ida3', 'Ida 3') +
           renderTimeCell(row, 'vuelta3', 'Vuelta 3') +
-          '<td><strong>' + safe(formatClasificacionTime(row.total)) + '</strong></td>' +
-          '<td>' + safe(formatClasificacionTime(row.gap)) + '</td>' +
-          '<td><span class="pill">' + safe(row.estado) + '</span></td>';
-
-        body.appendChild(tr);
+          '<td>' + safe(formatClasificacionTimeOrDash_(row.penalizaciones)) + '</td>' +
+          '<td>' + safe(formatClasificacionTimeOrDash_(row.total)) + '</td>' +
+          '<td>' + safe(formatClasificacionTimeOrDash_(row.gap)) + '</td>' +
+          '<td>' + safe(row.estado) + '</td>';
+        tableBody.appendChild(tableRow);
       });
+
+      table.appendChild(tableBody);
+      body.appendChild(table);
+    }
+
+    function renderClasificacionSplit_(row, key, label, tipo) {
+      const discarded = isDiscarded(row, label);
+      const value = formatClasificacionTimeOrDash_(row[key]);
+      const discardedClass = discarded ? ' discarded' : '';
+      const valueClass = discarded ? ' class="discarded-time"' : '';
+
+      return '<div class="race-split ' + tipo + discardedClass + '">' +
+        '<span>' + safe(label) + (discarded ? ' · Descartada' : '') + '</span>' +
+        '<strong' + valueClass + '>' + safe(value) + '</strong>' +
+      '</div>';
     }
     function entrarAdministracion() {
       const adminPin = document.getElementById('adminPinInput').value.trim();
@@ -1922,12 +3683,151 @@ function secondsToDisplayTime(value) {
 
           showMessage('adminLoginMessage', 'Acceso de administración correcto', 'success');
           document.getElementById('adminPanel').classList.remove('hidden');
+
+          appState.adminPin = adminPin;
+          appState.adminCatalogosLoaded = false;
+          loadAdminCatalogos();
+          loadEstadoPublicacionCampeonato();
         })
         .withFailureHandler(function(error) {
           document.getElementById('adminPanel').classList.add('hidden');
           showMessage('adminLoginMessage', error.message || 'Error validando administración', 'error');
         })
         .validateAdminPin(adminPin);
+    }
+
+    function loadEstadoPublicacionCampeonato() {
+      const adminPin = getAdminPinValue();
+      const button = document.getElementById('publicarCampeonatoButton');
+      const newRaceButton = document.getElementById('generarNuevaCarreraButton');
+      const requestId = ++appState.campeonatoStatusRequestId;
+
+      if (!adminPin) {
+        showMessage('campeonatoPublicationMessage', 'Introduce la contraseña de administración', 'error');
+        return;
+      }
+
+      button.disabled = true;
+      newRaceButton.disabled = true;
+      showMessage('campeonatoPublicationStatus', 'Consultando estado de publicación...', 'warning');
+
+      google.script.run
+        .withSuccessHandler(function(status) {
+          if (requestId !== appState.campeonatoStatusRequestId) {
+            return;
+          }
+          appState.campeonatoPublication = status || {};
+          renderEstadoPublicacionCampeonato_();
+          hideMessage('campeonatoPublicationMessage');
+        })
+        .withFailureHandler(function(error) {
+          if (requestId !== appState.campeonatoStatusRequestId) {
+            return;
+          }
+          button.disabled = true;
+          newRaceButton.disabled = true;
+          showMessage(
+            'campeonatoPublicationStatus',
+            error.message || 'No se pudo consultar el estado de publicación',
+            'error'
+          );
+        })
+        .getEstadoPublicacionCampeonato(appState.pin, adminPin);
+    }
+
+    function renderEstadoPublicacionCampeonato_() {
+      const status = appState.campeonatoPublication || {};
+      const button = document.getElementById('publicarCampeonatoButton');
+      const newRaceButton = document.getElementById('generarNuevaCarreraButton');
+      const published = status.estado === 'SI';
+      const publishing = status.estado === 'PUBLICANDO';
+      const configured = Boolean(status.configurado);
+      let text = 'Carrera: ' + (status.carrera || 'Sin nombre') + '. ';
+      let type = 'warning';
+
+      if (!configured) {
+        const missing = [];
+        if (!status.endpointConfigurado) {
+          missing.push('CHAMPIONSHIP_ENDPOINT');
+        }
+        if (!status.tokenConfigurado) {
+          missing.push('CHAMPIONSHIP_TOKEN');
+        }
+        text += 'Falta configurar en crono: ' + missing.join(' y ') + '.';
+        type = 'error';
+      } else if (published) {
+        text += 'Publicada correctamente. Las correcciones deben hacerse en la hoja del campeonato.';
+        type = 'success';
+      } else if (publishing) {
+        text += 'Publicación en curso.';
+      } else {
+        text += 'Pendiente de publicación. Participantes: ' + Number(status.participantes || 0) +
+          '. Incompletos: ' + Number(status.incompletos || 0) + '.';
+      }
+
+      button.disabled = !configured || published || publishing;
+      newRaceButton.disabled = publishing;
+      showMessage('campeonatoPublicationStatus', text, type);
+    }
+
+    function publicarCampeonatoDesdeApp() {
+      const adminPin = getAdminPinValue();
+      const confirmation = document.getElementById('confirmPublicarCampeonatoInput').value.trim();
+      const status = appState.campeonatoPublication || {};
+      const button = document.getElementById('publicarCampeonatoButton');
+      const newRaceButton = document.getElementById('generarNuevaCarreraButton');
+
+      if (!status.carreraId || !status.configurado || status.estado !== 'NO') {
+        showMessage(
+          'campeonatoPublicationMessage',
+          'Actualiza el estado de la carrera antes de publicarla',
+          'error'
+        );
+        button.disabled = true;
+        return;
+      }
+
+      if (confirmation !== 'PUBLICAR CAMPEONATO') {
+        showMessage(
+          'campeonatoPublicationMessage',
+          'Para confirmar, escribe exactamente: PUBLICAR CAMPEONATO',
+          'error'
+        );
+        return;
+      }
+
+      const incompleteWarning = Number(status.incompletos || 0) > 0
+        ? ' Hay ' + Number(status.incompletos) + ' participantes incompletos que no puntuarán.'
+        : '';
+      const confirmed = window.confirm(
+        'La carrera solo se puede publicar una vez desde crono.' + incompleteWarning +
+        ' ¿Quieres continuar?'
+      );
+
+      if (!confirmed) {
+        showMessage('campeonatoPublicationMessage', 'Publicación cancelada', 'warning');
+        return;
+      }
+
+      button.disabled = true;
+      newRaceButton.disabled = true;
+      showMessage('campeonatoPublicationMessage', 'Publicando resultados...', 'warning');
+
+      google.script.run
+        .withSuccessHandler(function(response) {
+          document.getElementById('confirmPublicarCampeonatoInput').value = '';
+          showMessage('campeonatoPublicationMessage', response.message, 'success');
+          loadEstadoPublicacionCampeonato();
+        })
+        .withFailureHandler(function(error) {
+          button.disabled = false;
+          showMessage(
+            'campeonatoPublicationMessage',
+            error.message || 'No se pudieron publicar los resultados',
+            'error'
+          );
+        })
+        .publicarResultadosCampeonato(appState.pin, adminPin, status.carreraId);
     }
 
     function generarNuevaCarreraDesdeApp() {
@@ -1969,6 +3869,7 @@ function secondsToDisplayTime(value) {
           document.getElementById('confirmNuevaCarreraInput').value = '';
 
           loadClasificacion();
+          loadEstadoPublicacionCampeonato();
         })
         .withFailureHandler(function(error) {
           showMessage('adminActionMessage', error.message || 'Error generando nueva carrera', 'error');
@@ -2167,6 +4068,744 @@ function secondsToDisplayTime(value) {
         .replaceAll('"', '&quot;')
         .replaceAll("'", '&#039;');
     }
+
+    function getAdminPinValue() {
+      const possibleIds = [
+        'adminPinInput',
+        'adminPasswordInput',
+        'adminLoginPinInput'
+      ];
+
+      for (let i = 0; i < possibleIds.length; i++) {
+        const el = document.getElementById(possibleIds[i]);
+
+        if (el && el.value) {
+          return el.value;
+        }
+      }
+
+      return appState.adminPin || '';
+    }
+    function showAdminCatalogSection(section) {
+      document.getElementById('adminPilotosSection').classList.add('hidden');
+      document.getElementById('adminCategoriasSection').classList.add('hidden');
+      document.getElementById('adminInscripcionesSection').classList.add('hidden');
+
+      document.getElementById('adminTabPilotos').classList.remove('active');
+      document.getElementById('adminTabCategorias').classList.remove('active');
+      document.getElementById('adminTabInscripciones').classList.remove('active');
+
+      if (section === 'pilotos') {
+        document.getElementById('adminPilotosSection').classList.remove('hidden');
+        document.getElementById('adminTabPilotos').classList.add('active');
+      }
+
+      if (section === 'categorias') {
+        document.getElementById('adminCategoriasSection').classList.remove('hidden');
+        document.getElementById('adminTabCategorias').classList.add('active');
+      }
+
+      if (section === 'inscripciones') {
+        document.getElementById('adminInscripcionesSection').classList.remove('hidden');
+        document.getElementById('adminTabInscripciones').classList.add('active');
+      }
+
+      if (!appState.adminCatalogosLoaded) {
+        loadAdminCatalogos();
+      }
+    }
+    function loadAdminCatalogos() {
+    const adminPin = getAdminPinValue();
+
+    if (!adminPin) {
+      showMessage('adminCatalogMessage', 'Introduce el PIN de administración', 'error');
+      return;
+    }
+
+    showMessage('adminCatalogMessage', 'Cargando datos maestros...', 'warning');
+
+    google.script.run
+      .withSuccessHandler(function(data) {
+        appState.adminPilotos = data.pilotos || [];
+        appState.adminCategorias = data.categorias || [];
+        appState.adminInscripciones = data.inscripciones || [];
+        appState.adminCatalogosLoaded = true;
+
+        renderAdminPilotos();
+        renderAdminCategorias();
+        fillAdminInscripcionSelects();
+        renderAdminInscripciones();
+
+        showMessage('adminCatalogMessage', 'Datos maestros actualizados', 'success');
+      })
+      .withFailureHandler(function(error) {
+        showMessage(
+          'adminCatalogMessage',
+          error.message || 'Error cargando datos maestros',
+          'error'
+        );
+      })
+      .getAdminCatalogosData(appState.pin, adminPin);
+  }
+function renderAdminPilotos() {
+  const body = document.getElementById('adminPilotosBody');
+  body.innerHTML = '';
+
+  if (!appState.adminPilotos.length) {
+    body.innerHTML = '<tr><td colspan="7">No hay pilotos en la base de datos</td></tr>';
+    return;
+  }
+
+  appState.adminPilotos.forEach(function(piloto) {
+    const tr = document.createElement('tr');
+    tr.dataset.testid = 'admin-piloto-row';
+    tr.dataset.pilotoId = piloto.pilotoId;
+
+    appendAdminCell_(tr, piloto.pilotoId);
+    appendAdminCell_(tr, piloto.nombre, '', true);
+    appendAdminCell_(tr, piloto.alias);
+
+    const activoClass = piloto.activo === 'SI' ? 'status-si' : 'status-no';
+    appendAdminCell_(tr, piloto.activo, activoClass);
+
+    appendAdminCell_(tr, piloto.notas);
+    appendAdminCell_(tr, piloto.updatedAt);
+
+    const actionsTd = document.createElement('td');
+    const actionsDiv = document.createElement('div');
+    actionsDiv.className = 'admin-actions';
+
+    const editButton = document.createElement('button');
+    editButton.type = 'button';
+    editButton.className = 'secondary';
+    editButton.textContent = 'Editar';
+    editButton.dataset.testid = 'edit-piloto';
+    editButton.dataset.pilotoId = piloto.pilotoId;
+    editButton.addEventListener('click', function() {
+      editarPilotoFormulario(piloto.pilotoId);
+    });
+
+    const toggleButton = document.createElement('button');
+    toggleButton.type = 'button';
+    toggleButton.className = 'secondary';
+    toggleButton.textContent = piloto.activo === 'SI' ? 'Desactivar' : 'Activar';
+    toggleButton.dataset.testid = 'toggle-piloto';
+    toggleButton.dataset.pilotoId = piloto.pilotoId;
+    toggleButton.addEventListener('click', function() {
+      togglePilotoActivoAdmin(piloto.pilotoId);
+    });
+
+    actionsDiv.appendChild(editButton);
+    actionsDiv.appendChild(toggleButton);
+    actionsTd.appendChild(actionsDiv);
+    tr.appendChild(actionsTd);
+
+    body.appendChild(tr);
+  });
+}
+function renderAdminCategorias() {
+  const body = document.getElementById('adminCategoriasBody');
+  body.innerHTML = '';
+
+  if (!appState.adminCategorias.length) {
+    body.innerHTML = '<tr><td colspan="7">No hay categorías en la base de datos</td></tr>';
+    return;
+  }
+
+  appState.adminCategorias.forEach(function(categoria) {
+    const tr = document.createElement('tr');
+    tr.dataset.testid = 'admin-categoria-row';
+    tr.dataset.categoriaId = categoria.categoriaId;
+
+    appendAdminCell_(tr, categoria.categoriaId);
+    appendAdminCell_(tr, categoria.nombre, '', true);
+
+    const activaClass = categoria.activa === 'SI' ? 'status-si' : 'status-no';
+    appendAdminCell_(tr, categoria.activa, activaClass);
+
+    appendAdminCell_(tr, categoria.orden);
+    appendAdminCell_(tr, categoria.notas);
+    appendAdminCell_(tr, categoria.updatedAt);
+
+    const actionsTd = document.createElement('td');
+    const actionsDiv = document.createElement('div');
+    actionsDiv.className = 'admin-actions';
+
+    const editButton = document.createElement('button');
+    editButton.type = 'button';
+    editButton.className = 'secondary';
+    editButton.textContent = 'Editar';
+    editButton.dataset.testid = 'edit-categoria';
+    editButton.dataset.categoriaId = categoria.categoriaId;
+    editButton.addEventListener('click', function() {
+      editarCategoriaFormulario(categoria.categoriaId);
+    });
+
+    const toggleButton = document.createElement('button');
+    toggleButton.type = 'button';
+    toggleButton.className = 'secondary';
+    toggleButton.textContent = categoria.activa === 'SI' ? 'Desactivar' : 'Activar';
+    toggleButton.dataset.testid = 'toggle-categoria';
+    toggleButton.dataset.categoriaId = categoria.categoriaId;
+    toggleButton.addEventListener('click', function() {
+      toggleCategoriaActivaAdmin(categoria.categoriaId);
+    });
+
+    actionsDiv.appendChild(editButton);
+    actionsDiv.appendChild(toggleButton);
+    actionsTd.appendChild(actionsDiv);
+    tr.appendChild(actionsTd);
+
+    body.appendChild(tr);
+  });
+}
+function appendAdminCell_(tr, value, className, bold) {
+  const td = document.createElement('td');
+
+  if (className) {
+    td.className = className;
+  }
+
+  if (bold) {
+    const strong = document.createElement('strong');
+    strong.textContent = value || '';
+    td.appendChild(strong);
+  } else {
+    td.textContent = value || '';
+  }
+
+  tr.appendChild(td);
+}
+  function editarPilotoFormulario(pilotoId) {
+    const piloto = appState.adminPilotos.find(function(item) {
+      return item.pilotoId === pilotoId;
+    });
+
+    if (!piloto) {
+      showMessage('adminCatalogMessage', 'No se ha encontrado el piloto', 'error');
+      return;
+    }
+
+    document.getElementById('adminPilotoIdInput').value = piloto.pilotoId;
+    document.getElementById('adminPilotoNombreInput').value = piloto.nombre;
+    document.getElementById('adminPilotoAliasInput').value = piloto.alias || '';
+    document.getElementById('adminPilotoActivoSelect').value = piloto.activo || 'SI';
+    document.getElementById('adminPilotoNotasInput').value = piloto.notas || '';
+
+    showMessage('adminCatalogMessage', 'Editando piloto ' + safe(piloto.nombre), 'warning');
+  }
+
+  function limpiarFormularioPilotoAdmin() {
+    document.getElementById('adminPilotoIdInput').value = '';
+    document.getElementById('adminPilotoNombreInput').value = '';
+    document.getElementById('adminPilotoAliasInput').value = '';
+    document.getElementById('adminPilotoActivoSelect').value = 'SI';
+    document.getElementById('adminPilotoNotasInput').value = '';
+  }
+
+  function editarCategoriaFormulario(categoriaId) {
+    const categoria = appState.adminCategorias.find(function(item) {
+      return item.categoriaId === categoriaId;
+    });
+
+    if (!categoria) {
+      showMessage('adminCatalogMessage', 'No se ha encontrado la categoría', 'error');
+      return;
+    }
+
+    document.getElementById('adminCategoriaIdInput').value = categoria.categoriaId;
+    document.getElementById('adminCategoriaNombreInput').value = categoria.nombre;
+    document.getElementById('adminCategoriaActivaSelect').value = categoria.activa || 'SI';
+    document.getElementById('adminCategoriaOrdenInput').value = categoria.orden || '';
+    document.getElementById('adminCategoriaNotasInput').value = categoria.notas || '';
+
+    showMessage('adminCatalogMessage', 'Editando categoría ' + safe(categoria.nombre), 'warning');
+  }
+
+  function limpiarFormularioCategoriaAdmin() {
+    document.getElementById('adminCategoriaIdInput').value = '';
+    document.getElementById('adminCategoriaNombreInput').value = '';
+    document.getElementById('adminCategoriaActivaSelect').value = 'SI';
+    document.getElementById('adminCategoriaOrdenInput').value = '';
+    document.getElementById('adminCategoriaNotasInput').value = '';
+  }
+  function guardarPilotoAdmin() {
+    const adminPin = getAdminPinValue();
+
+    const pilotoId = document.getElementById('adminPilotoIdInput').value.trim();
+    const nombre = document.getElementById('adminPilotoNombreInput').value.trim();
+    const alias = document.getElementById('adminPilotoAliasInput').value.trim();
+    const activo = document.getElementById('adminPilotoActivoSelect').value;
+    const notas = document.getElementById('adminPilotoNotasInput').value.trim();
+
+    if (!adminPin) {
+      showMessage('adminCatalogMessage', 'Introduce el PIN de administración', 'error');
+      return;
+    }
+
+    if (!nombre) {
+      showMessage('adminCatalogMessage', 'El nombre del piloto es obligatorio', 'error');
+      return;
+    }
+
+    const payload = {
+      pilotoId: pilotoId,
+      nombre: nombre,
+      alias: alias,
+      activo: activo,
+      notas: notas
+    };
+
+    showMessage('adminCatalogMessage', 'Guardando piloto...', 'warning');
+
+    const runner = google.script.run
+      .withSuccessHandler(function(response) {
+        showMessage('adminCatalogMessage', response.message || 'Piloto guardado', 'success');
+        limpiarFormularioPilotoAdmin();
+        appState.adminCatalogosLoaded = false;
+        loadAdminCatalogos();
+        loadCategorias();
+      })
+      .withFailureHandler(function(error) {
+        showMessage(
+          'adminCatalogMessage',
+          error.message || 'Error guardando piloto',
+          'error'
+        );
+      });
+
+    if (pilotoId) {
+      runner.editarPilotoAdmin(appState.pin, adminPin, payload);
+    } else {
+      runner.crearPilotoAdmin(appState.pin, adminPin, payload);
+    }
+  }
+  function guardarCategoriaAdmin() {
+    const adminPin = getAdminPinValue();
+
+    const categoriaId = document.getElementById('adminCategoriaIdInput').value.trim();
+    const nombre = document.getElementById('adminCategoriaNombreInput').value.trim();
+    const activa = document.getElementById('adminCategoriaActivaSelect').value;
+    const orden = document.getElementById('adminCategoriaOrdenInput').value;
+    const notas = document.getElementById('adminCategoriaNotasInput').value.trim();
+
+    if (!adminPin) {
+      showMessage('adminCatalogMessage', 'Introduce el PIN de administración', 'error');
+      return;
+    }
+
+    if (!nombre) {
+      showMessage('adminCatalogMessage', 'El nombre de la categoría es obligatorio', 'error');
+      return;
+    }
+
+    const payload = {
+      categoriaId: categoriaId,
+      nombre: nombre,
+      activa: activa,
+      orden: orden,
+      notas: notas
+    };
+
+    showMessage('adminCatalogMessage', 'Guardando categoría...', 'warning');
+
+    const runner = google.script.run
+      .withSuccessHandler(function(response) {
+        showMessage('adminCatalogMessage', response.message || 'Categoría guardada', 'success');
+        limpiarFormularioCategoriaAdmin();
+        appState.adminCatalogosLoaded = false;
+        loadAdminCatalogos();
+        loadCategorias();
+      })
+      .withFailureHandler(function(error) {
+        showMessage(
+          'adminCatalogMessage',
+          error.message || 'Error guardando categoría',
+          'error'
+        );
+      });
+
+    if (categoriaId) {
+      runner.editarCategoriaAdmin(appState.pin, adminPin, payload);
+    } else {
+      runner.crearCategoriaAdmin(appState.pin, adminPin, payload);
+    }
+  }
+  function togglePilotoActivoAdmin(pilotoId) {
+    const piloto = appState.adminPilotos.find(function(item) {
+      return item.pilotoId === pilotoId;
+    });
+
+    if (!piloto) {
+      showMessage('adminCatalogMessage', 'No se ha encontrado el piloto', 'error');
+      return;
+    }
+
+    const nuevoEstado = piloto.activo === 'SI' ? 'NO' : 'SI';
+
+    editarPilotoFormulario(pilotoId);
+    document.getElementById('adminPilotoActivoSelect').value = nuevoEstado;
+
+    guardarPilotoAdmin();
+  }
+  function toggleCategoriaActivaAdmin(categoriaId) {
+    const categoria = appState.adminCategorias.find(function(item) {
+      return item.categoriaId === categoriaId;
+    });
+
+    if (!categoria) {
+      showMessage('adminCatalogMessage', 'No se ha encontrado la categoría', 'error');
+      return;
+    }
+
+    const nuevoEstado = categoria.activa === 'SI' ? 'NO' : 'SI';
+
+    editarCategoriaFormulario(categoriaId);
+    document.getElementById('adminCategoriaActivaSelect').value = nuevoEstado;
+
+    guardarCategoriaAdmin();
+  }
+  function fillAdminInscripcionSelects() {
+  const pilotoSelect = document.getElementById('adminInscripcionPilotoSelect');
+  const categoriaSelect = document.getElementById('adminInscripcionCategoriaSelect');
+  const nuevoPilotoCategoriaSelect = document.getElementById('adminNuevoPilotoCategoriaSelect');
+
+  if (!pilotoSelect || !categoriaSelect || !nuevoPilotoCategoriaSelect) {
+    return;
+  }
+
+  const selectedPiloto = pilotoSelect.value;
+  const selectedCategoria = categoriaSelect.value;
+  const selectedNuevaCategoria = nuevoPilotoCategoriaSelect.value;
+
+  pilotoSelect.innerHTML = '<option value="">Selecciona piloto</option>';
+  categoriaSelect.innerHTML = '<option value="">Selecciona categoría</option>';
+  nuevoPilotoCategoriaSelect.innerHTML = '<option value="">Selecciona categoría</option>';
+
+  appState.adminPilotos
+    .filter(function(piloto) {
+      return piloto.activo !== 'NO';
+    })
+    .sort(function(a, b) {
+      return String(a.nombre).localeCompare(String(b.nombre));
+    })
+    .forEach(function(piloto) {
+      const option = document.createElement('option');
+      option.value = piloto.pilotoId;
+      option.textContent = piloto.nombre;
+      pilotoSelect.appendChild(option);
+    });
+
+  appState.adminCategorias
+    .filter(function(categoria) {
+      return categoria.activa !== 'NO';
+    })
+    .sort(function(a, b) {
+      if (Number(a.orden) !== Number(b.orden)) {
+        return Number(a.orden) - Number(b.orden);
+      }
+
+      return String(a.nombre).localeCompare(String(b.nombre));
+    })
+    .forEach(function(categoria) {
+      const option1 = document.createElement('option');
+      option1.value = categoria.nombre;
+      option1.textContent = categoria.nombre;
+      categoriaSelect.appendChild(option1);
+
+      const option2 = document.createElement('option');
+      option2.value = categoria.nombre;
+      option2.textContent = categoria.nombre;
+      nuevoPilotoCategoriaSelect.appendChild(option2);
+    });
+
+  pilotoSelect.value = selectedPiloto;
+  categoriaSelect.value = selectedCategoria;
+  nuevoPilotoCategoriaSelect.value = selectedNuevaCategoria;
+}
+
+function renderAdminInscripciones() {
+  const body = document.getElementById('adminInscripcionesBody');
+
+  if (!body) {
+    return;
+  }
+
+  body.innerHTML = '';
+
+  if (!appState.adminInscripciones.length) {
+    body.innerHTML = '<tr><td colspan="5">No hay inscripciones en la carrera actual</td></tr>';
+    return;
+  }
+
+  const rows = appState.adminInscripciones.slice().sort(function(a, b) {
+    if (a.categoria !== b.categoria) {
+      return String(a.categoria).localeCompare(String(b.categoria));
+    }
+
+    const dorsalA = Number(a.dorsal);
+    const dorsalB = Number(b.dorsal);
+
+    if (!isNaN(dorsalA) && !isNaN(dorsalB)) {
+      return dorsalA - dorsalB;
+    }
+
+    return String(a.dorsal).localeCompare(String(b.dorsal));
+  });
+
+  rows.forEach(function(inscripcion) {
+    const tr = document.createElement('tr');
+    tr.dataset.testid = 'admin-inscripcion-row';
+    tr.dataset.inscripcionId = inscripcion.inscripcionId;
+
+    appendAdminCell_(tr, inscripcion.inscripcionId);
+    appendAdminCell_(tr, inscripcion.dorsal);
+    appendAdminCell_(tr, inscripcion.piloto, '', true);
+    appendAdminCell_(tr, inscripcion.categoria);
+
+    const actionsTd = document.createElement('td');
+    const actionsDiv = document.createElement('div');
+    actionsDiv.className = 'admin-actions';
+
+    const editButton = document.createElement('button');
+    editButton.type = 'button';
+    editButton.className = 'secondary';
+    editButton.textContent = 'Editar';
+    editButton.dataset.testid = 'edit-inscripcion';
+    editButton.dataset.inscripcionId = inscripcion.inscripcionId;
+    editButton.addEventListener('click', function() {
+      editarInscripcionFormulario(inscripcion.inscripcionId);
+    });
+
+    const deleteButton = document.createElement('button');
+    deleteButton.type = 'button';
+    deleteButton.className = 'danger';
+    deleteButton.textContent = 'Quitar';
+    deleteButton.dataset.testid = 'delete-inscripcion';
+    deleteButton.dataset.inscripcionId = inscripcion.inscripcionId;
+    deleteButton.addEventListener('click', function() {
+      eliminarInscripcionDesdeAdmin(inscripcion.inscripcionId);
+    });
+
+    actionsDiv.appendChild(editButton);
+    actionsDiv.appendChild(deleteButton);
+    actionsTd.appendChild(actionsDiv);
+    tr.appendChild(actionsTd);
+
+    body.appendChild(tr);
+  });
+}
+
+function editarInscripcionFormulario(inscripcionId) {
+  const inscripcion = appState.adminInscripciones.find(function(item) {
+    return item.inscripcionId === inscripcionId;
+  });
+
+  if (!inscripcion) {
+    showMessage('adminCatalogMessage', 'No se ha encontrado la inscripción', 'error');
+    return;
+  }
+
+  document.getElementById('adminInscripcionIdInput').value = inscripcion.inscripcionId;
+  document.getElementById('adminInscripcionPilotoSelect').value = inscripcion.pilotoId || '';
+  document.getElementById('adminInscripcionCategoriaSelect').value = inscripcion.categoria || '';
+  document.getElementById('adminInscripcionDorsalInput').value = inscripcion.dorsal || '';
+
+  showMessage(
+    'adminCatalogMessage',
+    'Editando inscripción ' + safe(inscripcion.dorsal) + ' - ' + safe(inscripcion.piloto),
+    'warning'
+  );
+}
+
+function limpiarFormularioInscripcionAdmin() {
+  document.getElementById('adminInscripcionIdInput').value = '';
+  document.getElementById('adminInscripcionPilotoSelect').value = '';
+  document.getElementById('adminInscripcionCategoriaSelect').value = '';
+  document.getElementById('adminInscripcionDorsalInput').value = '';
+}
+
+function guardarInscripcionAdminDesdeApp() {
+  const adminPin = getAdminPinValue();
+
+  const inscripcionId = document.getElementById('adminInscripcionIdInput').value.trim();
+  const pilotoId = document.getElementById('adminInscripcionPilotoSelect').value;
+  const categoria = document.getElementById('adminInscripcionCategoriaSelect').value;
+  const dorsal = document.getElementById('adminInscripcionDorsalInput').value.trim();
+
+  if (!adminPin) {
+    showMessage('adminCatalogMessage', 'Introduce el PIN de administración', 'error');
+    return;
+  }
+
+  if (!pilotoId) {
+    showMessage('adminCatalogMessage', 'Selecciona un piloto', 'error');
+    return;
+  }
+
+  if (!categoria) {
+    showMessage('adminCatalogMessage', 'Selecciona una categoría', 'error');
+    return;
+  }
+
+  if (!dorsal) {
+    showMessage('adminCatalogMessage', 'Introduce un dorsal', 'error');
+    return;
+  }
+
+  const payload = {
+    inscripcionId: inscripcionId,
+    pilotoId: pilotoId,
+    categoria: categoria,
+    dorsal: dorsal
+  };
+
+  showMessage('adminCatalogMessage', 'Guardando inscripción...', 'warning');
+
+  const runner = google.script.run
+    .withSuccessHandler(function(response) {
+      showMessage('adminCatalogMessage', response.message || 'Inscripción guardada', 'success');
+
+      limpiarFormularioInscripcionAdmin();
+      appState.adminCatalogosLoaded = false;
+      loadAdminCatalogos();
+      loadCategorias();
+      loadClasificacion();
+    })
+    .withFailureHandler(function(error) {
+      showMessage(
+        'adminCatalogMessage',
+        error.message || 'Error guardando inscripción',
+        'error'
+      );
+    });
+
+  if (inscripcionId) {
+    runner.editarInscripcionAdmin(appState.pin, adminPin, payload);
+  } else {
+    runner.crearInscripcionAdmin(appState.pin, adminPin, payload);
+  }
+}
+
+function eliminarInscripcionDesdeAdmin(inscripcionId) {
+  const adminPin = getAdminPinValue();
+
+  if (!adminPin) {
+    showMessage('adminCatalogMessage', 'Introduce el PIN de administración', 'error');
+    return;
+  }
+
+  const inscripcion = appState.adminInscripciones.find(function(item) {
+    return item.inscripcionId === inscripcionId;
+  });
+
+  const label = inscripcion
+    ? inscripcion.dorsal + ' - ' + inscripcion.piloto + ' - ' + inscripcion.categoria
+    : inscripcionId;
+
+  const seguro = window.confirm(
+    'Vas a quitar esta inscripción de la carrera actual:\n\n' +
+    label +
+    '\n\n¿Quieres continuar?'
+  );
+
+  if (!seguro) {
+    showMessage('adminCatalogMessage', 'Operación cancelada', 'warning');
+    return;
+  }
+
+  showMessage('adminCatalogMessage', 'Eliminando inscripción...', 'warning');
+
+  google.script.run
+    .withSuccessHandler(function(response) {
+      showMessage('adminCatalogMessage', response.message || 'Inscripción eliminada', 'success');
+
+      appState.adminCatalogosLoaded = false;
+      loadAdminCatalogos();
+      loadCategorias();
+      loadClasificacion();
+    })
+    .withFailureHandler(function(error) {
+      showMessage(
+        'adminCatalogMessage',
+        error.message || 'Error eliminando inscripción',
+        'error'
+      );
+    })
+    .eliminarInscripcionAdmin(appState.pin, adminPin, inscripcionId);
+}
+
+function limpiarFormularioNuevoPilotoInscripcionAdmin() {
+  document.getElementById('adminNuevoPilotoNombreInput').value = '';
+  document.getElementById('adminNuevoPilotoAliasInput').value = '';
+  document.getElementById('adminNuevoPilotoCategoriaSelect').value = '';
+  document.getElementById('adminNuevoPilotoDorsalInput').value = '';
+  document.getElementById('adminNuevoPilotoNotasInput').value = '';
+}
+
+function crearPilotoEInscribirAdminDesdeApp() {
+  const adminPin = getAdminPinValue();
+
+  const nombre = document.getElementById('adminNuevoPilotoNombreInput').value.trim();
+  const alias = document.getElementById('adminNuevoPilotoAliasInput').value.trim();
+  const categoria = document.getElementById('adminNuevoPilotoCategoriaSelect').value;
+  const dorsal = document.getElementById('adminNuevoPilotoDorsalInput').value.trim();
+  const notas = document.getElementById('adminNuevoPilotoNotasInput').value.trim();
+
+  if (!adminPin) {
+    showMessage('adminCatalogMessage', 'Introduce el PIN de administración', 'error');
+    return;
+  }
+
+  if (!nombre) {
+    showMessage('adminCatalogMessage', 'Introduce el nombre del nuevo piloto', 'error');
+    return;
+  }
+
+  if (!categoria) {
+    showMessage('adminCatalogMessage', 'Selecciona una categoría', 'error');
+    return;
+  }
+
+  if (!dorsal) {
+    showMessage('adminCatalogMessage', 'Introduce un dorsal', 'error');
+    return;
+  }
+
+  const payload = {
+    nombre: nombre,
+    alias: alias,
+    categoria: categoria,
+    dorsal: dorsal,
+    notas: notas
+  };
+
+  showMessage('adminCatalogMessage', 'Creando piloto e inscripción...', 'warning');
+
+  google.script.run
+    .withSuccessHandler(function(response) {
+      showMessage(
+        'adminCatalogMessage',
+        response.message || 'Piloto creado e inscrito correctamente',
+        'success'
+      );
+
+      limpiarFormularioNuevoPilotoInscripcionAdmin();
+      appState.adminCatalogosLoaded = false;
+      loadAdminCatalogos();
+      loadCategorias();
+      loadClasificacion();
+    })
+    .withFailureHandler(function(error) {
+      showMessage(
+        'adminCatalogMessage',
+        error.message || 'Error creando piloto e inscripción',
+        'error'
+      );
+    })
+    .crearPilotoEInscribirAdmin(appState.pin, adminPin, payload);
+}
+    restoreLogin_();
   </script>
 </body>
 </html>

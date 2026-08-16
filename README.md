@@ -25,6 +25,7 @@ El objetivo del proyecto es sustituir el registro manual en papel por una herram
 - [Dashboard](#dashboard)
 - [Administración](#administración)
 - [Nueva carrera](#nueva-carrera)
+- [Instalación desde cero del visualizador del campeonato](#instalación-desde-cero-del-visualizador-del-campeonato)
 - [Corrección de resultados](#corrección-de-resultados)
 - [Bloqueo de duplicados](#bloqueo-de-duplicados)
 - [Cálculo de clasificación](#cálculo-de-clasificación)
@@ -149,6 +150,9 @@ El repositorio contiene principalmente:
 rallyrc-race-manager/
 ├── codigo.gs
 ├── index.html
+├── campeonato-app/
+│   ├── codigo.gs
+│   └── index.html
 └── README.md
 ```
 
@@ -978,6 +982,264 @@ o como:
 ```text
 1:10,5
 ```
+
+---
+
+## Instalación desde cero del visualizador del campeonato
+
+La carpeta `campeonato-app` contiene una segunda Web App de Google Apps Script. Es el visualizador público que conserva el histórico de carreras y calcula la clasificación general por categorías. Debe utilizar un Google Sheet independiente del que utiliza la aplicación de cronometraje.
+
+La instalación completa tiene dos partes:
+
+```text
+Google Sheet del campeonato + Web App del campeonato
+                         ↑
+                         │ publica resultados con URL y token
+                         │
+Google Sheet de crono + Web App de cronometraje
+```
+
+### Requisitos
+
+- Una cuenta de Google con permiso para crear Sheets y proyectos de Apps Script.
+- El repositorio descargado o acceso a estos archivos:
+  - `campeonato-app/codigo.gs`;
+  - `campeonato-app/index.html`;
+  - `codigo.gs` e `index.html` para la aplicación de cronometraje.
+- Un token secreto largo y aleatorio para autorizar el envío de resultados.
+
+No uses un PIN, una URL ni un nombre de carrera como token. El token es un secreto compartido entre las dos Web Apps y no debe aparecer en el repositorio, el HTML ni ninguna pestaña de Google Sheets.
+
+### Parte 1: crear la aplicación del campeonato
+
+#### 1. Crear el Google Sheet del campeonato
+
+1. Abre Google Drive.
+2. Crea un Google Sheet nuevo, independiente del Sheet de cada carrera.
+3. Usa un nombre identificable, por ejemplo:
+
+```text
+Rally RC Campeonato
+```
+
+Este Sheet será la base histórica del campeonato. No lo borres ni lo reutilices para la aplicación de cronometraje.
+
+#### 2. Crear el proyecto de Apps Script
+
+Desde el Sheet del campeonato, abre:
+
+```text
+Extensiones → Apps Script
+```
+
+En el editor:
+
+1. Crea o renombra el archivo de servidor a `codigo.gs`.
+2. Copia en él todo el contenido de `campeonato-app/codigo.gs`.
+3. Crea un archivo HTML mediante `+ → HTML`.
+4. Llámalo exactamente `Index`.
+5. Copia en él todo el contenido de `campeonato-app/index.html`.
+6. Guarda el proyecto.
+
+El nombre `Index` es obligatorio porque `doGet()` utiliza `createTemplateFromFile('Index')`. El archivo del repositorio se llama `index.html`, pero dentro de Apps Script debe quedar como `Index.html`.
+
+#### 3. Crear el token de importación
+
+Genera un valor aleatorio. En macOS o Linux se puede obtener, por ejemplo, con:
+
+```bash
+openssl rand -hex 32
+```
+
+En Apps Script abre:
+
+```text
+Configuración del proyecto → Propiedades del script
+```
+
+Añade esta propiedad:
+
+| Propiedad | Valor |
+|-----------|-------|
+| `CHAMPIONSHIP_TOKEN` | El token aleatorio generado |
+
+El nombre debe ser exactamente `CHAMPIONSHIP_TOKEN`. No lo añadas a la pestaña `Config` y no sustituyas la constante `CHAMP_IMPORT_TOKEN_PROPERTY` de `codigo.gs`: esa constante debe contener solamente el nombre de la propiedad.
+
+#### 4. Inicializar las pestañas
+
+En el desplegable de funciones del editor selecciona:
+
+```text
+setupChampionshipSheets
+```
+
+Pulsa **Ejecutar** y acepta los permisos de Google la primera vez. La función crea estas pestañas:
+
+| Pestaña | Uso |
+|---------|-----|
+| `Config` | Nombre del campeonato y número de descartes |
+| `Puntuacion` | Puntos asignados a cada posición |
+| `Carreras` | Una fila por carrera publicada |
+| `ResultadosCampeonato` | Clasificación de cada piloto en cada carrera |
+
+La función es segura para repetirla: no borra resultados existentes. Si las pestañas ya existen, comprueba sus cabeceras y completa las filas de configuración que falten.
+
+#### 5. Configurar el campeonato
+
+En la pestaña `Config` revisa:
+
+| key | value inicial |
+|-----|---------------|
+| `CAMPEONATO_NOMBRE` | Nombre que verá el público |
+| `NUM_DESCARTES` | `0` |
+
+`NUM_DESCARTES` indica cuántas carreras se descartan por piloto. Debe ser un entero mayor o igual que cero. La aplicación evita descartar todas las participaciones de un piloto.
+
+En `Puntuacion` puedes modificar los puntos por posición. La tabla inicial es:
+
+```text
+1: 25    2: 18    3: 15    4: 12    5: 10
+6: 8     7: 6     8: 4     9: 2     10: 1
+```
+
+Mantén las cabeceras `posicion` y `puntos` y usa números válidos.
+
+#### 6. Publicar la Web App del campeonato
+
+En Apps Script selecciona:
+
+```text
+Implementar → Nueva implementación
+```
+
+Configura:
+
+```text
+Tipo: Aplicación web
+Ejecutar como: Yo
+Quién tiene acceso: Cualquier usuario con el enlace
+```
+
+Pulsa **Implementar**, autoriza si Google lo solicita y copia la URL que termina en:
+
+```text
+/exec
+```
+
+Guarda esa URL: será `CHAMPIONSHIP_ENDPOINT` en la aplicación de cronometraje. No uses la URL `/dev` para la integración.
+
+El acceso debe ser anónimo o para cualquier usuario con el enlace. Aunque la aplicación de visualización sea pública, la importación está protegida por `CHAMPIONSHIP_TOKEN`. Si se restringe el despliegue a usuarios de la organización, `UrlFetchApp` de la aplicación de cronometraje puede recibir un error HTTP 401.
+
+#### 7. Probar el visualizador
+
+Abre la URL `/exec` en una ventana privada del navegador. La página debe cargar el título del campeonato y mostrar que todavía no hay resultados publicados. Si aparece un error indicando que faltan hojas, vuelve al editor y ejecuta `setupChampionshipSheets()`.
+
+### Parte 2: conectar la aplicación de cronometraje
+
+La aplicación de cronometraje debe estar instalada en otro Google Sheet y desplegada como Web App. Si partes de cero, sigue primero [Instalación paso a paso](#instalación-paso-a-paso) y [Publicación como aplicación web](#publicación-como-aplicación-web).
+
+En el proyecto de Apps Script de la aplicación de cronometraje abre:
+
+```text
+Configuración del proyecto → Propiedades del script
+```
+
+Añade estas dos propiedades:
+
+| Propiedad | Valor |
+|-----------|-------|
+| `CHAMPIONSHIP_ENDPOINT` | URL `/exec` de la Web App del campeonato |
+| `CHAMPIONSHIP_TOKEN` | El mismo token configurado en la app de campeonato |
+
+Importante:
+
+- Estas propiedades pertenecen al proyecto de Apps Script de crono, no a la pestaña `Config`.
+- `CHAMPIONSHIP_ENDPOINT` debe contener la URL real del despliegue, no el texto `CHAMPIONSHIP_ENDPOINT`.
+- `CHAMPIONSHIP_TOKEN` debe tener exactamente el mismo valor en ambos proyectos.
+- No sustituyas las constantes `CHAMPIONSHIP_ENDPOINT_PROPERTY` ni `CHAMPIONSHIP_TOKEN_PROPERTY` por valores reales.
+- No publiques el token en el repositorio ni lo compartas junto con la URL pública.
+
+Guarda y despliega una nueva versión de la aplicación de cronometraje después de modificar su código. Las propiedades del script se leen en el servidor y no requieren copiarse a la hoja.
+
+### Parte 3: publicar una carrera
+
+1. Registra y corrige todos los tiempos de la carrera en la aplicación de crono.
+2. Comprueba la clasificación y que las pasadas, penalizaciones, totales y estados sean correctos.
+3. Entra en **Administración** con el PIN de administración.
+4. Actualiza el estado de publicación para comprobar que aparecen configurados el endpoint y el token.
+5. Escribe exactamente:
+
+```text
+PUBLICAR CAMPEONATO
+```
+
+6. Pulsa **Publicar resultados en el campeonato** y confirma la operación.
+7. Abre la URL pública del campeonato y pulsa **Actualizar**.
+
+La publicación es una fotografía definitiva de la carrera. Se envía usando el `CARRERA_ID` de la carrera y el destino rechaza una segunda importación con el mismo identificador. El estado de la app de crono pasa a `SI` cuando la publicación termina correctamente.
+
+Si una publicación se interrumpe, el estado `PUBLICANDO` caduca después de diez minutos y permite reintentarlo. Si el destino ya recibió la carrera, responde `ALREADY_EXISTS` sin insertar duplicados.
+
+### Qué muestra el visualizador
+
+La URL pública ofrece dos vistas:
+
+- **Clasificación general**: puntos acumulados por piloto y categoría, victorias, participaciones y carreras descartadas.
+- **Resultados por carrera**: tiempos de las seis pasadas, penalizaciones, total, gap, estado y posición.
+
+En ambas vistas se puede:
+
+- filtrar por categoría;
+- filtrar por piloto;
+- cambiar entre tarjetas y tabla;
+- actualizar los datos sin publicar de nuevo.
+
+El visor recalcula las posiciones y los gaps de cada carrera al cargar los datos. Los puntos se calculan con la tabla `Puntuacion` y solo puntúan las clasificaciones completas.
+
+### Correcciones después de publicar
+
+La app de crono no vuelve a sincronizar automáticamente una carrera que ya está publicada. Si es necesario corregir una carrera publicada, hazlo directamente en `ResultadosCampeonato` del Sheet del campeonato y conserva coherentes estos campos:
+
+- tiempos de las pasadas;
+- `penalizaciones`;
+- `total`;
+- `completadas`;
+- `estado`.
+
+El visor recalculará posición, gap, puntos y descartes al actualizarse. Antes de editar, crea una copia de seguridad del Sheet. No cambies `carreraId` ni `inscripcionId`, porque son los identificadores que vinculan el histórico.
+
+### Añadir más carreras
+
+Para cada nueva prueba:
+
+1. Usa la aplicación de crono para generar una nueva carrera.
+2. Completa sus inscripciones y resultados.
+3. Publica una sola vez desde Administración.
+4. Comprueba que aparece una nueva fila en `Carreras` y sus resultados en `ResultadosCampeonato`.
+
+Todas las carreras utilizan la misma Web App y el mismo token del campeonato. Cada carrera debe conservar un `CARRERA_ID` diferente. No borres `Carreras` ni `ResultadosCampeonato` al comenzar una nueva prueba.
+
+### Actualizar cualquiera de las dos aplicaciones
+
+Los despliegues de crono y campeonato son independientes. Cuando cambies `codigo.gs` o `index.html` en una de ellas, debes crear una nueva versión desde:
+
+```text
+Implementar → Gestionar implementaciones → Editar → Nueva versión → Implementar
+```
+
+La URL `/exec` normalmente se conserva, pero verifica siempre que estás editando el despliegue correcto. La ejecución `setupChampionshipSheets()` solo prepara el Sheet; guardar el código no actualiza una Web App ya publicada.
+
+### Errores habituales de conexión
+
+| Síntoma | Comprobación |
+|---------|--------------|
+| HTTP 401 al publicar | El despliegue del campeonato debe permitir acceso a cualquier usuario con el enlace y ejecutar como propietario. |
+| Falta `CHAMPIONSHIP_ENDPOINT` | Añade la propiedad en el proyecto de Apps Script de crono, no en `Config`. |
+| Token incorrecto | Compara el valor de `CHAMPIONSHIP_TOKEN` en ambos proyectos, sin espacios adicionales. |
+| El visor no carga | Ejecuta `setupChampionshipSheets()` y revisa que existan las cuatro pestañas esperadas. |
+| La carrera ya existe | El `CARRERA_ID` ya fue importado; no vuelvas a crear filas manualmente. |
+
+La URL pública del campeonato y el token cumplen funciones distintas: la URL identifica el destino y el token autoriza la importación. No se calcula ninguno de los dos a partir de los PIN.
 
 ---
 
