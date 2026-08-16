@@ -1510,6 +1510,38 @@ body[data-view="admin"] .container {
         <div id="adminLoginMessage" class="message"></div>
 
         <div id="adminPanel" class="hidden" style="margin-top: 16px;">
+          <h2>Publicación del campeonato</h2>
+
+          <p class="muted">
+            Envía una fotografía definitiva de la carrera a la aplicación pública del campeonato.
+            Una carrera publicada no se puede volver a enviar desde esta aplicación.
+          </p>
+
+          <div id="campeonatoPublicationStatus" class="message warning" role="status" aria-live="polite" aria-atomic="true">
+            Consultando estado de publicación...
+          </div>
+
+          <label for="confirmPublicarCampeonatoInput">Confirmación</label>
+          <input id="confirmPublicarCampeonatoInput" type="text" placeholder="Escribe PUBLICAR CAMPEONATO">
+
+          <div class="button-row">
+            <button
+              type="button"
+              id="publicarCampeonatoButton"
+              class="success"
+              onclick="publicarCampeonatoDesdeApp()"
+            >
+              Publicar resultados en el campeonato
+            </button>
+            <button type="button" class="secondary" onclick="loadEstadoPublicacionCampeonato()">
+              Actualizar estado
+            </button>
+          </div>
+
+          <div id="campeonatoPublicationMessage" class="message" role="status" aria-live="polite" aria-atomic="true"></div>
+
+          <hr style="margin: 24px 0; border: 0; border-top: 1px solid var(--border);">
+
           <h2>Nueva carrera</h2>
 
           <label for="nombreCarreraInput">Nombre de la nueva carrera</label>
@@ -1519,7 +1551,7 @@ body[data-view="admin"] .container {
           <input id="confirmNuevaCarreraInput" type="text" placeholder="Escribe NUEVA CARRERA">
 
           <div class="button-row">
-            <button class="danger" data-testid="nueva-carrera-submit" onclick="generarNuevaCarreraDesdeApp()">Generar nueva carrera</button>
+            <button id="generarNuevaCarreraButton" class="danger" data-testid="nueva-carrera-submit" onclick="generarNuevaCarreraDesdeApp()" disabled>Generar nueva carrera</button>
           </div>
 
           <div id="adminActionMessage" class="message"></div>
@@ -1898,6 +1930,8 @@ body[data-view="admin"] .container {
         dashboardInterval: null,
         adminCatalogosLoaded: false,
         adminPin: '',
+        campeonatoPublication: null,
+        campeonatoStatusRequestId: 0,
         adminPilotos: [],
         adminCategorias: [],
         adminInscripciones: []
@@ -1947,7 +1981,7 @@ body[data-view="admin"] .container {
 
         const cached = JSON.parse(raw);
         const valid = cached &&
-          cached.schemaVersion === '2' &&
+          cached.schemaVersion === '3' &&
           Array.isArray(cached.categorias) &&
           Array.isArray(cached.inscripciones) &&
           Number(cached.fetchedAt) > 0 &&
@@ -1980,7 +2014,7 @@ body[data-view="admin"] .container {
           categorias: data.categorias || [],
           inscripciones: data.inscripciones || [],
           fetchedAt: Number(data.fetchedAt) || Date.now(),
-          schemaVersion: String(data.schemaVersion || '2'),
+          schemaVersion: String(data.schemaVersion || '3'),
           environment: String(data.environment || 'PRODUCTION')
         }));
 
@@ -2293,7 +2327,7 @@ body[data-view="admin"] .container {
           categorias: appState.categorias,
           inscripciones: appState.inscripciones,
           fetchedAt: appState.registroDataFetchedAt,
-          schemaVersion: data.schemaVersion || '2',
+          schemaVersion: data.schemaVersion || '3',
           environment: data.environment || 'PRODUCTION'
         });
       }
@@ -3653,12 +3687,147 @@ function secondsToDisplayTime(value) {
           appState.adminPin = adminPin;
           appState.adminCatalogosLoaded = false;
           loadAdminCatalogos();
+          loadEstadoPublicacionCampeonato();
         })
         .withFailureHandler(function(error) {
           document.getElementById('adminPanel').classList.add('hidden');
           showMessage('adminLoginMessage', error.message || 'Error validando administración', 'error');
         })
         .validateAdminPin(adminPin);
+    }
+
+    function loadEstadoPublicacionCampeonato() {
+      const adminPin = getAdminPinValue();
+      const button = document.getElementById('publicarCampeonatoButton');
+      const newRaceButton = document.getElementById('generarNuevaCarreraButton');
+      const requestId = ++appState.campeonatoStatusRequestId;
+
+      if (!adminPin) {
+        showMessage('campeonatoPublicationMessage', 'Introduce la contraseña de administración', 'error');
+        return;
+      }
+
+      button.disabled = true;
+      newRaceButton.disabled = true;
+      showMessage('campeonatoPublicationStatus', 'Consultando estado de publicación...', 'warning');
+
+      google.script.run
+        .withSuccessHandler(function(status) {
+          if (requestId !== appState.campeonatoStatusRequestId) {
+            return;
+          }
+          appState.campeonatoPublication = status || {};
+          renderEstadoPublicacionCampeonato_();
+          hideMessage('campeonatoPublicationMessage');
+        })
+        .withFailureHandler(function(error) {
+          if (requestId !== appState.campeonatoStatusRequestId) {
+            return;
+          }
+          button.disabled = true;
+          newRaceButton.disabled = true;
+          showMessage(
+            'campeonatoPublicationStatus',
+            error.message || 'No se pudo consultar el estado de publicación',
+            'error'
+          );
+        })
+        .getEstadoPublicacionCampeonato(appState.pin, adminPin);
+    }
+
+    function renderEstadoPublicacionCampeonato_() {
+      const status = appState.campeonatoPublication || {};
+      const button = document.getElementById('publicarCampeonatoButton');
+      const newRaceButton = document.getElementById('generarNuevaCarreraButton');
+      const published = status.estado === 'SI';
+      const publishing = status.estado === 'PUBLICANDO';
+      const configured = Boolean(status.configurado);
+      let text = 'Carrera: ' + (status.carrera || 'Sin nombre') + '. ';
+      let type = 'warning';
+
+      if (!configured) {
+        const missing = [];
+        if (!status.endpointConfigurado) {
+          missing.push('CHAMPIONSHIP_ENDPOINT');
+        }
+        if (!status.tokenConfigurado) {
+          missing.push('CHAMPIONSHIP_TOKEN');
+        }
+        text += 'Falta configurar en crono: ' + missing.join(' y ') + '.';
+        type = 'error';
+      } else if (published) {
+        text += 'Publicada correctamente. Las correcciones deben hacerse en la hoja del campeonato.';
+        type = 'success';
+      } else if (publishing) {
+        text += 'Publicación en curso.';
+      } else {
+        text += 'Pendiente de publicación. Participantes: ' + Number(status.participantes || 0) +
+          '. Incompletos: ' + Number(status.incompletos || 0) + '.';
+      }
+
+      button.disabled = !configured || published || publishing;
+      newRaceButton.disabled = publishing;
+      showMessage('campeonatoPublicationStatus', text, type);
+    }
+
+    function publicarCampeonatoDesdeApp() {
+      const adminPin = getAdminPinValue();
+      const confirmation = document.getElementById('confirmPublicarCampeonatoInput').value.trim();
+      const status = appState.campeonatoPublication || {};
+      const button = document.getElementById('publicarCampeonatoButton');
+      const newRaceButton = document.getElementById('generarNuevaCarreraButton');
+
+      if (!status.carreraId || !status.configurado || status.estado !== 'NO') {
+        showMessage(
+          'campeonatoPublicationMessage',
+          'Actualiza el estado de la carrera antes de publicarla',
+          'error'
+        );
+        button.disabled = true;
+        return;
+      }
+
+      if (confirmation !== 'PUBLICAR CAMPEONATO') {
+        showMessage(
+          'campeonatoPublicationMessage',
+          'Para confirmar, escribe exactamente: PUBLICAR CAMPEONATO',
+          'error'
+        );
+        return;
+      }
+
+      const incompleteWarning = Number(status.incompletos || 0) > 0
+        ? ' Hay ' + Number(status.incompletos) + ' participantes incompletos que no puntuarán.'
+        : '';
+      const confirmed = window.confirm(
+        'La carrera solo se puede publicar una vez desde crono.' + incompleteWarning +
+        ' ¿Quieres continuar?'
+      );
+
+      if (!confirmed) {
+        showMessage('campeonatoPublicationMessage', 'Publicación cancelada', 'warning');
+        return;
+      }
+
+      button.disabled = true;
+      newRaceButton.disabled = true;
+      showMessage('campeonatoPublicationMessage', 'Publicando resultados...', 'warning');
+
+      google.script.run
+        .withSuccessHandler(function(response) {
+          document.getElementById('confirmPublicarCampeonatoInput').value = '';
+          showMessage('campeonatoPublicationMessage', response.message, 'success');
+          loadEstadoPublicacionCampeonato();
+        })
+        .withFailureHandler(function(error) {
+          button.disabled = false;
+          showMessage(
+            'campeonatoPublicationMessage',
+            error.message || 'No se pudieron publicar los resultados',
+            'error'
+          );
+        })
+        .publicarResultadosCampeonato(appState.pin, adminPin, status.carreraId);
     }
 
     function generarNuevaCarreraDesdeApp() {
@@ -3700,6 +3869,7 @@ function secondsToDisplayTime(value) {
           document.getElementById('confirmNuevaCarreraInput').value = '';
 
           loadClasificacion();
+          loadEstadoPublicacionCampeonato();
         })
         .withFailureHandler(function(error) {
           showMessage('adminActionMessage', error.message || 'Error generando nueva carrera', 'error');

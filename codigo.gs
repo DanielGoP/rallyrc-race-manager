@@ -6,7 +6,14 @@ const SHEET_PILOTOS_DB = 'PilotosDB';
 const SHEET_CATEGORIAS_DB = 'CategoriasDB';
 const CONFIG_SCHEMA_VERSION = 'SCHEMA_VERSION';
 const CONFIG_ENVIRONMENT = 'ENVIRONMENT';
-const CURRENT_SCHEMA_VERSION = '2';
+const CONFIG_CARRERA_ID = 'CARRERA_ID';
+const CONFIG_CAMPEONATO_PUBLICADA = 'CAMPEONATO_PUBLICADA';
+const CONFIG_CAMPEONATO_PUBLICACION_INICIADA = 'CAMPEONATO_PUBLICACION_INICIADA';
+// Son nombres de Script Properties; no sustituirlos por la URL ni por el token.
+const CHAMPIONSHIP_ENDPOINT_PROPERTY = 'CHAMPIONSHIP_ENDPOINT';
+const CHAMPIONSHIP_TOKEN_PROPERTY = 'CHAMPIONSHIP_TOKEN';
+const CHAMPIONSHIP_PUBLICATION_LEASE_MS = 10 * 60 * 1000;
+const CURRENT_SCHEMA_VERSION = '3';
 
 const PASADAS = [
   { id: 'P1', num: 1, label: 'Ida 1', tipo: 'ida', orden: 1 },
@@ -35,6 +42,9 @@ function setupSheets() {
   ['PIN', 'CAMBIAR_PIN_ACCESO'],
   ['ADMIN_PIN', 'CAMBIAR_PIN_ADMIN'],
   ['CARRERA_ACTIVA', 'Rally RC'],
+  [CONFIG_CARRERA_ID, Utilities.getUuid()],
+  [CONFIG_CAMPEONATO_PUBLICADA, 'NO'],
+  [CONFIG_CAMPEONATO_PUBLICACION_INICIADA, ''],
   [CONFIG_ENVIRONMENT, 'PRODUCTION'],
   [CONFIG_SCHEMA_VERSION, '0']
 ]);
@@ -125,9 +135,16 @@ createSheetIfNotExists_(ss, SHEET_CATEGORIAS_DB, [
         throw new Error('La hoja usa un esquema más reciente que esta versión de la aplicación');
       }
 
-      if (lockedSchemaVersion < currentSchemaVersion) {
+      if (lockedSchemaVersion < 2) {
         migrarPilotosYCategoriasDesdeInscripciones_();
         refreshClasificacion_();
+      }
+
+      if (lockedSchemaVersion < 3) {
+        ensureCarreraPublicationConfig_();
+      }
+
+      if (lockedSchemaVersion < currentSchemaVersion) {
         updateConfigValue_(CONFIG_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION);
       }
     } finally {
@@ -343,6 +360,7 @@ function saveResultado(pin, payload) {
 
   try {
     lock.waitLock(10000);
+    assertCarreraAdmiteResultados_();
 
     const data = normalizePayload_(payload);
     const inscripciones = getInscripciones_();
@@ -783,7 +801,7 @@ function buildResultadosFromValues_(values) {
   return result;
 }
 
-function resetDemoData() {
+function resetDemoData_() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
 
   const resultados = ss.getSheetByName(SHEET_RESULTADOS);
@@ -820,6 +838,57 @@ function updateConfigValue_(key, value) {
   sheet.appendRow([key, value]);
 }
 
+function ensureCarreraPublicationConfig_() {
+  const config = getConfigValues_();
+
+  if (!String(config[CONFIG_CARRERA_ID] || '').trim()) {
+    updateConfigValue_(CONFIG_CARRERA_ID, Utilities.getUuid());
+  }
+
+  if (!String(config[CONFIG_CAMPEONATO_PUBLICADA] || '').trim()) {
+    updateConfigValue_(CONFIG_CAMPEONATO_PUBLICADA, 'NO');
+  }
+
+  if (config[CONFIG_CAMPEONATO_PUBLICACION_INICIADA] === undefined) {
+    updateConfigValue_(CONFIG_CAMPEONATO_PUBLICACION_INICIADA, '');
+  }
+}
+
+function assertCarreraAdmiteResultados_() {
+  const status = recoverCarreraPublicationStatus_(getConfigValues_());
+
+  if (status === 'PUBLICANDO') {
+    throw new Error('La carrera se está publicando en el campeonato');
+  }
+
+  if (status === 'SI') {
+    throw new Error('La carrera ya está publicada. Las correcciones deben hacerse en la hoja del campeonato');
+  }
+}
+
+function recoverCarreraPublicationStatus_(config) {
+  const status = String(config[CONFIG_CAMPEONATO_PUBLICADA] || 'NO').toUpperCase();
+
+  if (status !== 'PUBLICANDO') {
+    return status;
+  }
+
+  const startedAt = new Date(
+    String(config[CONFIG_CAMPEONATO_PUBLICACION_INICIADA] || '')
+  ).getTime();
+  const stale = !isFinite(startedAt) || Date.now() - startedAt > CHAMPIONSHIP_PUBLICATION_LEASE_MS;
+
+  if (!stale) {
+    return status;
+  }
+
+  updateConfigValue_(CONFIG_CAMPEONATO_PUBLICADA, 'NO');
+  updateConfigValue_(CONFIG_CAMPEONATO_PUBLICACION_INICIADA, '');
+  config[CONFIG_CAMPEONATO_PUBLICADA] = 'NO';
+  config[CONFIG_CAMPEONATO_PUBLICACION_INICIADA] = '';
+  return 'NO';
+}
+
 function generarNuevaCarrera(pin, adminPin, nombreCarrera) {
   if (!validatePin_(pin)) {
     throw new Error('PIN de carrera incorrecto');
@@ -833,6 +902,10 @@ function generarNuevaCarrera(pin, adminPin, nombreCarrera) {
 
   try {
     lock.waitLock(10000);
+
+    if (recoverCarreraPublicationStatus_(getConfigValues_()) === 'PUBLICANDO') {
+      throw new Error('Espera a que termine la publicación del campeonato');
+    }
 
     const ss = SpreadsheetApp.getActiveSpreadsheet();
 
@@ -890,6 +963,9 @@ function generarNuevaCarrera(pin, adminPin, nombreCarrera) {
     const carrera = String(nombreCarrera || '').trim() || 'Nueva carrera';
 
     updateConfigValue_('CARRERA_ACTIVA', carrera);
+    updateConfigValue_(CONFIG_CARRERA_ID, Utilities.getUuid());
+    updateConfigValue_(CONFIG_CAMPEONATO_PUBLICADA, 'NO');
+    updateConfigValue_(CONFIG_CAMPEONATO_PUBLICACION_INICIADA, '');
 
     // Regenera clasificación vacía con las inscripciones actuales
     refreshClasificacion_();
@@ -900,6 +976,240 @@ function generarNuevaCarrera(pin, adminPin, nombreCarrera) {
       carrera: carrera
     };
 
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function getEstadoPublicacionCampeonato(pin, adminPin) {
+  if (!validatePin_(pin)) {
+    throw new Error('PIN de carrera incorrecto');
+  }
+
+  if (!validateAdminPin_(adminPin)) {
+    throw new Error('Contraseña de administración incorrecta');
+  }
+
+  const lock = LockService.getScriptLock();
+  let config;
+
+  try {
+    lock.waitLock(10000);
+    config = getConfigValues_();
+    recoverCarreraPublicationStatus_(config);
+  } finally {
+    lock.releaseLock();
+  }
+
+  const properties = PropertiesService.getScriptProperties();
+  const clasificacion = buildClasificacion_('');
+  const endpointConfigurado = Boolean(
+    String(properties.getProperty(CHAMPIONSHIP_ENDPOINT_PROPERTY) || '').trim()
+  );
+  const tokenConfigurado = Boolean(
+    String(properties.getProperty(CHAMPIONSHIP_TOKEN_PROPERTY) || '')
+  );
+
+  return {
+    carreraId: String(config[CONFIG_CARRERA_ID] || ''),
+    carrera: String(config.CARRERA_ACTIVA || 'Rally RC'),
+    estado: String(config[CONFIG_CAMPEONATO_PUBLICADA] || 'NO').toUpperCase(),
+    participantes: clasificacion.length,
+    incompletos: clasificacion.filter(function(row) {
+      return Number(row.completadas) < 6;
+    }).length,
+    endpointConfigurado: endpointConfigurado,
+    tokenConfigurado: tokenConfigurado,
+    configurado: endpointConfigurado && tokenConfigurado
+  };
+}
+
+function publicarResultadosCampeonato(pin, adminPin, expectedCarreraId) {
+  if (!validatePin_(pin)) {
+    throw new Error('PIN de carrera incorrecto');
+  }
+
+  if (!validateAdminPin_(adminPin)) {
+    throw new Error('Contraseña de administración incorrecta');
+  }
+
+  const properties = PropertiesService.getScriptProperties();
+  const endpoint = String(properties.getProperty(CHAMPIONSHIP_ENDPOINT_PROPERTY) || '').trim();
+  const token = String(properties.getProperty(CHAMPIONSHIP_TOKEN_PROPERTY) || '');
+
+  if (!endpoint || !token) {
+    throw new Error('Configura CHAMPIONSHIP_ENDPOINT y CHAMPIONSHIP_TOKEN en las propiedades del script');
+  }
+
+  const lock = LockService.getScriptLock();
+  let snapshot;
+
+  try {
+    lock.waitLock(10000);
+
+    const config = getConfigValues_();
+    const status = recoverCarreraPublicationStatus_(config);
+    const carreraId = String(config[CONFIG_CARRERA_ID] || '');
+
+    if (!expectedCarreraId || String(expectedCarreraId) !== carreraId) {
+      throw new Error('La carrera ha cambiado desde la confirmación. Actualiza el estado antes de publicar');
+    }
+
+    if (status === 'SI') {
+      throw new Error('Esta carrera ya está publicada en el campeonato');
+    }
+
+    if (status === 'PUBLICANDO') {
+      throw new Error('Ya hay una publicación del campeonato en curso');
+    }
+
+    snapshot = buildCampeonatoSnapshot_(config);
+    updateConfigValue_(CONFIG_CAMPEONATO_PUBLICADA, 'PUBLICANDO');
+    updateConfigValue_(CONFIG_CAMPEONATO_PUBLICACION_INICIADA, new Date().toISOString());
+  } finally {
+    lock.releaseLock();
+  }
+
+  try {
+    const response = UrlFetchApp.fetch(endpoint, {
+      method: 'post',
+      contentType: 'application/json',
+      payload: JSON.stringify({
+        token: token,
+        payload: snapshot
+      }),
+      followRedirects: true,
+      muteHttpExceptions: true
+    });
+
+    const responseCode = response.getResponseCode();
+    const responseText = response.getContentText();
+    let responseData;
+
+    try {
+      responseData = JSON.parse(responseText);
+    } catch (error) {
+      throw new Error('La app de campeonato no devolvió una respuesta válida (HTTP ' + responseCode + ')');
+    }
+
+    if (!responseData || !responseData.ok) {
+      throw new Error(
+        responseData && responseData.message
+          ? responseData.message
+          : 'La app de campeonato rechazó la publicación'
+      );
+    }
+
+    setCarreraPublicationStatus_(snapshot.carrera.carreraId, 'SI');
+
+    return {
+      status: responseData.status,
+      message: responseData.status === 'ALREADY_EXISTS'
+        ? 'La carrera ya existía en el campeonato y se ha marcado como publicada'
+        : 'Resultados publicados correctamente en el campeonato',
+      carreraId: snapshot.carrera.carreraId,
+      incompletos: snapshot.incompletos
+    };
+  } catch (error) {
+    setCarreraPublicationStatus_(snapshot.carrera.carreraId, 'NO');
+    throw error;
+  }
+}
+
+function buildCampeonatoSnapshot_(config) {
+  const carreraId = String(config[CONFIG_CARRERA_ID] || '').trim();
+  const carrera = String(config.CARRERA_ACTIVA || 'Rally RC').trim();
+
+  if (!carreraId) {
+    throw new Error('La carrera no tiene identificador. Ejecuta setupSheets() antes de publicar');
+  }
+
+  const inscripciones = getInscripciones_();
+  const resultados = getResultados_();
+
+  if (!inscripciones.length) {
+    throw new Error('No hay inscripciones para publicar');
+  }
+
+  const inscripcionesById = {};
+  inscripciones.forEach(function(inscripcion) {
+    inscripcionesById[inscripcion.inscripcionId] = inscripcion;
+  });
+
+  const categoriasByName = {};
+  getCategoriasDB_().forEach(function(categoria) {
+    categoriasByName[normalizeText_(categoria.nombre)] = categoria;
+  });
+
+  const categorias = [...new Set(inscripciones.map(function(inscripcion) {
+    return inscripcion.categoria;
+  }))].filter(Boolean).sort();
+
+  const rows = [];
+
+  categorias.forEach(function(categoriaNombre) {
+    const categoria = categoriasByName[normalizeText_(categoriaNombre)] || {};
+    const clasificacion = buildClasificacion_(categoriaNombre, inscripciones, resultados);
+    const completos = clasificacion.filter(function(row) {
+      return Number(row.completadas) === 6 && /^Completo/i.test(String(row.estado || ''));
+    });
+    const incompletos = clasificacion.filter(function(row) {
+      return completos.indexOf(row) === -1;
+    });
+    const clasificacionPublicable = completos.concat(incompletos);
+
+    clasificacionPublicable.forEach(function(row, index) {
+      const inscripcion = inscripcionesById[row.inscripcionId] || {};
+
+      rows.push({
+        inscripcionId: row.inscripcionId,
+        pilotoId: String(inscripcion.pilotoId || ''),
+        piloto: row.piloto,
+        categoriaId: String(categoria.categoriaId || ''),
+        categoria: row.categoria,
+        dorsal: row.dorsal,
+        posicion: index + 1,
+        ida1: row.ida1,
+        vuelta1: row.vuelta1,
+        ida2: row.ida2,
+        vuelta2: row.vuelta2,
+        ida3: row.ida3,
+        vuelta3: row.vuelta3,
+        descartada: row.descartada,
+        penalizaciones: row.penalizaciones,
+        total: row.total,
+        gap: row.gap,
+        completadas: row.completadas,
+        estado: row.estado
+      });
+    });
+  });
+
+  return {
+    schemaVersion: 1,
+    carrera: {
+      carreraId: carreraId,
+      nombre: carrera
+    },
+    fechaPublicacion: new Date().toISOString(),
+    incompletos: rows.filter(function(row) {
+      return Number(row.completadas) < 6;
+    }).length,
+    resultados: rows
+  };
+}
+
+function setCarreraPublicationStatus_(carreraId, status) {
+  const lock = LockService.getScriptLock();
+
+  try {
+    lock.waitLock(10000);
+    const config = getConfigValues_();
+
+    if (String(config[CONFIG_CARRERA_ID] || '') === String(carreraId || '')) {
+      updateConfigValue_(CONFIG_CAMPEONATO_PUBLICADA, status);
+      updateConfigValue_(CONFIG_CAMPEONATO_PUBLICACION_INICIADA, '');
+    }
   } finally {
     lock.releaseLock();
   }
@@ -996,6 +1306,7 @@ function corregirResultado(pin, adminPin, payload) {
 
   try {
     lock.waitLock(10000);
+    assertCarreraAdmiteResultados_();
 
     if (!payload) {
       throw new Error('No se han recibido datos para corregir');
@@ -1682,6 +1993,8 @@ function crearPilotoAdmin(pin, adminPin, payload) {
     throw new Error('PIN de administración incorrecto');
   }
 
+  assertCarreraAdmiteResultados_();
+
   const nombre = String(payload.nombre || '').trim();
   const alias = String(payload.alias || '').trim();
   const notas = String(payload.notas || '').trim();
@@ -1752,6 +2065,12 @@ function editarPilotoAdmin(pin, adminPin, payload) {
     throw new Error('PIN de administración incorrecto');
   }
 
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+
+  try {
+    assertCarreraAdmiteResultados_();
+
   const pilotoId = String(payload.pilotoId || '').trim();
   const nombre = String(payload.nombre || '').trim();
   const alias = String(payload.alias || '').trim();
@@ -1810,10 +2129,13 @@ function editarPilotoAdmin(pin, adminPin, payload) {
 
   autoResize_(sheet);
 
-  return {
-    status: 'OK',
-    message: 'Piloto actualizado correctamente'
-  };
+    return {
+      status: 'OK',
+      message: 'Piloto actualizado correctamente'
+    };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function sincronizarNombrePilotoEnInscripciones_(pilotoId, nombre) {
@@ -1848,6 +2170,8 @@ function crearCategoriaAdmin(pin, adminPin, payload) {
   if (!validateAdminPin_(adminPin)) {
     throw new Error('PIN de administración incorrecto');
   }
+
+  assertCarreraAdmiteResultados_();
 
   const nombre = String(payload.nombre || '').trim();
   const notas = String(payload.notas || '').trim();
@@ -1924,6 +2248,12 @@ function editarCategoriaAdmin(pin, adminPin, payload) {
     throw new Error('PIN de administración incorrecto');
   }
 
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+
+  try {
+    assertCarreraAdmiteResultados_();
+
   const categoriaId = String(payload.categoriaId || '').trim();
   const nombre = String(payload.nombre || '').trim();
   const notas = String(payload.notas || '').trim();
@@ -1996,10 +2326,13 @@ function editarCategoriaAdmin(pin, adminPin, payload) {
 
   autoResize_(sheet);
 
-  return {
-    status: 'OK',
-    message: 'Categoría actualizada correctamente'
-  };
+    return {
+      status: 'OK',
+      message: 'Categoría actualizada correctamente'
+    };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function sincronizarNombreCategoriaEnInscripciones_(oldName, newName) {
@@ -2179,6 +2512,7 @@ function crearInscripcionAdmin(pin, adminPin, payload) {
   lock.waitLock(10000);
 
   try {
+    assertCarreraAdmiteResultados_();
     const validated = validarInscripcionAdmin_(payload, '');
 
     const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -2235,6 +2569,12 @@ function editarInscripcionAdmin(pin, adminPin, payload) {
   lock.waitLock(10000);
 
   try {
+    assertCarreraAdmiteResultados_();
+
+    if (inscripcionTieneResultados_(inscripcionId)) {
+      throw new Error('No se puede editar una inscripción que ya tiene resultados registrados');
+    }
+
     const validated = validarInscripcionAdmin_(payload, inscripcionId);
 
     const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -2287,6 +2627,12 @@ function eliminarInscripcionAdmin(pin, adminPin, inscripcionId) {
   lock.waitLock(10000);
 
   try {
+    assertCarreraAdmiteResultados_();
+
+    if (inscripcionTieneResultados_(cleanInscripcionId)) {
+      throw new Error('No se puede eliminar una inscripción que ya tiene resultados registrados');
+    }
+
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const sheet = ss.getSheetByName(SHEET_INSCRIPCIONES);
     const rowIndex = getInscripcionRowIndex_(cleanInscripcionId);
@@ -2316,6 +2662,8 @@ function crearPilotoEInscribirAdmin(pin, adminPin, payload) {
   if (!validateAdminPin_(adminPin)) {
     throw new Error('PIN de administración incorrecto');
   }
+
+  assertCarreraAdmiteResultados_();
 
   const nombre = String(payload.nombre || '').trim();
   const alias = String(payload.alias || '').trim();

@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root {
+      --orange: #f97316;
+      --orange-bright: #ff8a1f;
+      --ink: #080b0d;
+      --panel: #14191d;
+      --panel-soft: #1b2227;
+      --line: #323a40;
+      --text: #f4f6f7;
+      --muted: #9ba3aa;
+      --success: #22c55e;
+      --danger: #ef4444;
+      --shadow: 0 18px 50px rgba(0, 0, 0, 0.34);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      color-scheme: dark;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      font-family: Arial, Helvetica, sans-serif;
+      background:
+        linear-gradient(135deg, rgba(255,255,255,.025) 25%, transparent 25%) 0 0 / 12px 12px,
+        linear-gradient(315deg, rgba(255,255,255,.018) 25%, transparent 25%) 0 0 / 12px 12px,
+        radial-gradient(circle at 85% 0%, rgba(249,115,22,.15), transparent 34%),
+        var(--ink);
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0 auto 0 0;
+      width: 5px;
+      background: var(--orange);
+      box-shadow: 0 0 24px rgba(249,115,22,.45);
+      z-index: 10;
+    }
+
+    button,
+    select {
+      font: inherit;
+    }
+
+    button:focus-visible,
+    select:focus-visible,
+    summary:focus-visible {
+      outline: 3px solid rgba(249,115,22,.38);
+      outline-offset: 2px;
+    }
+
+    .shell {
+      width: 100%;
+      max-width: 1500px;
+      margin: 0 auto;
+      padding: 18px 14px 42px 19px;
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      padding: 24px 20px;
+      border: 1px solid var(--line);
+      border-top: 4px solid var(--orange);
+      background: linear-gradient(145deg, rgba(31,38,43,.96), rgba(13,17,20,.98));
+      box-shadow: var(--shadow);
+      clip-path: polygon(0 0, 100% 0, 100% calc(100% - 18px), calc(100% - 18px) 100%, 0 100%);
+    }
+
+    .hero::after {
+      content: "CHAMPIONSHIP";
+      position: absolute;
+      right: -8px;
+      bottom: -16px;
+      color: rgba(255,255,255,.035);
+      font-size: clamp(42px, 10vw, 110px);
+      font-weight: 900;
+      letter-spacing: -5px;
+      pointer-events: none;
+    }
+
+    .eyebrow {
+      color: var(--orange);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+    }
+
+    h1,
+    h2,
+    h3 {
+      margin: 0;
+      font-family: Impact, "Arial Narrow", sans-serif;
+      font-weight: 700;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin-top: 7px;
+      max-width: 950px;
+      font-size: clamp(34px, 8vw, 76px);
+      line-height: .96;
+    }
+
+    .hero-meta {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 18px;
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .panel {
+      margin-top: 14px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      background: rgba(20,25,29,.95);
+      box-shadow: var(--shadow);
+    }
+
+    .view-tabs,
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    button {
+      min-height: 44px;
+      padding: 10px 15px;
+      border: 1px solid #4a535a;
+      border-radius: 2px 10px 2px 10px;
+      color: var(--text);
+      font-weight: 800;
+      background: #252c31;
+      cursor: pointer;
+      transition: transform .14s ease, border-color .14s ease, background .14s ease;
+    }
+
+    button:hover {
+      border-color: var(--orange);
+      transform: translateY(-1px);
+    }
+
+    button.active {
+      color: #111;
+      border-color: var(--orange);
+      background: var(--orange);
+    }
+
+    .filters {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 6px;
+      color: #d6dadd;
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    select {
+      width: 100%;
+      min-height: 46px;
+      padding: 10px 38px 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 3px;
+      color: var(--text);
+      background: #11171a;
+    }
+
+    .actions {
+      margin-top: 14px;
+    }
+
+    .message {
+      display: none;
+      margin-top: 14px;
+      padding: 12px 14px;
+      border-left: 4px solid var(--orange);
+      color: #ffe4cf;
+      background: rgba(249,115,22,.11);
+    }
+
+    .message.visible {
+      display: block;
+    }
+
+    .message.error {
+      border-color: var(--danger);
+      color: #fecaca;
+      background: rgba(239,68,68,.12);
+    }
+
+    .section-heading {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 26px 2px 12px;
+    }
+
+    .section-heading h2 {
+      font-size: clamp(24px, 5vw, 38px);
+    }
+
+    .section-heading h2::before {
+      content: "";
+      display: inline-block;
+      width: 5px;
+      height: .75em;
+      margin-right: 9px;
+      background: var(--orange);
+      transform: skewX(-14deg);
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .standings-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .standing-card {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-left: 5px solid var(--orange);
+      background: linear-gradient(110deg, #1b2227, #111619);
+      box-shadow: 0 10px 26px rgba(0,0,0,.2);
+    }
+
+    .standing-card summary {
+      position: relative;
+      display: grid;
+      grid-template-columns: 58px minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      min-height: 82px;
+      padding: 12px 15px 12px 11px;
+      list-style: none;
+      cursor: pointer;
+    }
+
+    .standing-card summary::after {
+      content: "+";
+      position: absolute;
+      right: 7px;
+      bottom: 3px;
+      color: var(--muted);
+      font-size: 16px;
+      font-weight: 900;
+    }
+
+    .standing-card[open] summary::after {
+      content: "−";
+      color: var(--orange);
+    }
+
+    .standing-card summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .position {
+      color: var(--orange);
+      font-family: Impact, "Arial Narrow", sans-serif;
+      font-size: 37px;
+      line-height: 1;
+      text-align: center;
+    }
+
+    .driver strong {
+      display: block;
+      font-size: 17px;
+      line-height: 1.15;
+    }
+
+    .driver span {
+      display: block;
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .score {
+      min-width: 78px;
+      text-align: right;
+    }
+
+    .score strong {
+      display: block;
+      color: var(--orange-bright);
+      font-family: Impact, "Arial Narrow", sans-serif;
+      font-size: 28px;
+      line-height: 1;
+    }
+
+    .score span {
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .card-detail {
+      padding: 0 14px 14px;
+      border-top: 1px solid rgba(255,255,255,.07);
+    }
+
+    .race-points,
+    .splits {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .result-chip,
+    .split {
+      padding: 10px;
+      border: 1px solid #30383e;
+      background: #101518;
+    }
+
+    .result-chip.discarded {
+      opacity: .52;
+      text-decoration: line-through;
+    }
+
+    .result-chip strong,
+    .split strong {
+      display: block;
+      margin-top: 4px;
+      color: var(--orange-bright);
+      font-size: 16px;
+    }
+
+    .result-chip span,
+    .split span {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .race-group {
+      margin-top: 22px;
+    }
+
+    .race-title {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 9px;
+      padding-bottom: 7px;
+      border-bottom: 2px solid var(--orange);
+    }
+
+    .race-title h3 {
+      font-size: 23px;
+    }
+
+    .table-wrap {
+      width: 100%;
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      background: #111619;
+    }
+
+    table {
+      width: max-content;
+      min-width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    th,
+    td {
+      padding: 10px 11px;
+      border-bottom: 1px solid #2d353a;
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      color: #111;
+      background: var(--orange);
+      text-transform: uppercase;
+    }
+
+    tr:hover td {
+      background: rgba(249,115,22,.055);
+    }
+
+    td.numeric {
+      text-align: right;
+    }
+
+    .discarded-text {
+      color: #fca5a5;
+      text-decoration: line-through;
+    }
+
+    .empty {
+      padding: 42px 18px;
+      border: 1px dashed #475159;
+      color: var(--muted);
+      text-align: center;
+      background: rgba(20,25,29,.7);
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    @media (max-width: 720px) {
+      .shell {
+        padding: 10px 8px 30px 13px;
+      }
+
+      .hero {
+        padding: 20px 15px 24px;
+      }
+
+      .panel {
+        padding: 12px;
+      }
+
+      .filters {
+        grid-template-columns: 1fr;
+      }
+
+      .view-tabs button,
+      .actions button {
+        flex: 1 1 145px;
+      }
+
+      .standing-card summary {
+        grid-template-columns: 45px minmax(0, 1fr) auto;
+        gap: 8px;
+      }
+
+      .position {
+        font-size: 31px;
+      }
+
+      .score strong {
+        font-size: 24px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        transition: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="hero">
+      <div class="eyebrow">Rally RC · Resultados oficiales</div>
+      <h1 id="championshipTitle">Campeonato Rally RC</h1>
+      <div class="hero-meta">
+        <span id="raceCount">0 carreras</span>
+        <span id="updatedAt">Cargando resultados...</span>
+      </div>
+    </header>
+
+    <section class="panel" aria-label="Filtros de resultados">
+      <div class="view-tabs" role="tablist" aria-label="Vista de resultados">
+        <button type="button" id="generalTab" class="active" role="tab" aria-selected="true" aria-controls="results">Clasificación general</button>
+        <button type="button" id="historyTab" role="tab" aria-selected="false" aria-controls="results">Resultados por carrera</button>
+      </div>
+
+      <div class="filters">
+        <div id="raceFilterGroup" class="hidden">
+          <label for="raceSelect">Carrera</label>
+          <select id="raceSelect">
+            <option value="">Todas las carreras</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="categorySelect">Categoría</label>
+          <select id="categorySelect">
+            <option value="">Todas las categorías</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="pilotSelect">Piloto</label>
+          <select id="pilotSelect">
+            <option value="">Todos los pilotos</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button type="button" id="modeButton">Ver tabla</button>
+        <button type="button" id="refreshButton">Actualizar resultados</button>
+      </div>
+
+      <div id="message" class="message" role="status"></div>
+    </section>
+
+    <div class="section-heading">
+      <h2 id="viewTitle">Clasificación general</h2>
+      <span id="resultCount" class="muted"></span>
+    </div>
+
+    <section id="results" aria-live="polite">
+      <div class="empty">Cargando campeonato...</div>
+    </section>
+  </main>
+
+  <script>
+    const state = {
+      data: null,
+      view: 'general',
+      mode: 'cards'
+    };
+
+    const elements = {
+      championshipTitle: document.getElementById('championshipTitle'),
+      raceCount: document.getElementById('raceCount'),
+      updatedAt: document.getElementById('updatedAt'),
+      generalTab: document.getElementById('generalTab'),
+      historyTab: document.getElementById('historyTab'),
+      raceFilterGroup: document.getElementById('raceFilterGroup'),
+      raceSelect: document.getElementById('raceSelect'),
+      categorySelect: document.getElementById('categorySelect'),
+      pilotSelect: document.getElementById('pilotSelect'),
+      modeButton: document.getElementById('modeButton'),
+      refreshButton: document.getElementById('refreshButton'),
+      message: document.getElementById('message'),
+      viewTitle: document.getElementById('viewTitle'),
+      resultCount: document.getElementById('resultCount'),
+      results: document.getElementById('results')
+    };
+
+    elements.generalTab.addEventListener('click', function() {
+      setView('general');
+    });
+
+    elements.historyTab.addEventListener('click', function() {
+      setView('history');
+    });
+
+    elements.categorySelect.addEventListener('change', function() {
+      fillPilotOptions();
+      render();
+    });
+    elements.pilotSelect.addEventListener('change', render);
+    elements.raceSelect.addEventListener('change', function() {
+      fillPilotOptions();
+      render();
+    });
+
+    elements.modeButton.addEventListener('click', function() {
+      state.mode = state.mode === 'cards' ? 'table' : 'cards';
+      elements.modeButton.textContent = state.mode === 'cards' ? 'Ver tabla' : 'Ver tarjetas';
+      render();
+    });
+
+    elements.refreshButton.addEventListener('click', loadChampionship);
+
+    function loadChampionship() {
+      showMessage('Actualizando campeonato...', false);
+      elements.refreshButton.disabled = true;
+
+      google.script.run
+        .withSuccessHandler(function(data) {
+          state.data = data || {};
+          elements.refreshButton.disabled = false;
+          hideMessage();
+          applyHeader();
+          fillFilters();
+          render();
+        })
+        .withFailureHandler(function(error) {
+          elements.refreshButton.disabled = false;
+          showMessage(error && error.message ? error.message : 'No se pudieron cargar los resultados', true);
+          elements.results.innerHTML = '<div class="empty">No se pudieron cargar los resultados.</div>';
+        })
+        .getChampionshipData();
+    }
+
+    function applyHeader() {
+      const races = state.data.carreras || [];
+      elements.championshipTitle.textContent = state.data.campeonato || 'Campeonato Rally RC';
+      elements.raceCount.textContent = races.length + (races.length === 1 ? ' carrera' : ' carreras');
+      elements.updatedAt.textContent = 'Actualizado ' + formatDate(state.data.updatedAt);
+    }
+
+    function fillFilters() {
+      const selectedRace = elements.raceSelect.value;
+      const selectedCategory = elements.categorySelect.value;
+
+      fillSelect(
+        elements.raceSelect,
+        state.data.carreras || [],
+        'carreraId',
+        function(race) {
+          return race.nombre + ' · ' + formatDate(race.fechaPublicacion);
+        },
+        'Todas las carreras',
+        selectedRace
+      );
+
+      fillSelect(
+        elements.categorySelect,
+        state.data.categorias || [],
+        'categoriaId',
+        function(category) {
+          return category.nombre;
+        },
+        'Todas las categorías',
+        selectedCategory
+      );
+
+      fillPilotOptions();
+    }
+
+    function fillPilotOptions() {
+      const selectedPilot = elements.pilotSelect.value;
+      const categoryId = elements.categorySelect.value;
+      const raceId = state.view === 'history' ? elements.raceSelect.value : '';
+      const available = {};
+
+      (state.data && state.data.resultados || []).forEach(function(row) {
+        if (categoryId && categoryKey(row) !== categoryId) {
+          return;
+        }
+        if (raceId && row.carreraId !== raceId) {
+          return;
+        }
+        available[pilotKey(row)] = row.piloto;
+      });
+
+      const pilots = Object.keys(available).map(function(id) {
+        return { pilotoId: id, nombre: available[id] };
+      }).sort(function(a, b) {
+        return a.nombre.localeCompare(b.nombre);
+      });
+
+      fillSelect(
+        elements.pilotSelect,
+        pilots,
+        'pilotoId',
+        function(pilot) {
+          return pilot.nombre;
+        },
+        'Todos los pilotos',
+        selectedPilot
+      );
+    }
+
+    function fillSelect(select, items, valueKey, labelBuilder, emptyLabel, selectedValue) {
+      select.innerHTML = '';
+      const empty = document.createElement('option');
+      empty.value = '';
+      empty.textContent = emptyLabel;
+      select.appendChild(empty);
+
+      items.forEach(function(item) {
+        const option = document.createElement('option');
+        option.value = item[valueKey];
+        option.textContent = labelBuilder(item);
+        select.appendChild(option);
+      });
+
+      const exists = Array.from(select.options).some(function(option) {
+        return option.value === selectedValue;
+      });
+      select.value = exists ? selectedValue : '';
+    }
+
+    function setView(view) {
+      state.view = view;
+      elements.generalTab.classList.toggle('active', view === 'general');
+      elements.historyTab.classList.toggle('active', view === 'history');
+      elements.generalTab.setAttribute('aria-selected', String(view === 'general'));
+      elements.historyTab.setAttribute('aria-selected', String(view === 'history'));
+      elements.raceFilterGroup.classList.toggle('hidden', view !== 'history');
+      elements.viewTitle.textContent = view === 'general'
+        ? 'Clasificación general'
+        : 'Resultados por carrera';
+      fillPilotOptions();
+      render();
+    }
+
+    function render() {
+      if (!state.data) {
+        return;
+      }
+
+      if (state.view === 'general') {
+        renderGeneral();
+      } else {
+        renderHistory();
+      }
+    }
+
+    function renderGeneral() {
+      const categoryId = elements.categorySelect.value;
+      const pilotId = elements.pilotSelect.value;
+      const rows = (state.data.general || []).filter(function(row) {
+        return (!categoryId || row.categoriaId === categoryId) &&
+          (!pilotId || row.pilotoId === pilotId);
+      });
+
+      elements.resultCount.textContent = rows.length + (rows.length === 1 ? ' piloto' : ' pilotos');
+
+      if (!rows.length) {
+        elements.results.innerHTML = '<div class="empty">No hay resultados para estos filtros.</div>';
+        return;
+      }
+
+      if (state.mode === 'table') {
+        renderGeneralTable(rows);
+        return;
+      }
+
+      const list = document.createElement('div');
+      list.className = 'standings-list';
+
+      rows.forEach(function(row) {
+        const details = document.createElement('details');
+        details.className = 'standing-card';
+        details.innerHTML =
+          '<summary>' +
+            '<div class="position">' + safe(row.posicion) + '</div>' +
+            '<div class="driver"><strong>' + safe(row.piloto) + '</strong>' +
+              '<span>' + safe(row.categoria) + ' · ' + safe(row.participaciones) + ' participaciones</span></div>' +
+            '<div class="score"><strong>' + safe(row.puntos) + '</strong><span>puntos</span></div>' +
+          '</summary>' +
+          '<div class="card-detail">' +
+            '<div class="muted" style="margin-top:12px">Victorias: ' + safe(row.victorias) +
+              ' · Descartes configurados: ' + safe(state.data.descartes || 0) + '</div>' +
+            '<div class="race-points">' + row.resultados.map(renderPointsChip).join('') + '</div>' +
+          '</div>';
+        list.appendChild(details);
+      });
+
+      elements.results.innerHTML = '';
+      elements.results.appendChild(list);
+    }
+
+    function renderPointsChip(result) {
+      const discarded = result.descartado ? ' discarded' : '';
+      const status = result.completo ? 'P' + result.posicion : 'No puntúa';
+      return '<div class="result-chip' + discarded + '">' +
+        '<span>' + safe(result.carrera) + ' · ' + safe(status) + '</span>' +
+        '<strong>' + safe(result.puntos) + ' pts</strong>' +
+      '</div>';
+    }
+
+    function renderGeneralTable(rows) {
+      let html = '<div class="table-wrap"><table><caption>Clasificación general del campeonato</caption><thead><tr>' +
+        '<th scope="col">Pos.</th><th scope="col">Categoría</th><th scope="col">Piloto</th><th scope="col">Puntos</th>' +
+        '<th scope="col">Victorias</th><th scope="col">Participaciones</th><th scope="col">Resultados</th>' +
+        '</tr></thead><tbody>';
+
+      rows.forEach(function(row) {
+        const breakdown = row.resultados.map(function(result) {
+          const value = result.carrera + ': ' + result.puntos;
+          return result.descartado ? '[' + value + ']' : value;
+        }).join(' · ');
+
+        html += '<tr>' +
+          '<td class="numeric">' + safe(row.posicion) + '</td>' +
+          '<td>' + safe(row.categoria) + '</td>' +
+          '<td>' + safe(row.piloto) + '</td>' +
+          '<td class="numeric"><strong>' + safe(row.puntos) + '</strong></td>' +
+          '<td class="numeric">' + safe(row.victorias) + '</td>' +
+          '<td class="numeric">' + safe(row.participaciones) + '</td>' +
+          '<td>' + safe(breakdown) + '</td>' +
+        '</tr>';
+      });
+
+      elements.results.innerHTML = html + '</tbody></table></div>';
+    }
+
+    function renderHistory() {
+      const categoryId = elements.categorySelect.value;
+      const pilotId = elements.pilotSelect.value;
+      const raceId = elements.raceSelect.value;
+      const rows = (state.data.resultados || []).filter(function(row) {
+        return (!categoryId || categoryKey(row) === categoryId) &&
+          (!pilotId || pilotKey(row) === pilotId) &&
+          (!raceId || row.carreraId === raceId);
+      });
+
+      elements.resultCount.textContent = rows.length + (rows.length === 1 ? ' resultado' : ' resultados');
+
+      if (!rows.length) {
+        elements.results.innerHTML = '<div class="empty">No hay resultados para estos filtros.</div>';
+        return;
+      }
+
+      if (state.mode === 'table') {
+        renderHistoryTable(rows);
+        return;
+      }
+
+      const races = {};
+      rows.forEach(function(row) {
+        if (!races[row.carreraId]) {
+          races[row.carreraId] = [];
+        }
+        races[row.carreraId].push(row);
+      });
+
+      elements.results.innerHTML = '';
+      (state.data.carreras || []).forEach(function(race) {
+        const raceRows = races[race.carreraId];
+        if (!raceRows || !raceRows.length) {
+          return;
+        }
+
+        const group = document.createElement('div');
+        group.className = 'race-group';
+        group.innerHTML = '<div class="race-title"><h3>' + safe(race.nombre) + '</h3>' +
+          '<span class="muted">' + safe(formatDate(race.fechaPublicacion)) + '</span></div>';
+
+        const list = document.createElement('div');
+        list.className = 'standings-list';
+        raceRows.sort(function(a, b) {
+          if (a.categoria !== b.categoria) {
+            return a.categoria.localeCompare(b.categoria);
+          }
+          return a.posicion - b.posicion;
+        }).forEach(function(row) {
+          list.appendChild(buildHistoryCard(row));
+        });
+        group.appendChild(list);
+        elements.results.appendChild(group);
+      });
+    }
+
+    function buildHistoryCard(row) {
+      const details = document.createElement('details');
+      details.className = 'standing-card';
+      details.innerHTML =
+        '<summary>' +
+          '<div class="position">' + safe(row.posicion) + '</div>' +
+          '<div class="driver"><strong>' + safe(row.piloto) + '</strong>' +
+            '<span>' + safe(row.categoria) + ' · Dorsal ' + safe(row.dorsal) + '</span></div>' +
+          '<div class="score"><strong>' + safe(formatTime(row.total)) + '</strong><span>total</span></div>' +
+        '</summary>' +
+        '<div class="card-detail">' +
+          '<div class="splits">' +
+            renderSplit('Ida 1', row.ida1, row.descartada) +
+            renderSplit('Vuelta 1', row.vuelta1, row.descartada) +
+            renderSplit('Ida 2', row.ida2, row.descartada) +
+            renderSplit('Vuelta 2', row.vuelta2, row.descartada) +
+            renderSplit('Ida 3', row.ida3, row.descartada) +
+            renderSplit('Vuelta 3', row.vuelta3, row.descartada) +
+          '</div>' +
+          '<div class="muted" style="margin-top:12px">Estado: ' + safe(row.estado) +
+            ' · Penalizaciones: ' + safe(formatTime(row.penalizaciones)) +
+            ' · Gap: ' + safe(formatTime(row.gap)) + '</div>' +
+        '</div>';
+      return details;
+    }
+
+    function renderSplit(label, value, discardedValue) {
+      const discarded = String(discardedValue || '').startsWith(label + ' -');
+      return '<div class="split"><span>' + safe(label) + (discarded ? ' · Descartada' : '') + '</span>' +
+        '<strong' + (discarded ? ' class="discarded-text"' : '') + '>' + safe(formatTime(value)) + '</strong></div>';
+    }
+
+    function renderHistoryTable(rows) {
+      const racesById = {};
+      (state.data.carreras || []).forEach(function(race) {
+        racesById[race.carreraId] = race;
+      });
+
+      rows.sort(function(a, b) {
+        const dateA = racesById[a.carreraId] ? racesById[a.carreraId].fechaPublicacion : '';
+        const dateB = racesById[b.carreraId] ? racesById[b.carreraId].fechaPublicacion : '';
+        if (dateA !== dateB) {
+          return String(dateB).localeCompare(String(dateA));
+        }
+        if (a.categoria !== b.categoria) {
+          return a.categoria.localeCompare(b.categoria);
+        }
+        return a.posicion - b.posicion;
+      });
+
+      let html = '<div class="table-wrap"><table><caption>Resultados históricos por carrera</caption><thead><tr>' +
+        '<th scope="col">Carrera</th><th scope="col">Pos.</th><th scope="col">Categoría</th><th scope="col">Dorsal</th><th scope="col">Piloto</th>' +
+        '<th scope="col">Ida 1</th><th scope="col">Vuelta 1</th><th scope="col">Ida 2</th><th scope="col">Vuelta 2</th>' +
+        '<th scope="col">Ida 3</th><th scope="col">Vuelta 3</th><th scope="col">Pen.</th><th scope="col">Total</th><th scope="col">Gap</th><th scope="col">Estado</th>' +
+        '</tr></thead><tbody>';
+
+      rows.forEach(function(row) {
+        const race = racesById[row.carreraId] || {};
+        html += '<tr>' +
+          '<td>' + safe(race.nombre || '') + '</td>' +
+          '<td class="numeric">' + safe(row.posicion) + '</td>' +
+          '<td>' + safe(row.categoria) + '</td>' +
+          '<td>' + safe(row.dorsal) + '</td>' +
+          '<td>' + safe(row.piloto) + '</td>' +
+          historyTimeCell(row, 'ida1', 'Ida 1') +
+          historyTimeCell(row, 'vuelta1', 'Vuelta 1') +
+          historyTimeCell(row, 'ida2', 'Ida 2') +
+          historyTimeCell(row, 'vuelta2', 'Vuelta 2') +
+          historyTimeCell(row, 'ida3', 'Ida 3') +
+          historyTimeCell(row, 'vuelta3', 'Vuelta 3') +
+          '<td class="numeric">' + safe(formatTime(row.penalizaciones)) + '</td>' +
+          '<td class="numeric"><strong>' + safe(formatTime(row.total)) + '</strong></td>' +
+          '<td class="numeric">' + safe(formatTime(row.gap)) + '</td>' +
+          '<td>' + safe(row.estado) + '</td>' +
+        '</tr>';
+      });
+
+      elements.results.innerHTML = html + '</tbody></table></div>';
+    }
+
+    function historyTimeCell(row, key, label) {
+      const discarded = String(row.descartada || '').startsWith(label + ' -');
+      return '<td class="numeric' + (discarded ? ' discarded-text' : '') + '">' +
+        safe(formatTime(row[key])) + '</td>';
+    }
+
+    function categoryKey(row) {
+      return String(row.categoriaId || '').trim() || 'categoria:' + normalize(row.categoria);
+    }
+
+    function pilotKey(row) {
+      return String(row.pilotoId || '').trim() || 'piloto:' + normalize(row.piloto);
+    }
+
+    function normalize(value) {
+      return String(value || '')
+        .trim()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+    }
+
+    function formatTime(value) {
+      if (value === '-' || value === '' || value === null || value === undefined) {
+        return value === '-' ? '-' : '—';
+      }
+
+      const numeric = Number(value);
+      if (!isFinite(numeric)) {
+        return value;
+      }
+
+      const tenths = Math.round(numeric * 10);
+      const minutes = Math.floor(tenths / 600);
+      const seconds = Math.floor((tenths % 600) / 10);
+      const decimal = tenths % 10;
+      return minutes + ':' + String(seconds).padStart(2, '0') + ',' + decimal;
+    }
+
+    function formatDate(value) {
+      if (!value) {
+        return 'sin fecha';
+      }
+
+      const date = new Date(value);
+      if (isNaN(date.getTime())) {
+        return value;
+      }
+
+      return new Intl.DateTimeFormat('es-ES', {
+        dateStyle: 'medium',
+        timeStyle: 'short'
+      }).format(date);
+    }
+
+    function showMessage(text, error) {
+      elements.message.textContent = text;
+      elements.message.className = 'message visible' + (error ? ' error' : '');
+    }
+
+    function hideMessage() {
+      elements.message.textContent = '';
+      elements.message.className = 'message';
+    }
+
+    function safe(value) {
+      return String(value === null || value === undefined ? '' : value)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+    }
+
+    loadChampionship();
+  </script>
+</body>
+</html>
