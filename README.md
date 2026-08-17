@@ -1,1479 +1,258 @@
 # Rally RC Race Manager
 
-Aplicación web para gestionar carreras de Rally RC usando **Google Apps Script** y **Google Sheets**.
+Aplicación web para gestionar carreras de Rally RC con **Google Apps Script** y **Google Sheets**. Permite configurar carreras con uno o varios tramos, registrar tiempos desde móvil, tablet u ordenador, calcular la clasificación en tiempo real y publicar el resultado en un campeonato independiente.
 
-El objetivo del proyecto es sustituir el registro manual en papel por una herramienta sencilla, gratuita y accesible desde móvil, tablet u ordenador. La aplicación permite registrar tiempos, evitar duplicados, consultar la clasificación en tiempo real, aplicar correcciones desde administración y analizar la constancia de los pilotos mediante un dashboard.
+No requiere servidor propio, base de datos externa ni framework frontend.
 
-> Proyecto pensado para carreras de club, entrenamientos, pruebas internas y eventos de Rally RC donde se necesita una solución rápida sin montar servidores ni bases de datos externas.
+## Funcionalidad actual
 
----
-
-## Índice
-
-- [Características principales](#características-principales)
-- [Tecnologías utilizadas](#tecnologías-utilizadas)
-- [Cómo funciona la aplicación](#cómo-funciona-la-aplicación)
-- [Modelo de carrera](#modelo-de-carrera)
-- [Estructura del repositorio](#estructura-del-repositorio)
-- [Estructura de Google Sheets](#estructura-de-google-sheets)
-- [Instalación paso a paso](#instalación-paso-a-paso)
-- [Configuración inicial](#configuración-inicial)
-- [Publicación como aplicación web](#publicación-como-aplicación-web)
-- [Uso de la aplicación](#uso-de-la-aplicación)
-- [Registro de tiempos](#registro-de-tiempos)
-- [Clasificación](#clasificación)
-- [Dashboard](#dashboard)
-- [Administración](#administración)
-- [Nueva carrera](#nueva-carrera)
-- [Instalación desde cero del visualizador del campeonato](#instalación-desde-cero-del-visualizador-del-campeonato)
-- [Corrección de resultados](#corrección-de-resultados)
-- [Bloqueo de duplicados](#bloqueo-de-duplicados)
-- [Cálculo de clasificación](#cálculo-de-clasificación)
-- [Cálculo de gap](#cálculo-de-gap)
-- [Formato de tiempos](#formato-de-tiempos)
-- [Pruebas recomendadas](#pruebas-recomendadas)
-- [Solución de problemas](#solución-de-problemas)
-- [Roadmap](#roadmap)
-
----
-
-## Características principales
-
-La aplicación incluye:
-
-- Acceso mediante PIN.
-- Registro de juez o responsable de mesa.
-- Registro de tiempos por categoría, piloto y pasada.
-- Gestión de seis pasadas por piloto:
-  - Ida 1
-  - Vuelta 1
-  - Ida 2
-  - Vuelta 2
-  - Ida 3
-  - Vuelta 3
-- Entrada de tiempos mediante campos separados:
-  - minutos;
-  - segundos;
-  - décimas.
-- Penalizaciones en segundos.
+- Acceso mediante PIN y registro del juez o responsable de mesa.
+- Carreras dinámicas con uno o varios tramos.
+- Generación automática de idas y vueltas para cada tramo.
+- Estados de carrera `CONFIGURACION` e `INICIADA`.
+- Registro de tiempos y penalizaciones por inscripción y pasada.
 - Bloqueo de resultados duplicados.
-- Marcado visual de pasadas ya registradas.
-- Colores diferenciados para pasadas de ida y vuelta.
-- Clasificación en tiempo real.
-- Descarte automático de la peor pasada cuando un piloto tiene seis resultados.
-- Visualización de la pasada descartada tachada.
-- Alternancia entre visualización en segundos y formato `minutos:segundos,décimas`.
-- Cálculo de gap con el piloto anterior comparable.
-- Panel de administración protegido con PIN de administración.
-- Corrección de resultados existentes.
-- Generación de nueva carrera con backup previo.
-- Dashboard de constancia con métricas y gráfica.
-- Funcionamiento sin servidor propio.
+- Clasificación dinámica, descarte global, estado y gap.
+- Dashboard de tiempos y constancia.
+- Administración responsive para carrera, resultados, inscripciones, pilotos y categorías.
+- Corrección administrativa de resultados existentes.
+- Backups automáticos durante la migración schema v5 y al crear una carrera.
+- Publicación única en un visualizador de campeonato con histórico compatible.
 
----
+El modelo activo no utiliza dorsal. Una inscripción representa la participación de un piloto en una categoría:
 
-## Tecnologías utilizadas
+| inscripcionId | pilotoId | categoriaId | piloto | categoria |
+|---|---|---|---|---|
+| I001 | P001 | C001 | Piloto Demo 1 | Rally 1/10 |
 
-El proyecto utiliza:
-
-- **Google Apps Script** como backend.
-- **Google Sheets** como almacenamiento de datos.
-- **HTML, CSS y JavaScript** para la interfaz.
-- **Canvas HTML** para pintar gráficas en el dashboard.
-
-No requiere:
-
-- servidor propio;
-- base de datos externa;
-- hosting adicional;
-- dependencias npm;
-- frameworks frontend.
-
----
-
-## Cómo funciona la aplicación
-
-La aplicación se ejecuta como una **Web App de Google Apps Script**.
-
-El flujo general es:
-
-```text
-Usuario entra en la URL pública
-        ↓
-Introduce PIN de acceso y nombre de juez
-        ↓
-Selecciona una pestaña de la aplicación
-        ↓
-Registra tiempos o consulta resultados
-        ↓
-Apps Script lee/escribe en Google Sheets
-        ↓
-La clasificación se recalcula automáticamente
-```
-
-Google Sheets actúa como base de datos. Cada pestaña tiene una responsabilidad concreta:
-
-```text
-Config          → configuración general
-Inscripciones   → pilotos inscritos
-Resultados      → tiempos registrados
-Clasificacion   → clasificación calculada
-```
-
----
+Un piloto puede participar en varias categorías, pero no puede tener dos inscripciones en la misma categoría.
 
 ## Modelo de carrera
 
-El modelo actual está pensado para una **carrera individual**.
+### Tramos y pasadas
 
-Cada piloto puede participar en una o varias categorías. Para evitar mezclar tiempos, la aplicación trabaja con el concepto de **inscripción**.
+La estructura se configura por tramos. La aplicación asigna automáticamente los nombres `Tramo 1`, `Tramo 2`, etc. y genera sus pasadas.
 
-Una inscripción representa la participación de un piloto en una categoría concreta.
+Cada tramo cumple estas reglas:
 
-Ejemplo genérico:
-
-| inscripcionId | dorsal | piloto        | categoria |
-|---------------|--------|---------------|-----------|
-| I001          | 1      | Piloto Demo 1 | Rally 1/10 |
-| I002          | 2      | Piloto Demo 2 | Rally 1/10 |
-| I003          | 1      | Piloto Demo 1 | Clásicos |
-
-En este ejemplo, `Piloto Demo 1` participa en dos categorías diferentes, por lo que tiene dos inscripciones.
-
----
-
-## Estructura del repositorio
-
-El repositorio contiene principalmente:
-
-```text
-rallyrc-race-manager/
-├── codigo.gs
-├── index.html
-├── campeonato-app/
-│   ├── codigo.gs
-│   └── index.html
-└── README.md
-```
-
-### `codigo.gs`
-
-Contiene la lógica de servidor:
-
-- creación de pestañas;
-- configuración inicial;
-- validación de PIN;
-- validación de PIN de administración;
-- lectura de categorías;
-- lectura de inscripciones;
-- registro de resultados;
-- bloqueo de duplicados;
-- cálculo de clasificación;
-- descarte de peor pasada;
-- cálculo de gap;
-- generación de nueva carrera;
-- corrección de resultados;
-- generación de datos para el dashboard.
-
-### `index.html`
-
-Contiene la aplicación web:
-
-- pantalla de acceso;
-- navegación;
-- registro de tiempos;
-- clasificación;
-- dashboard;
-- administración;
-- estilos CSS;
-- JavaScript cliente.
-
----
-
-## Estructura de Google Sheets
-
-La aplicación crea y utiliza las siguientes pestañas.
-
----
-
-### `Config`
-
-Pestaña de configuración general.
+- tiene una o más idas;
+- tiene cero vueltas o exactamente tantas vueltas como idas;
+- con vueltas, las pasadas se generan como `Ida 1`, `Vuelta 1`, `Ida 2`, `Vuelta 2`, etc.;
+- sin vueltas, se generan únicamente `Ida 1`, `Ida 2`, etc.;
+- los identificadores de las pasadas existentes se conservan cuando se amplía una carrera.
 
 Ejemplo:
 
-| key | value |
-|-----|-------|
-| PIN | CAMBIAR_PIN_ACCESO |
-| ADMIN_PIN | CAMBIAR_PIN_ADMIN |
-| CARRERA_ACTIVA | Rally RC |
-
-Campos:
-
-| Campo | Descripción |
-|------|-------------|
-| `PIN` | PIN usado para entrar en la aplicación. |
-| `ADMIN_PIN` | PIN usado para acceder a administración. |
-| `CARRERA_ACTIVA` | Nombre de la carrera actual. |
-
-> Recomendación: cambiar siempre los valores de ejemplo antes de publicar la aplicación.
-
----
-
-### `Inscripciones`
-
-Pestaña donde se registran los pilotos inscritos.
-
-Ejemplo:
-
-| inscripcionId | dorsal | piloto | categoria |
-|---------------|--------|--------|-----------|
-| I001 | 1 | Piloto Demo 1 | Rally 1/10 |
-| I002 | 2 | Piloto Demo 2 | Rally 1/10 |
-| I003 | 3 | Piloto Demo 3 | Rally 1/10 |
-| I004 | 1 | Piloto Demo 1 | Clásicos |
-
-Campos:
-
-| Campo | Descripción |
-|------|-------------|
-| `inscripcionId` | Identificador único de la inscripción. |
-| `dorsal` | Número de dorsal del piloto. |
-| `piloto` | Nombre del piloto. |
-| `categoria` | Categoría en la que participa. |
-
-Recomendaciones:
-
-- `inscripcionId` debe ser único.
-- Un piloto que participe en dos categorías debe tener dos inscripciones.
-- Las categorías deben escribirse siempre igual.
-- Se pueden usar dorsales repetidos si pertenecen a categorías distintas.
-
----
-
-### `Resultados`
-
-Pestaña donde se guarda cada tiempo registrado.
-
-Ejemplo:
-
-| resultadoId | timestamp | inscripcionId | dorsal | piloto | categoria | pasada | pasadaLabel | tiempo | penalizacion | total | juez |
-|------------|-----------|---------------|--------|--------|-----------|--------|-------------|--------|--------------|-------|------|
-| uuid | fecha/hora | I001 | 1 | Piloto Demo 1 | Rally 1/10 | 1 | Ida 1 | 70.5 | 0 | 70.5 | Mesa |
-
-Campos:
-
-| Campo | Descripción |
-|------|-------------|
-| `resultadoId` | Identificador único del resultado. |
-| `timestamp` | Fecha y hora del registro. |
-| `inscripcionId` | Inscripción asociada. |
-| `dorsal` | Dorsal del piloto. |
-| `piloto` | Nombre del piloto. |
-| `categoria` | Categoría. |
-| `pasada` | Número de pasada. |
-| `pasadaLabel` | Nombre visible de la pasada. |
-| `tiempo` | Tiempo base en segundos. |
-| `penalizacion` | Penalización en segundos. |
-| `total` | Tiempo base + penalización. |
-| `juez` | Persona que registró el tiempo. |
-
----
-
-### `Clasificacion`
-
-Pestaña con la clasificación calculada.
-
-Ejemplo:
-
-| categoria | dorsal | piloto | ida1 | vuelta1 | ida2 | vuelta2 | ida3 | vuelta3 | descartada | penalizaciones | total | gap | estado |
-|----------|--------|--------|------|---------|------|---------|------|---------|------------|----------------|-------|-----|--------|
-| Rally 1/10 | 1 | Piloto Demo 1 | 70.5 | 72.3 | 69.8 | 75 | 68.4 | 80.2 | Vuelta 3 - 80.2 | 0 | 356 | - | Completo |
-
-Campos:
-
-| Campo | Descripción |
-|------|-------------|
-| `categoria` | Categoría. |
-| `dorsal` | Dorsal. |
-| `piloto` | Piloto. |
-| `ida1` | Tiempo total de Ida 1. |
-| `vuelta1` | Tiempo total de Vuelta 1. |
-| `ida2` | Tiempo total de Ida 2. |
-| `vuelta2` | Tiempo total de Vuelta 2. |
-| `ida3` | Tiempo total de Ida 3. |
-| `vuelta3` | Tiempo total de Vuelta 3. |
-| `descartada` | Pasada descartada si hay seis tiempos. |
-| `penalizaciones` | Suma de penalizaciones. |
-| `total` | Total de clasificación. |
-| `gap` | Diferencia con el piloto anterior comparable. |
-| `estado` | Estado del piloto. |
-
----
-
-## Instalación paso a paso
-
-### 1. Crear una hoja de cálculo
-
-Crea un nuevo Google Sheet en Google Drive.
-
-Nombre sugerido:
-
 ```text
-Rally RC Race Manager
+Tramo 1: 2 idas y 2 vueltas
+  Ida 1, Vuelta 1, Ida 2, Vuelta 2
+
+Tramo 2: 1 ida y 0 vueltas
+  Ida 1
 ```
 
----
+La configuración admite entre 1 y 100 tramos y entre 1 y 500 pasadas totales.
 
-### 2. Abrir Apps Script
+### Ciclo de vida
 
-Desde el Google Sheet:
+Una carrera tiene dos estados:
 
-```text
-Extensiones → Apps Script
-```
+| Estado | Comportamiento |
+|---|---|
+| `CONFIGURACION` | Permite editar tramos e inscripciones. No admite resultados. |
+| `INICIADA` | Admite resultados. La estructura existente queda bloqueada. |
 
----
+Iniciar la carrera es una transición explícita de `CONFIGURACION` a `INICIADA`. Después de iniciarla no se pueden quitar tramos ni pasadas, reducir cantidades o cambiar una modalidad. Solo se puede ampliar un tramo existente:
 
-### 3. Crear el archivo `codigo.gs`
+- un tramo con idas y vueltas aumenta por parejas `ida + vuelta`;
+- un tramo solo de idas aumenta de una ida en una ida.
 
-En Apps Script, crea o renombra el archivo principal como:
+Crear una nueva carrera genera un `CARRERA_ID`, deja la prueba en `CONFIGURACION`, conserva las inscripciones seleccionadas, limpia los resultados y crea backups antes de sustituir la carrera activa.
 
-```text
-codigo.gs
-```
-
-Pega el contenido del archivo `codigo.gs` del repositorio.
-
----
-
-### 4. Crear el archivo `index.html`
-
-En Apps Script:
-
-```text
-+ → HTML
-```
-
-Crea un archivo llamado:
-
-```text
-Index
-```
-
-Pega el contenido del archivo `index.html` del repositorio.
-
-> Nota: el backend utiliza `HtmlService.createTemplateFromFile('Index')`, por lo que el archivo HTML debe llamarse `Index.html` dentro de Apps Script.
-
----
-
-### 5. Guardar el proyecto
-
-Guarda los cambios con:
-
-```text
-Ctrl + S
-```
-
-o con el botón de guardar.
-
----
-
-### 6. Ejecutar la configuración inicial
-
-En el desplegable de funciones del editor de Apps Script, selecciona:
-
-```text
-setupSheets
-```
-
-Pulsa:
-
-```text
-Ejecutar
-```
-
-La primera vez Google pedirá autorización.
-
-Acepta los permisos para que el script pueda leer y escribir en la hoja de cálculo.
-
----
-
-### 7. Comprobar las pestañas
-
-Vuelve al Google Sheet y comprueba que existen:
-
-```text
-Config
-Inscripciones
-Resultados
-Clasificacion
-```
-
----
-
-## Configuración inicial
-
-### Cambiar PIN de acceso
-
-En `Config`, cambia el valor de:
-
-```text
-PIN
-```
-
-por un valor propio.
-
-Ejemplo recomendado:
-
-| key | value |
-|-----|-------|
-| PIN | TU_PIN_DE_ACCESO |
-
----
-
-### Cambiar PIN de administración
-
-En `Config`, cambia el valor de:
-
-```text
-ADMIN_PIN
-```
-
-por un valor propio.
-
-Ejemplo recomendado:
-
-| key | value |
-|-----|-------|
-| ADMIN_PIN | TU_PIN_DE_ADMINISTRACION |
-
----
-
-### Cambiar nombre de carrera
-
-En `Config`:
-
-| key | value |
-|-----|-------|
-| CARRERA_ACTIVA | Nombre de la carrera |
-
-Ejemplo:
-
-```text
-Rally RC Club - Carrera 1
-```
-
----
-
-### Añadir pilotos
-
-En `Inscripciones`, añade los pilotos que participarán en la carrera.
-
-Ejemplo:
-
-| inscripcionId | dorsal | piloto | categoria |
-|---------------|--------|--------|-----------|
-| I001 | 1 | Piloto Demo 1 | Rally 1/10 |
-| I002 | 2 | Piloto Demo 2 | Rally 1/10 |
-| I003 | 3 | Piloto Demo 3 | Rally 1/10 |
-| I004 | 1 | Piloto Demo 1 | Clásicos |
-
----
-
-## Publicación como aplicación web
-
-En Apps Script:
-
-1. Pulsa:
-
-```text
-Implementar → Nueva implementación
-```
-
-2. Selecciona el tipo:
-
-```text
-Aplicación web
-```
-
-3. Configura:
-
-```text
-Ejecutar como: Yo
-Quién tiene acceso: Cualquier usuario con el enlace
-```
-
-4. Pulsa:
-
-```text
-Implementar
-```
-
-5. Copia la URL generada.
-
-Esa URL será la aplicación web.
-
----
-
-### Actualizar una aplicación ya publicada
-
-Cuando hagas cambios en el código, no basta con guardar.
-
-Debes publicar una nueva versión:
-
-```text
-Implementar → Gestionar implementaciones → Editar → Nueva versión → Implementar
-```
-
-Después, recarga la aplicación web.
-
----
-
-## Uso de la aplicación
-
-Al abrir la URL de la aplicación aparece la pantalla de acceso.
-
-El usuario debe introducir:
-
-- PIN de acceso;
-- nombre del juez o responsable de mesa.
-
-Después se muestran las secciones principales:
-
-```text
-Registrar pasada
-Clasificación
-Dashboard
-Administración
-```
-
----
-
-## Registro de tiempos
-
-La pestaña **Registrar pasada** permite introducir tiempos.
-
-Flujo habitual:
-
-1. Seleccionar categoría.
-2. Seleccionar piloto.
-3. Seleccionar pasada.
-4. Introducir minutos.
-5. Introducir segundos.
-6. Introducir décimas.
-7. Introducir penalización si aplica.
-8. Guardar resultado.
-
----
-
-### Pasadas disponibles
-
-| Número | Pasada |
-|--------|--------|
-| 1 | Ida 1 |
-| 2 | Vuelta 1 |
-| 3 | Ida 2 |
-| 4 | Vuelta 2 |
-| 5 | Ida 3 |
-| 6 | Vuelta 3 |
-
-Las pasadas de ida y vuelta se muestran con colores diferenciados.
-
-Cuando una pasada ya está registrada, aparece marcada visualmente para evitar errores.
-
----
-
-### Entrada de tiempo
-
-Ejemplo:
-
-```text
-1 minuto, 10 segundos y 5 décimas
-```
-
-Se introduce como:
-
-| Campo | Valor |
-|------|-------|
-| Minutos | 1 |
-| Segundos | 10 |
-| Décimas | 5 |
-
-La aplicación lo convierte internamente a:
-
-```text
-70.5 segundos
-```
-
----
-
-### Penalizaciones
-
-La penalización se introduce en segundos.
-
-Ejemplo:
-
-```text
-Tiempo base: 60.0
-Penalización: 5.0
-Total: 65.0
-```
-
-La clasificación utiliza el campo `total`.
-
----
-
-### Validaciones
-
-La aplicación valida:
-
-- que haya una categoría seleccionada;
-- que haya un piloto seleccionado;
-- que haya una pasada seleccionada;
-- que los minutos no sean negativos;
-- que los segundos estén entre 0 y 59;
-- que las décimas estén entre 0 y 9;
-- que la penalización no sea negativa;
-- que no exista ya un resultado para esa inscripción y pasada.
-
----
-
-## Clasificación
-
-La pestaña **Clasificación** muestra los resultados en tiempo real.
-
-La tabla incluye:
-
-- categoría;
-- dorsal;
-- piloto;
-- tiempos de cada pasada;
-- total;
-- gap;
-- estado.
-
----
-
-### Cambio de formato
-
-La clasificación puede alternar entre:
-
-```text
-Segundos
-```
-
-y:
-
-```text
-Minutos:segundos,décimas
-```
-
-Ejemplo:
-
-| Segundos | Formato visible |
-|---------|-----------------|
-| 70.5 | 1:10,5 |
-| 356 | 5:56,0 |
-
----
-
-### Pasada descartada
-
-Cuando un piloto tiene seis resultados, la aplicación descarta automáticamente la peor pasada.
-
-Ejemplo:
-
-```text
-Ida 1: 70.5
-Vuelta 1: 72.3
-Ida 2: 69.8
-Vuelta 2: 75.0
-Ida 3: 68.4
-Vuelta 3: 80.2
-```
-
-Cálculo:
-
-```text
-Suma de todas las pasadas = 436.2
-Peor pasada = 80.2
-Total final = 436.2 - 80.2 = 356.0
-```
-
-La pasada descartada se muestra tachada en la tabla.
-
----
-
-## Dashboard
-
-La pestaña **Dashboard** permite analizar la regularidad de los pilotos.
-
-Está enfocada en rendimiento y constancia, no solo en clasificación.
-
----
-
-### Filtros
-
-El dashboard permite filtrar por:
-
-- categoría;
-- piloto;
-- tipo de pasada:
-  - todas;
-  - solo idas;
-  - solo vueltas;
-- orden:
-  - constancia;
-  - media;
-  - mejor tiempo;
-  - pasadas completadas;
-  - dorsal.
-
----
-
-### Métricas disponibles
-
-| Métrica | Descripción |
-|--------|-------------|
-| Pilotos visibles | Número de pilotos que coinciden con el filtro. |
-| Más constante | Piloto con menor diferencia entre peor y mejor tiempo. |
-| Mejor tiempo | Mejor tiempo individual registrado. |
-| Mejor media | Mejor media de tiempos. |
-
----
-
-### Constancia
-
-La constancia se calcula así:
-
-```text
-Constancia = peor tiempo - mejor tiempo
-```
-
-Ejemplo:
-
-```text
-Tiempos: 70.5, 72.3, 69.8
-Mejor: 69.8
-Peor: 72.3
-Constancia: 2.5
-```
-
-Cuanto menor es la diferencia, más constante ha sido el piloto.
-
----
-
-### Gráfica
-
-La gráfica del dashboard muestra los tiempos individuales por pasada.
-
-No es acumulada.
-
-Ejemplo:
-
-```text
-Ida 1    → 70.5
-Vuelta 1 → 72.3
-Ida 2    → 69.8
-Vuelta 2 → 75.0
-Ida 3    → 68.4
-Vuelta 3 → 80.2
-```
-
----
-
-## Administración
-
-La pestaña **Administración** está protegida con PIN de administración.
-
-Permite:
-
-- generar una nueva carrera;
-- corregir resultados existentes.
-
----
-
-## Nueva carrera
-
-La opción **Nueva carrera** prepara la aplicación para una nueva prueba.
-
-Antes de limpiar los datos, la app crea backups de:
-
-```text
-Resultados
-Clasificacion
-```
-
-Ejemplo de pestañas de backup:
-
-```text
-Resultados_backup_YYYY-MM-DD_HH-mm-ss
-Clasificacion_backup_YYYY-MM-DD_HH-mm-ss
-```
-
-Después:
-
-- limpia la pestaña `Resultados`;
-- limpia la pestaña `Clasificacion`;
-- actualiza `CARRERA_ACTIVA`;
-- recalcula la clasificación vacía.
-
-Para evitar borrados accidentales, se solicita una confirmación manual.
-
----
-
-## Corrección de resultados
-
-Desde administración se puede modificar un resultado ya registrado.
-
-Flujo:
-
-1. Entrar en administración.
-2. Introducir PIN de administración.
-3. Seleccionar categoría.
-4. Seleccionar piloto.
-5. Seleccionar pasada.
-6. Cargar resultado.
-7. Modificar tiempo o penalización.
-8. Confirmar la corrección.
-9. Guardar.
-
-La corrección:
-
-- modifica la fila existente;
-- no crea duplicados;
-- recalcula la clasificación.
-
----
-
-## Bloqueo de duplicados
-
-La app impide registrar dos veces la misma pasada para la misma inscripción.
-
-La clave lógica es:
-
-```text
-inscripcionId + pasada
-```
-
-Ejemplo:
-
-```text
-I001 + Ida 1
-```
-
-Si ya existe un resultado, la aplicación no guarda el nuevo registro y muestra un aviso.
-
-Mensaje esperado:
-
-```text
-Ya existe un resultado para esta pasada. No se ha guardado ningún cambio.
-```
-
----
+Una carrera publicada en el campeonato queda bloqueada para modificaciones. `PUBLICANDO` impide cambios mientras dura el envío. Si la respuesta remota es ambigua, la carrera pasa a `PUBLICACION_INCIERTA` y permanece bloqueada hasta reintentar exactamente el mismo snapshot.
 
 ## Cálculo de clasificación
 
-### Sin resultados
-
-Si un piloto no tiene tiempos:
+La clave lógica de un resultado activo es:
 
 ```text
-total = vacío
-estado = Sin resultados
+carreraId + inscripcionId + pasadaId
 ```
 
----
+La ruta normal rechaza duplicados; una corrección administrativa actualiza la fila existente.
 
-### Entre 1 y 5 resultados
+Reglas de total y descarte:
 
-Si un piloto tiene entre una y cinco pasadas:
+- sin resultados, el total queda vacío y el estado es `Sin resultados`;
+- mientras falten pasadas, el total es la suma parcial y el estado es `Pendiente`;
+- al completar una carrera con más de una pasada, se descarta la peor pasada de toda la carrera, no una por tramo;
+- una carrera de una sola pasada tiene cero descartes;
+- el descarte se aplica al mayor `total` de pasada, que ya incluye su penalización;
+- si dos pasadas empatan como peores, se descarta la de orden posterior;
+- las penalizaciones mostradas suman todas las pasadas registradas, incluida la descartada;
+- los estados incorporan `con penalización` cuando corresponde.
+
+La clasificación se ordena por total ascendente. Los pilotos sin total quedan al final; los desempates usan categoría y piloto.
+
+El gap se calcula contra la fila anterior únicamente cuando ambos resultados pertenecen a la misma categoría y tienen exactamente el mismo conjunto de pasadas completadas. En otro caso se muestra `-`.
+
+## Hojas activas de cronometraje
+
+`setupSheets()` crea y mantiene estas hojas activas:
+
+| Hoja | Cabecera exacta | Uso |
+|---|---|---|
+| `Config` | `key \| value` | PIN, identidad, estado, revisión, publicación, entorno y versión de esquema. |
+| `PilotosDB` | `pilotoId \| nombre \| alias \| activo \| notas \| createdAt \| updatedAt` | Catálogo estable de pilotos. |
+| `CategoriasDB` | `categoriaId \| nombre \| activa \| orden \| notas \| createdAt \| updatedAt` | Catálogo estable de categorías. |
+| `Tramos` | `tramoId \| nombre \| orden \| numIdas \| numVueltas` | Definición de tramos de la carrera activa. |
+| `Pasadas` | `pasadaId \| tramoId \| label \| tipo \| numero \| orden` | Pasadas generadas para todos los tramos. |
+| `Inscripciones` | `inscripcionId \| pilotoId \| categoriaId \| piloto \| categoria` | Participantes de la carrera activa, sin dorsal. |
+| `Resultados` | `resultadoId \| timestamp \| carreraId \| inscripcionId \| tramoId \| pasadaId \| piloto \| categoria \| pasadaLabel \| tiempo \| penalizacion \| total \| juez` | Un tiempo por inscripción y pasada. |
+| `Clasificacion` | `inscripcionId \| pilotoId \| categoriaId \| piloto \| categoria \| descartada \| penalizaciones \| total \| gap \| completadas \| previstas \| estado` | Resumen calculado; las pasadas se obtienen dinámicamente de `Pasadas` y `Resultados`. |
+
+Valores principales de `Config`:
+
+| key | Ejemplo o valor |
+|---|---|
+| `PIN` | `CAMBIAR_PIN_ACCESO` |
+| `ADMIN_PIN` | `CAMBIAR_PIN_ADMIN` |
+| `CARRERA_ACTIVA` | `Carrera Demo` |
+| `CARRERA_ID` | UUID generado |
+| `CARRERA_ESTADO` | `CONFIGURACION` o `INICIADA` |
+| `CONFIG_REVISION` | entero incremental |
+| `CAMPEONATO_PUBLICADA` | `NO`, `PUBLICANDO` o `SI` |
+| `CAMPEONATO_PUBLICACION_INICIADA` | fecha ISO durante un envío |
+| `ENVIRONMENT` | `PRODUCTION` o entorno de prueba |
+| `SCHEMA_VERSION` | `5` |
+
+No añadas dorsales ni columnas de pasada fija a las hojas activas. Los nombres `piloto` y `categoria` son copias para lectura; `pilotoId` y `categoriaId` son las identidades estables.
+
+## Administración
+
+Administración usa una interfaz responsive de sala de control:
+
+- navegación lateral en escritorio y horizontal desplazable en pantallas estrechas;
+- resumen de estado y publicación;
+- configuración, inicio, ampliación y creación de carrera;
+- carga y corrección de resultados;
+- alta, edición y baja de inscripciones sin resultados;
+- creación y edición de pilotos y categorías;
+- bloqueo explícito de la sesión administrativa.
+
+Las inscripciones con resultados no pueden editarse ni eliminarse. Tampoco se admiten pilotos o categorías inactivos ni un duplicado de `pilotoId + categoriaId`.
+
+## Migración a schema v5 y backups
+
+`setupSheets()` compara `Config.SCHEMA_VERSION` con la versión soportada. Si la hoja usa una versión futura, se detiene sin intentar degradarla. Si necesita migración:
+
+1. adquiere un `ScriptLock`;
+2. crea una única copia de `Config`, `Tramos`, `Pasadas`, `Inscripciones`, `Resultados` y `Clasificacion` con sufijo `_backup_v5_<fecha>`;
+3. registra el marcador `MIGRATION_V5_BACKUP`;
+4. convierte inscripciones y resultados antiguos al modelo normalizado;
+5. crea una definición legacy equivalente a seis pasadas solo cuando los datos antiguos no tenían definición dinámica;
+6. recalcula `Clasificacion` y escribe `SCHEMA_VERSION = 5`.
+
+Los lectores de migración aceptan inscripciones históricas de cuatro o cinco columnas y resultados numéricos antiguos. Esa compatibilidad sirve únicamente para migrar o leer datos legacy; no es el contrato de escritura activo.
+
+Al generar una nueva carrera se crean backups independientes con sufijo `_backup_nueva_carrera_<fecha>` de las mismas seis hojas de carrera. `PilotosDB` y `CategoriasDB` no se limpian porque son catálogos maestros.
+
+## Instalación de cronometraje
+
+1. Crea un Google Sheet y abre `Extensiones -> Apps Script`.
+2. Copia `codigo.gs` en el archivo de servidor.
+3. Crea un archivo HTML llamado exactamente `Index` y copia `index.html`.
+4. Guarda y ejecuta `setupSheets()` desde el editor.
+5. Revisa las ocho hojas activas y cambia `PIN` y `ADMIN_PIN` en `Config`.
+6. Publica como aplicación web, ejecutando como propietario y con el acceso adecuado para el evento.
+
+El archivo del repositorio se llama `index.html`, pero en Apps Script debe ser `Index.html` porque `doGet()` usa `createTemplateFromFile('Index')`.
+
+## Campeonato schema v2
+
+`campeonato-app` es una segunda Web App y debe usar otro Google Sheet. El esquema actual del campeonato es v2 y conserva tanto carreras dinámicas nuevas como el histórico v1.
+
+Hojas del campeonato:
+
+| Hoja | Uso |
+|---|---|
+| `Config` | `SCHEMA_VERSION = 2`, nombre y descartes del campeonato. |
+| `Puntuacion` | Puntos por posición. |
+| `Carreras` | Registro de carreras importadas; su fila actúa como marcador de importación completada. |
+| `TramosCarrera` | Definición normalizada de tramos y pasadas para publicaciones v2. |
+| `ClasificacionesCampeonato` | Resumen sin dorsal de cada inscripción publicada en v2. |
+| `TiemposCampeonato` | Tiempos normalizados por `carreraId + inscripcionId + pasadaId`. |
+| `ResultadosCampeonato` | Histórico legacy v1 de seis pasadas; puede contener dorsal y no recibe publicaciones v2. |
+
+`setupChampionshipSheets()` añade las hojas normalizadas y eleva `SCHEMA_VERSION` de 1 a 2 sin convertir ni borrar `ResultadosCampeonato`. El visualizador combina mediante adaptadores de lectura:
+
+- carreras v1 desde `ResultadosCampeonato`, con una definición legacy de seis pasadas;
+- carreras v2 desde `TramosCarrera`, `ClasificacionesCampeonato` y `TiemposCampeonato`.
+
+El dorsal legacy no forma parte del modelo público canónico ni de ninguna publicación v2.
+
+### Configuración del campeonato
+
+1. Crea otro Google Sheet y abre Apps Script.
+2. Copia `campeonato-app/codigo.gs` y crea `Index.html` con `campeonato-app/index.html`.
+3. Configura `CHAMPIONSHIP_TOKEN` en las propiedades del script del campeonato.
+4. Ejecuta `setupChampionshipSheets()`.
+5. Despliega la Web App del campeonato y conserva su URL `/exec`.
+6. En las propiedades del script de crono configura `CHAMPIONSHIP_ENDPOINT` con esa URL y `CHAMPIONSHIP_TOKEN` con el mismo secreto.
+
+No guardes el token en el repositorio, en el HTML ni en `Config`.
+
+Cada `CARRERA_ID` se importa una sola vez. Las publicaciones v2 validan identificadores estables, definición, pasadas, penalizaciones, totales, descarte y estado antes de escribir. También incluyen un `payloadHash` SHA-256 que el receptor recalcula: un reintento solo devuelve `ALREADY_EXISTS` cuando el contenido coincide exactamente. La aplicación de crono no sincroniza de nuevo una carrera ya publicada.
+
+## Orden de despliegue
+
+Para actualizar una instalación existente al contrato dinámico:
+
+1. Haz una copia externa de los dos Google Sheets.
+2. Actualiza primero `campeonato-app/codigo.gs` e `Index.html` en el proyecto de campeonato.
+3. Ejecuta `setupChampionshipSheets()` y comprueba las siete hojas del campeonato y `SCHEMA_VERSION = 2`.
+4. Despliega una nueva versión del campeonato y verifica su URL `/exec`.
+5. Actualiza después `codigo.gs` e `Index.html` en el proyecto de cronometraje.
+6. Ejecuta `setupSheets()` para crear los backups y completar la migración a schema v5.
+7. Inspecciona cabeceras, filas migradas, `MIGRATION_V5_BACKUP` y `SCHEMA_VERSION = 5`.
+8. Despliega juntos backend y frontend de crono como una nueva versión.
+9. Haz una recarga fuerte y prueba el flujo antes de usar datos reales.
+
+Este orden evita que crono publique un payload v2 contra un receptor de campeonato antiguo.
+
+Guardar código no actualiza una URL ya publicada. En cada proyecto usa:
 
 ```text
-total = suma de pasadas registradas
-estado = Pendiente
+Implementar -> Gestionar implementaciones -> Editar -> Nueva versión -> Implementar
 ```
 
-Si tiene penalización:
-
-```text
-estado = Pendiente con penalización
-```
-
----
-
-### Con 6 resultados
-
-Si un piloto tiene las seis pasadas:
-
-```text
-se descarta la peor pasada
-total = suma de las cinco mejores
-estado = Completo
-```
-
-Si tiene penalización:
-
-```text
-estado = Completo con penalización
-```
-
----
-
-### Ordenación
-
-La clasificación se ordena por:
-
-1. pilotos con total visible;
-2. total de menor a mayor;
-3. categoría;
-4. dorsal.
-
-Esto permite que la clasificación se actualice durante toda la carrera sin esperar a que todos los pilotos tengan las seis pasadas.
-
----
-
-## Cálculo de gap
-
-La columna `Gap` muestra la diferencia con el piloto inmediatamente anterior, pero solo si ambos pilotos son comparables.
-
-La regla es:
-
-```text
-El gap solo se calcula si ambos pilotos tienen el mismo número de pasadas completadas.
-```
-
-Ejemplo:
-
-| Posición | Piloto | Pasadas | Total | Gap |
-|----------|--------|---------|-------|-----|
-| 1 | Piloto Demo 1 | 2/6 | 126 | - |
-| 2 | Piloto Demo 2 | 6/6 | 351 | - |
-| 3 | Piloto Demo 3 | 6/6 | 356 | 5 |
-
-En este ejemplo:
-
-- `Piloto Demo 2` no tiene gap contra `Piloto Demo 1` porque no llevan las mismas pasadas.
-- `Piloto Demo 3` sí tiene gap contra `Piloto Demo 2` porque ambos llevan 6/6.
-
----
-
-## Formato de tiempos
-
-Internamente todos los tiempos se guardan en segundos.
-
-Ejemplos:
-
-| Entrada | Valor interno |
-|--------|---------------|
-| 1:10,5 | 70.5 |
-| 1:12,3 | 72.3 |
-| 5:56,0 | 356 |
-
-La app puede mostrar estos valores como:
-
-```text
-70.5
-```
-
-o como:
-
-```text
-1:10,5
-```
-
----
-
-## Instalación desde cero del visualizador del campeonato
-
-La carpeta `campeonato-app` contiene una segunda Web App de Google Apps Script. Es el visualizador público que conserva el histórico de carreras y calcula la clasificación general por categorías. Debe utilizar un Google Sheet independiente del que utiliza la aplicación de cronometraje.
-
-La instalación completa tiene dos partes:
-
-```text
-Google Sheet del campeonato + Web App del campeonato
-                         ↑
-                         │ publica resultados con URL y token
-                         │
-Google Sheet de crono + Web App de cronometraje
-```
-
-### Requisitos
-
-- Una cuenta de Google con permiso para crear Sheets y proyectos de Apps Script.
-- El repositorio descargado o acceso a estos archivos:
-  - `campeonato-app/codigo.gs`;
-  - `campeonato-app/index.html`;
-  - `codigo.gs` e `index.html` para la aplicación de cronometraje.
-- Un token secreto largo y aleatorio para autorizar el envío de resultados.
-
-No uses un PIN, una URL ni un nombre de carrera como token. El token es un secreto compartido entre las dos Web Apps y no debe aparecer en el repositorio, el HTML ni ninguna pestaña de Google Sheets.
-
-### Parte 1: crear la aplicación del campeonato
-
-#### 1. Crear el Google Sheet del campeonato
-
-1. Abre Google Drive.
-2. Crea un Google Sheet nuevo, independiente del Sheet de cada carrera.
-3. Usa un nombre identificable, por ejemplo:
-
-```text
-Rally RC Campeonato
-```
-
-Este Sheet será la base histórica del campeonato. No lo borres ni lo reutilices para la aplicación de cronometraje.
-
-#### 2. Crear el proyecto de Apps Script
-
-Desde el Sheet del campeonato, abre:
-
-```text
-Extensiones → Apps Script
-```
-
-En el editor:
-
-1. Crea o renombra el archivo de servidor a `codigo.gs`.
-2. Copia en él todo el contenido de `campeonato-app/codigo.gs`.
-3. Crea un archivo HTML mediante `+ → HTML`.
-4. Llámalo exactamente `Index`.
-5. Copia en él todo el contenido de `campeonato-app/index.html`.
-6. Guarda el proyecto.
-
-El nombre `Index` es obligatorio porque `doGet()` utiliza `createTemplateFromFile('Index')`. El archivo del repositorio se llama `index.html`, pero dentro de Apps Script debe quedar como `Index.html`.
-
-#### 3. Crear el token de importación
-
-Genera un valor aleatorio. En macOS o Linux se puede obtener, por ejemplo, con:
-
-```bash
-openssl rand -hex 32
-```
-
-En Apps Script abre:
-
-```text
-Configuración del proyecto → Propiedades del script
-```
-
-Añade esta propiedad:
-
-| Propiedad | Valor |
-|-----------|-------|
-| `CHAMPIONSHIP_TOKEN` | El token aleatorio generado |
-
-El nombre debe ser exactamente `CHAMPIONSHIP_TOKEN`. No lo añadas a la pestaña `Config` y no sustituyas la constante `CHAMP_IMPORT_TOKEN_PROPERTY` de `codigo.gs`: esa constante debe contener solamente el nombre de la propiedad.
-
-#### 4. Inicializar las pestañas
-
-En el desplegable de funciones del editor selecciona:
-
-```text
-setupChampionshipSheets
-```
-
-Pulsa **Ejecutar** y acepta los permisos de Google la primera vez. La función crea estas pestañas:
-
-| Pestaña | Uso |
-|---------|-----|
-| `Config` | Nombre del campeonato y número de descartes |
-| `Puntuacion` | Puntos asignados a cada posición |
-| `Carreras` | Una fila por carrera publicada |
-| `ResultadosCampeonato` | Clasificación de cada piloto en cada carrera |
-
-La función es segura para repetirla: no borra resultados existentes. Si las pestañas ya existen, comprueba sus cabeceras y completa las filas de configuración que falten.
-
-#### 5. Configurar el campeonato
-
-En la pestaña `Config` revisa:
-
-| key | value inicial |
-|-----|---------------|
-| `CAMPEONATO_NOMBRE` | Nombre que verá el público |
-| `NUM_DESCARTES` | `0` |
-
-`NUM_DESCARTES` indica cuántas carreras se descartan por piloto. Debe ser un entero mayor o igual que cero. La aplicación evita descartar todas las participaciones de un piloto.
-
-En `Puntuacion` puedes modificar los puntos por posición. La tabla inicial es:
-
-```text
-1: 25    2: 18    3: 15    4: 12    5: 10
-6: 8     7: 6     8: 4     9: 2     10: 1
-```
-
-Mantén las cabeceras `posicion` y `puntos` y usa números válidos.
-
-#### 6. Publicar la Web App del campeonato
-
-En Apps Script selecciona:
-
-```text
-Implementar → Nueva implementación
-```
-
-Configura:
-
-```text
-Tipo: Aplicación web
-Ejecutar como: Yo
-Quién tiene acceso: Cualquier usuario con el enlace
-```
-
-Pulsa **Implementar**, autoriza si Google lo solicita y copia la URL que termina en:
-
-```text
-/exec
-```
-
-Guarda esa URL: será `CHAMPIONSHIP_ENDPOINT` en la aplicación de cronometraje. No uses la URL `/dev` para la integración.
-
-El acceso debe ser anónimo o para cualquier usuario con el enlace. Aunque la aplicación de visualización sea pública, la importación está protegida por `CHAMPIONSHIP_TOKEN`. Si se restringe el despliegue a usuarios de la organización, `UrlFetchApp` de la aplicación de cronometraje puede recibir un error HTTP 401.
-
-#### 7. Probar el visualizador
-
-Abre la URL `/exec` en una ventana privada del navegador. La página debe cargar el título del campeonato y mostrar que todavía no hay resultados publicados. Si aparece un error indicando que faltan hojas, vuelve al editor y ejecuta `setupChampionshipSheets()`.
-
-### Parte 2: conectar la aplicación de cronometraje
-
-La aplicación de cronometraje debe estar instalada en otro Google Sheet y desplegada como Web App. Si partes de cero, sigue primero [Instalación paso a paso](#instalación-paso-a-paso) y [Publicación como aplicación web](#publicación-como-aplicación-web).
-
-En el proyecto de Apps Script de la aplicación de cronometraje abre:
-
-```text
-Configuración del proyecto → Propiedades del script
-```
-
-Añade estas dos propiedades:
-
-| Propiedad | Valor |
-|-----------|-------|
-| `CHAMPIONSHIP_ENDPOINT` | URL `/exec` de la Web App del campeonato |
-| `CHAMPIONSHIP_TOKEN` | El mismo token configurado en la app de campeonato |
-
-Importante:
-
-- Estas propiedades pertenecen al proyecto de Apps Script de crono, no a la pestaña `Config`.
-- `CHAMPIONSHIP_ENDPOINT` debe contener la URL real del despliegue, no el texto `CHAMPIONSHIP_ENDPOINT`.
-- `CHAMPIONSHIP_TOKEN` debe tener exactamente el mismo valor en ambos proyectos.
-- No sustituyas las constantes `CHAMPIONSHIP_ENDPOINT_PROPERTY` ni `CHAMPIONSHIP_TOKEN_PROPERTY` por valores reales.
-- No publiques el token en el repositorio ni lo compartas junto con la URL pública.
-
-Guarda y despliega una nueva versión de la aplicación de cronometraje después de modificar su código. Las propiedades del script se leen en el servidor y no requieren copiarse a la hoja.
-
-### Parte 3: publicar una carrera
-
-1. Registra y corrige todos los tiempos de la carrera en la aplicación de crono.
-2. Comprueba la clasificación y que las pasadas, penalizaciones, totales y estados sean correctos.
-3. Entra en **Administración** con el PIN de administración.
-4. Actualiza el estado de publicación para comprobar que aparecen configurados el endpoint y el token.
-5. Escribe exactamente:
-
-```text
-PUBLICAR CAMPEONATO
-```
-
-6. Pulsa **Publicar resultados en el campeonato** y confirma la operación.
-7. Abre la URL pública del campeonato y pulsa **Actualizar**.
-
-La publicación es una fotografía definitiva de la carrera. Se envía usando el `CARRERA_ID` de la carrera y el destino rechaza una segunda importación con el mismo identificador. El estado de la app de crono pasa a `SI` cuando la publicación termina correctamente.
-
-Si una publicación se interrumpe, el estado `PUBLICANDO` caduca después de diez minutos y permite reintentarlo. Si el destino ya recibió la carrera, responde `ALREADY_EXISTS` sin insertar duplicados.
-
-### Qué muestra el visualizador
-
-La URL pública ofrece dos vistas:
-
-- **Clasificación general**: puntos acumulados por piloto y categoría, victorias, participaciones y carreras descartadas.
-- **Resultados por carrera**: tiempos de las seis pasadas, penalizaciones, total, gap, estado y posición.
-
-En ambas vistas se puede:
-
-- filtrar por categoría;
-- filtrar por piloto;
-- cambiar entre tarjetas y tabla;
-- actualizar los datos sin publicar de nuevo.
-
-El visor recalcula las posiciones y los gaps de cada carrera al cargar los datos. Los puntos se calculan con la tabla `Puntuacion` y solo puntúan las clasificaciones completas.
-
-### Correcciones después de publicar
-
-La app de crono no vuelve a sincronizar automáticamente una carrera que ya está publicada. Si es necesario corregir una carrera publicada, hazlo directamente en `ResultadosCampeonato` del Sheet del campeonato y conserva coherentes estos campos:
-
-- tiempos de las pasadas;
-- `penalizaciones`;
-- `total`;
-- `completadas`;
-- `estado`.
-
-El visor recalculará posición, gap, puntos y descartes al actualizarse. Antes de editar, crea una copia de seguridad del Sheet. No cambies `carreraId` ni `inscripcionId`, porque son los identificadores que vinculan el histórico.
-
-### Añadir más carreras
-
-Para cada nueva prueba:
-
-1. Usa la aplicación de crono para generar una nueva carrera.
-2. Completa sus inscripciones y resultados.
-3. Publica una sola vez desde Administración.
-4. Comprueba que aparece una nueva fila en `Carreras` y sus resultados en `ResultadosCampeonato`.
-
-Todas las carreras utilizan la misma Web App y el mismo token del campeonato. Cada carrera debe conservar un `CARRERA_ID` diferente. No borres `Carreras` ni `ResultadosCampeonato` al comenzar una nueva prueba.
-
-### Actualizar cualquiera de las dos aplicaciones
-
-Los despliegues de crono y campeonato son independientes. Cuando cambies `codigo.gs` o `index.html` en una de ellas, debes crear una nueva versión desde:
-
-```text
-Implementar → Gestionar implementaciones → Editar → Nueva versión → Implementar
-```
-
-La URL `/exec` normalmente se conserva, pero verifica siempre que estás editando el despliegue correcto. La ejecución `setupChampionshipSheets()` solo prepara el Sheet; guardar el código no actualiza una Web App ya publicada.
-
-### Errores habituales de conexión
-
-| Síntoma | Comprobación |
-|---------|--------------|
-| HTTP 401 al publicar | El despliegue del campeonato debe permitir acceso a cualquier usuario con el enlace y ejecutar como propietario. |
-| Falta `CHAMPIONSHIP_ENDPOINT` | Añade la propiedad en el proyecto de Apps Script de crono, no en `Config`. |
-| Token incorrecto | Compara el valor de `CHAMPIONSHIP_TOKEN` en ambos proyectos, sin espacios adicionales. |
-| El visor no carga | Ejecuta `setupChampionshipSheets()` y revisa que existan las cuatro pestañas esperadas. |
-| La carrera ya existe | El `CARRERA_ID` ya fue importado; no vuelvas a crear filas manualmente. |
-
-La URL pública del campeonato y el token cumplen funciones distintas: la URL identifica el destino y el token autoriza la importación. No se calcula ninguno de los dos a partir de los PIN.
-
----
-
-## Pruebas recomendadas
-
-Antes de usar la app en una carrera real, se recomienda hacer una prueba completa.
-
----
-
-### Prueba de acceso
-
-Comprobar:
-
-- acceso con PIN correcto;
-- rechazo con PIN incorrecto;
-- visualización de pestañas.
-
----
-
-### Prueba de registro
-
-Registrar seis pasadas para un piloto de prueba:
-
-| Pasada | Tiempo |
-|--------|--------|
-| Ida 1 | 1:10,5 |
-| Vuelta 1 | 1:12,3 |
-| Ida 2 | 1:09,8 |
-| Vuelta 2 | 1:15,0 |
-| Ida 3 | 1:08,4 |
-| Vuelta 3 | 1:20,2 |
-
-Validar:
-
-- los seis tiempos se guardan;
-- la clasificación se recalcula;
-- la peor pasada se descarta;
-- la pasada descartada aparece tachada;
-- el total es correcto.
-
----
-
-### Prueba de duplicados
-
-Intentar registrar dos veces la misma pasada.
-
-Resultado esperado:
-
-```text
-La app bloquea el segundo registro.
-```
-
----
-
-### Prueba de penalización
-
-Registrar un tiempo con penalización.
-
-Ejemplo:
-
-```text
-Tiempo: 1:00,0
-Penalización: 5
-Total esperado: 65.0
-```
-
----
-
-### Prueba de corrección
-
-Desde administración:
-
-- cargar un resultado existente;
-- modificarlo;
-- guardar;
-- comprobar que la clasificación se recalcula.
-
----
-
-### Prueba de dashboard
-
-Comprobar:
-
-- carga de datos;
-- filtro por categoría;
-- filtro por piloto;
-- filtro por idas/vueltas;
-- cálculo de constancia;
-- gráfica;
-- tabla.
-
----
+## Verificación recomendada
+
+Antes de una carrera real, usa datos genéricos y verifica:
+
+1. Migración v5 y presencia de backups.
+2. Carrera de una pasada: cero descartes y total completo correcto.
+3. Carrera con un tramo ida/vuelta y otro solo ida: generación y orden correctos.
+4. Bloqueo de registro en `CONFIGURACION` e inicio explícito.
+5. Ampliación posterior por pareja o por ida sin cambiar IDs existentes.
+6. Rechazo del duplicado `carreraId + inscripcionId + pasadaId`.
+7. Penalización, corrección, descarte global y desempate del descarte por orden.
+8. Gap solo entre pilotos de la misma categoría con la misma firma de pasadas.
+9. Inscripciones sin dorsal y bloqueo de edición o borrado cuando tienen resultados.
+10. Administración en móvil y escritorio.
+11. Publicación v2 y lectura conjunta de una carrera v2 con histórico v1.
 
 ## Solución de problemas
 
-### Los cambios no aparecen en la app
+| Síntoma | Comprobación |
+|---|---|
+| Los cambios no aparecen | Despliega una nueva versión y haz recarga fuerte. |
+| La carrera no admite tiempos | Comprueba que `CARRERA_ESTADO` sea `INICIADA`. |
+| La configuración cambió | Recarga; las escrituras validan `CARRERA_ID` y `CONFIG_REVISION`. |
+| La hoja usa un esquema futuro | No fuerces la migración; despliega una versión de código compatible. |
+| La publicación devuelve HTTP 401 | El despliegue de campeonato debe ser accesible para `UrlFetchApp` y ejecutar como propietario. |
+| La carrera ya existe en campeonato | El mismo `CARRERA_ID` ya fue importado y no se sobrescribe. |
 
-Guardar el código no siempre actualiza la web app publicada.
+## Alcance
 
-Hay que generar una nueva versión:
-
-```text
-Implementar → Gestionar implementaciones → Editar → Nueva versión → Implementar
-```
-
----
-
-### La pantalla queda en blanco
-
-Abrir la consola del navegador.
-
-Causa habitual:
-
-```text
-ReferenceError: nombreFuncion is not defined
-```
-
-Suele ocurrir si se ha pegado una parte del código pero falta alguna función auxiliar.
-
----
-
-### El selector de pilotos se queda cargando
-
-Revisar:
-
-- que la aplicación esté desplegada con la última versión;
-- que existan pilotos en la categoría;
-- que `getInscripcionesByCategoria` no esté fallando;
-- los registros de ejecución de Apps Script.
-
----
-
-### No se guarda un resultado
-
-Comprobar:
-
-- PIN correcto;
-- categoría seleccionada;
-- piloto seleccionado;
-- pasada seleccionada;
-- tiempo válido;
-- penalización válida;
-- que no exista duplicado.
-
----
-
-### Error de permisos
-
-La primera vez que se ejecuta el proyecto, Google puede pedir autorización.
-
-Hay que aceptar los permisos para que Apps Script pueda leer y escribir en el Google Sheet.
-
----
-
-## Roadmap
-
-Ideas futuras posibles:
-
-### Tramos
-
-Permitir varias secciones o tramos dentro de una carrera.
-
-```text
-Tramo 1
-Tramo 2
-Tramo 3
-```
-
----
-
-### Campeonato
-
-Permitir agrupar varias carreras dentro de un campeonato.
-
-```text
-Campeonato 2026
-├── Carrera 1
-├── Carrera 2
-└── Carrera 3
-```
-
----
-
-### Puntuación por carrera
-
-Asignar puntos por posición.
-
-Ejemplo:
-
-| Posición | Puntos |
-|----------|--------|
-| 1º | 25 |
-| 2º | 18 |
-| 3º | 15 |
-| 4º | 12 |
-| 5º | 10 |
-
----
-
-### Descartes de campeonato
-
-Permitir descartar el peor resultado de una temporada.
-
----
-
-### Cronometraje externo
-
-Posible integración futura con sistemas externos de cronometraje.
-
-No forma parte de la funcionalidad implementada actualmente.
-
----
-
-### Exportación
-
-Posibles exportaciones futuras:
-
-- CSV;
-- Excel;
-- PDF;
-- imagen para compartir resultados.
-
----
-
-## Estado actual
-
-La aplicación permite gestionar una carrera individual de Rally RC con:
-
-- registro de tiempos;
-- clasificación;
-- descarte de peor pasada;
-- gap;
-- administración;
-- correcciones;
-- dashboard de constancia.
-
-No incluye actualmente integración real con ESP32 ni sistemas de cronometraje externos.
+Están implementados los tramos dinámicos y el campeonato con puntuación y descartes de temporada. Continúan como posibles mejoras futuras las exportaciones y una eventual integración con cronometraje externo. No existe integración funcional con ESP32.

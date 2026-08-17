@@ -4,2805 +4,1578 @@ const SHEET_RESULTADOS = 'Resultados';
 const SHEET_CLASIFICACION = 'Clasificacion';
 const SHEET_PILOTOS_DB = 'PilotosDB';
 const SHEET_CATEGORIAS_DB = 'CategoriasDB';
+const SHEET_TRAMOS = 'Tramos';
+const SHEET_PASADAS = 'Pasadas';
 const CONFIG_SCHEMA_VERSION = 'SCHEMA_VERSION';
 const CONFIG_ENVIRONMENT = 'ENVIRONMENT';
 const CONFIG_CARRERA_ID = 'CARRERA_ID';
+const CONFIG_CARRERA_ESTADO = 'CARRERA_ESTADO';
+const CONFIG_REVISION = 'CONFIG_REVISION';
 const CONFIG_CAMPEONATO_PUBLICADA = 'CAMPEONATO_PUBLICADA';
 const CONFIG_CAMPEONATO_PUBLICACION_INICIADA = 'CAMPEONATO_PUBLICACION_INICIADA';
-// Son nombres de Script Properties; no sustituirlos por la URL ni por el token.
 const CHAMPIONSHIP_ENDPOINT_PROPERTY = 'CHAMPIONSHIP_ENDPOINT';
 const CHAMPIONSHIP_TOKEN_PROPERTY = 'CHAMPIONSHIP_TOKEN';
 const CHAMPIONSHIP_PUBLICATION_LEASE_MS = 10 * 60 * 1000;
-const CURRENT_SCHEMA_VERSION = '3';
+const CURRENT_SCHEMA_VERSION = '5';
+const MAX_TRAMOS = 100;
+const MAX_PASADAS = 500;
 
-const PASADAS = [
-  { id: 'P1', num: 1, label: 'Ida 1', tipo: 'ida', orden: 1 },
-  { id: 'P2', num: 2, label: 'Vuelta 1', tipo: 'vuelta', orden: 2 },
-  { id: 'P3', num: 3, label: 'Ida 2', tipo: 'ida', orden: 3 },
-  { id: 'P4', num: 4, label: 'Vuelta 2', tipo: 'vuelta', orden: 4 },
-  { id: 'P5', num: 5, label: 'Ida 3', tipo: 'ida', orden: 5 },
-  { id: 'P6', num: 6, label: 'Vuelta 3', tipo: 'vuelta', orden: 6 }
+const INSCRIPCIONES_HEADERS = ['inscripcionId', 'pilotoId', 'categoriaId', 'piloto', 'categoria'];
+const RESULTADOS_HEADERS = [
+  'resultadoId', 'timestamp', 'carreraId', 'inscripcionId', 'tramoId', 'pasadaId',
+  'piloto', 'categoria', 'pasadaLabel', 'tiempo', 'penalizacion', 'total', 'juez'
+];
+const CLASIFICACION_HEADERS = [
+  'inscripcionId', 'pilotoId', 'categoriaId', 'piloto', 'categoria', 'descartada',
+  'penalizaciones', 'total', 'gap', 'completadas', 'previstas', 'estado'
+];
+const TRAMOS_HEADERS = ['tramoId', 'nombre', 'orden', 'numIdas', 'numVueltas'];
+const PASADAS_HEADERS = ['pasadaId', 'tramoId', 'label', 'tipo', 'numero', 'orden'];
+const LEGACY_PASADAS = [
+  { pasadaId: 'P1', tramoId: 'T1', label: 'Ida 1', tipo: 'ida', numero: 1, orden: 1001 },
+  { pasadaId: 'P2', tramoId: 'T1', label: 'Vuelta 1', tipo: 'vuelta', numero: 1, orden: 1002 },
+  { pasadaId: 'P3', tramoId: 'T1', label: 'Ida 2', tipo: 'ida', numero: 2, orden: 1003 },
+  { pasadaId: 'P4', tramoId: 'T1', label: 'Vuelta 2', tipo: 'vuelta', numero: 2, orden: 1004 },
+  { pasadaId: 'P5', tramoId: 'T1', label: 'Ida 3', tipo: 'ida', numero: 3, orden: 1005 },
+  { pasadaId: 'P6', tramoId: 'T1', label: 'Vuelta 3', tipo: 'vuelta', numero: 3, orden: 1006 }
 ];
 
 function doGet() {
   setupSheets();
-
-  return HtmlService
-    .createTemplateFromFile('Index')
-    .evaluate()
+  return HtmlService.createTemplateFromFile('Index').evaluate()
     .setTitle('Rally RC - Resultados')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
 
 function setupSheets() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-
-  createSheetIfNotExists_(ss, SHEET_CONFIG, [
-  ['key', 'value'],
-  ['PIN', 'CAMBIAR_PIN_ACCESO'],
-  ['ADMIN_PIN', 'CAMBIAR_PIN_ADMIN'],
-  ['CARRERA_ACTIVA', 'Rally RC'],
-  [CONFIG_CARRERA_ID, Utilities.getUuid()],
-  [CONFIG_CAMPEONATO_PUBLICADA, 'NO'],
-  [CONFIG_CAMPEONATO_PUBLICACION_INICIADA, ''],
-  [CONFIG_ENVIRONMENT, 'PRODUCTION'],
-  [CONFIG_SCHEMA_VERSION, '0']
-]);
-  createSheetIfNotExists_(ss, SHEET_PILOTOS_DB, [
-  [
-    'pilotoId',
-    'nombre',
-    'alias',
-    'activo',
-    'notas',
-    'createdAt',
-    'updatedAt'
-  ]
-]);
-
-createSheetIfNotExists_(ss, SHEET_CATEGORIAS_DB, [
-  [
-    'categoriaId',
-    'nombre',
-    'activa',
-    'orden',
-    'notas',
-    'createdAt',
-    'updatedAt'
-  ]
-]);
-
-  createSheetIfNotExists_(ss, SHEET_INSCRIPCIONES, [
-    ['inscripcionId', 'pilotoId', 'dorsal', 'piloto', 'categoria'],
-    ['I001', 'P001', '1', 'Piloto Demo 1', 'Rally 1/10'],
-    ['I002', 'P002', '2', 'Piloto Demo 2', 'Rally 1/10'],
-    ['I003', 'P003', '3', 'Piloto Demo 3', 'Rally 1/10'],
-    ['I004', 'P001', '1', 'Piloto Demo 1', 'Clásicos']
-  ]);
-
-  createSheetIfNotExists_(ss, SHEET_RESULTADOS, [
-    [
-      'resultadoId',
-      'timestamp',
-      'inscripcionId',
-      'dorsal',
-      'piloto',
-      'categoria',
-      'pasada',
-      'pasadaLabel',
-      'tiempo',
-      'penalizacion',
-      'total',
-      'juez'
-    ]
-  ]);
-
-  createSheetIfNotExists_(ss, SHEET_CLASIFICACION, [
-   [
-    'categoria',
-    'dorsal',
-    'piloto',
-    'ida1',
-    'vuelta1',
-    'ida2',
-    'vuelta2',
-    'ida3',
-    'vuelta3',
-    'descartada',
-    'penalizaciones',
-    'total',
-    'gap',
-    'estado'
-  ]
-  ]);
-
-  const storedSchemaVersion = parseSchemaVersion_(getConfigValue_(CONFIG_SCHEMA_VERSION));
-  const currentSchemaVersion = parseSchemaVersion_(CURRENT_SCHEMA_VERSION);
-
-  if (storedSchemaVersion > currentSchemaVersion) {
-    throw new Error('La hoja usa un esquema más reciente que esta versión de la aplicación');
-  }
-
-  if (storedSchemaVersion < currentSchemaVersion) {
-    const lock = LockService.getScriptLock();
-
-    try {
-      lock.waitLock(10000);
-
-      const lockedSchemaVersion = parseSchemaVersion_(getConfigValue_(CONFIG_SCHEMA_VERSION));
-
-      if (lockedSchemaVersion > currentSchemaVersion) {
-        throw new Error('La hoja usa un esquema más reciente que esta versión de la aplicación');
-      }
-
-      if (lockedSchemaVersion < 2) {
-        migrarPilotosYCategoriasDesdeInscripciones_();
-        refreshClasificacion_();
-      }
-
-      if (lockedSchemaVersion < 3) {
-        ensureCarreraPublicationConfig_();
-      }
-
-      if (lockedSchemaVersion < currentSchemaVersion) {
-        updateConfigValue_(CONFIG_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION);
-      }
-    } finally {
-      lock.releaseLock();
+  const current = parseSchemaVersion_(CURRENT_SCHEMA_VERSION);
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+    const existingConfig = ss.getSheetByName(SHEET_CONFIG);
+    let stored = 0;
+    if (existingConfig) {
+      const configRows = existingConfig.getDataRange().getValues();
+      const versionRow = configRows.slice(1).find(function(row) {
+        return cellText_(row[0]) === CONFIG_SCHEMA_VERSION;
+      });
+      stored = parseSchemaVersion_(versionRow ? versionRow[1] : '0');
     }
+    if (stored > current) throw new Error('La hoja usa un esquema más reciente que esta aplicación');
+
+    createSheetIfNotExists_(ss, SHEET_CONFIG, [
+      ['key', 'value'], ['PIN', 'CAMBIAR_PIN_ACCESO'], ['ADMIN_PIN', 'CAMBIAR_PIN_ADMIN'],
+      ['CARRERA_ACTIVA', 'Rally RC'], [CONFIG_CARRERA_ID, Utilities.getUuid()],
+      [CONFIG_CARRERA_ESTADO, 'CONFIGURACION'], [CONFIG_REVISION, '1'],
+      [CONFIG_CAMPEONATO_PUBLICADA, 'NO'], [CONFIG_CAMPEONATO_PUBLICACION_INICIADA, ''],
+      [CONFIG_ENVIRONMENT, 'PRODUCTION'], [CONFIG_SCHEMA_VERSION, '0']
+    ]);
+    createSheetIfNotExists_(ss, SHEET_PILOTOS_DB, [[
+      'pilotoId', 'nombre', 'alias', 'activo', 'notas', 'createdAt', 'updatedAt'
+    ]]);
+    createSheetIfNotExists_(ss, SHEET_CATEGORIAS_DB, [[
+      'categoriaId', 'nombre', 'activa', 'orden', 'notas', 'createdAt', 'updatedAt'
+    ]]);
+    createSheetIfNotExists_(ss, SHEET_TRAMOS, [TRAMOS_HEADERS]);
+    createSheetIfNotExists_(ss, SHEET_PASADAS, [PASADAS_HEADERS]);
+    createSheetIfNotExists_(ss, SHEET_INSCRIPCIONES, [INSCRIPCIONES_HEADERS]);
+    createSheetIfNotExists_(ss, SHEET_RESULTADOS, [RESULTADOS_HEADERS]);
+    createSheetIfNotExists_(ss, SHEET_CLASIFICACION, [CLASIFICACION_HEADERS]);
+
+    if (stored < current) {
+      ensureMigrationBackup_();
+      migrateToNormalizedRace_();
+      updateConfigValue_(CONFIG_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION);
+    }
+  } finally {
+    lock.releaseLock();
   }
 }
 
 function parseSchemaVersion_(value) {
-  const normalized = String(value || '0').trim();
-
-  if (!/^\d+$/.test(normalized)) {
-    throw new Error('SCHEMA_VERSION no es un entero válido');
-  }
-
-  return Number(normalized);
+  const text = cellText_(value || '0');
+  if (!/^\d+$/.test(text)) throw new Error('SCHEMA_VERSION no es un entero válido');
+  return Number(text);
 }
 
-function createSheetIfNotExists_(ss, sheetName, initialRows) {
-  let sheet = ss.getSheetByName(sheetName);
-
-  if (!sheet) {
-    sheet = ss.insertSheet(sheetName);
-    sheet.getRange(1, 1, initialRows.length, initialRows[0].length).setValues(initialRows);
-    sheet.setFrozenRows(1);
-    autoResize_(sheet);
-  }
+function createSheetIfNotExists_(ss, name, rows) {
+  let sheet = ss.getSheetByName(name);
+  if (sheet) return sheet;
+  sheet = ss.insertSheet(name);
+  sheet.getRange(1, 1, rows.length, rows[0].length).setValues(rows);
+  sheet.setFrozenRows(1);
+  autoResize_(sheet);
+  return sheet;
 }
 
 function autoResize_(sheet) {
-  const lastColumn = sheet.getLastColumn();
-  if (lastColumn > 0) {
-    sheet.autoResizeColumns(1, lastColumn);
-  }
+  if (sheet.getLastColumn() > 0) sheet.autoResizeColumns(1, sheet.getLastColumn());
+}
+
+function getConfigValues_() {
+  const rows = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_CONFIG).getDataRange().getValues();
+  const config = {};
+  rows.slice(1).forEach(function(row) {
+    const key = cellText_(row[0]);
+    if (key) config[key] = cellText_(row[1]);
+  });
+  return config;
 }
 
 function getConfigValue_(key) {
   return getConfigValues_()[key] || '';
 }
 
-function getConfigValues_() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(SHEET_CONFIG);
-  const values = sheet.getDataRange().getValues();
-  const config = {};
-
-  for (let i = 1; i < values.length; i++) {
-    const key = String(values[i][0] || '').trim();
-
-    if (key) {
-      config[key] = String(values[i][1] || '').trim();
+function updateConfigValue_(key, value) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_CONFIG);
+  const rows = sheet.getDataRange().getValues();
+  for (let i = 1; i < rows.length; i++) {
+    if (cellText_(rows[i][0]) === key) {
+      sheet.getRange(i + 1, 2).setValue(value);
+      return;
     }
   }
-
-  return config;
+  sheet.appendRow([key, value]);
 }
 
 function validatePin_(pin) {
-  const configuredPin = getConfigValue_('PIN');
-  return String(pin || '').trim() === configuredPin;
+  return cellText_(pin) === getConfigValue_('PIN');
 }
 
 function validatePin(pin) {
   return validatePin_(pin);
 }
 
-function validateAdminPin_(adminPin) {
-  const configuredAdminPin = getConfigValue_('ADMIN_PIN');
-  return String(adminPin || '').trim() === configuredAdminPin;
+function validateAdminPin_(pin) {
+  return cellText_(pin) === getConfigValue_('ADMIN_PIN');
 }
 
-function validateAdminPin(adminPin) {
-  return validateAdminPin_(adminPin);
+function validateAdminPin(pin) {
+  return validateAdminPin_(pin);
+}
+
+function assertCredentials_(pin, adminPin) {
+  if (!validatePin_(pin)) throw new Error('PIN de carrera incorrecto');
+  if (!validateAdminPin_(adminPin)) throw new Error('PIN de administración incorrecto');
+}
+
+function getHeaderMap_(sheet) {
+  return getHeaderMapFromHeaders_(sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]);
+}
+
+function getHeaderMapFromHeaders_(headers) {
+  const map = {};
+  headers.forEach(function(header, index) { map[cellText_(header)] = index; });
+  return map;
+}
+
+function readObjects_(sheet) {
+  if (!sheet || sheet.getLastRow() < 2) return [];
+  const values = sheet.getDataRange().getValues();
+  const headers = values[0].map(cellText_);
+  return values.slice(1).map(function(row) {
+    const object = {};
+    headers.forEach(function(header, index) { if (header) object[header] = row[index]; });
+    return object;
+  }).filter(function(row) {
+    return headers.some(function(header) { return row[header] !== '' && row[header] !== null; });
+  });
+}
+
+function writeObjects_(sheet, headers, objects) {
+  const rows = objects.map(function(object) {
+    return headers.map(function(header) { return object[header] === undefined ? '' : object[header]; });
+  });
+  sheet.clearContents();
+  sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  if (rows.length) sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
+  sheet.setFrozenRows(1);
+  autoResize_(sheet);
+}
+
+function appendObject_(sheet, object) {
+  const map = getHeaderMap_(sheet);
+  const row = new Array(sheet.getLastColumn()).fill('');
+  Object.keys(object).forEach(function(key) { if (map[key] !== undefined) row[map[key]] = object[key]; });
+  sheet.appendRow(row);
+}
+
+function cellText_(value) {
+  return String(value === undefined || value === null ? '' : value).trim();
+}
+
+function normalizeText_(value) {
+  return cellText_(value).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+function parseNumber_(value) {
+  if (typeof value === 'number') return value;
+  return Number(cellText_(value).replace(',', '.'));
+}
+
+function numberOrZero_(value) {
+  const number = parseNumber_(value);
+  return isFinite(number) ? round3_(number) : 0;
+}
+
+function round3_(value) {
+  return Math.round(Number(value) * 1000) / 1000;
+}
+
+function nowString_() {
+  return Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
+}
+
+function formatDateForClient_(value) {
+  if (!value) return '';
+  if (Object.prototype.toString.call(value) === '[object Date]') {
+    return Utilities.formatDate(value, Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
+  }
+  return String(value);
+}
+
+function secondsToTimeParts_(value) {
+  const tenths = Math.round(Number(value || 0) * 10);
+  return { minutos: Math.floor(tenths / 600), segundos: Math.floor((tenths % 600) / 10), decimas: tenths % 10 };
+}
+
+function getNextId_(prefix, ids) {
+  let max = 0;
+  ids.forEach(function(id) {
+    const match = cellText_(id).match(new RegExp('^' + prefix + '(\\d+)$'));
+    if (match) max = Math.max(max, Number(match[1]));
+  });
+  return prefix + String(max + 1).padStart(3, '0');
+}
+
+function ensureMigrationBackup_() {
+  const config = getConfigValues_();
+  if (config.MIGRATION_V5_BACKUP) return;
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const suffix = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd_HH-mm-ss');
+  [SHEET_CONFIG, SHEET_TRAMOS, SHEET_PASADAS, SHEET_INSCRIPCIONES, SHEET_RESULTADOS, SHEET_CLASIFICACION]
+    .forEach(function(name) {
+      const sheet = ss.getSheetByName(name);
+      if (sheet) sheet.copyTo(ss).setName(uniqueBackupName_(ss, name + '_backup_v5_' + suffix));
+    });
+  updateConfigValue_('MIGRATION_V5_BACKUP', suffix);
+}
+
+function uniqueBackupName_(ss, base) {
+  let name = base.slice(0, 99);
+  let number = 2;
+  while (ss.getSheetByName(name)) {
+    const suffix = '_' + number++;
+    name = base.slice(0, 99 - suffix.length) + suffix;
+  }
+  return name;
+}
+
+function readLegacyInscripciones_(sheet) {
+  if (!sheet || sheet.getLastRow() < 2) return [];
+  const values = sheet.getDataRange().getValues();
+  const headers = values[0].map(cellText_);
+  const map = getHeaderMapFromHeaders_(headers);
+  return values.slice(1).filter(function(row) { return row.some(function(value) { return value !== ''; }); })
+    .map(function(row, index) {
+      const oldFourColumns = map.pilotoId === undefined;
+      const result = {
+        inscripcionId: cellText_(row[map.inscripcionId === undefined ? 0 : map.inscripcionId]),
+        pilotoId: oldFourColumns ? '' : cellText_(row[map.pilotoId]),
+        categoriaId: map.categoriaId === undefined ? '' : cellText_(row[map.categoriaId]),
+        piloto: cellText_(row[map.piloto === undefined ? 2 : map.piloto]),
+        categoria: cellText_(row[map.categoria === undefined ? 3 : map.categoria])
+      };
+      if (!result.inscripcionId || !result.piloto || !result.categoria) {
+        throw new Error('Inscripción legacy incompleta en la fila ' + (index + 2));
+      }
+      return result;
+    });
+}
+
+function resolveLegacyMaster_(row, records, idKey, rowNameKey, recordNameKey, prefix, sheet, buildRow) {
+  const suppliedId = cellText_(row[idKey]);
+  let record = suppliedId ? records.find(function(item) { return item[idKey] === suppliedId; }) : null;
+  if (suppliedId && !record) throw new Error('Identificador legacy desconocido: ' + suppliedId);
+  if (!record) {
+    const matches = records.filter(function(item) {
+      return normalizeText_(item[recordNameKey]) === normalizeText_(row[rowNameKey]);
+    });
+    if (matches.length > 1) throw new Error('Nombre legacy ambiguo: ' + row[rowNameKey]);
+    record = matches[0];
+  }
+  if (!record) {
+    const id = getNextId_(prefix, records.map(function(item) { return item[idKey]; }));
+    const object = buildRow(id, row[rowNameKey]);
+    appendObject_(sheet, object);
+    records.push(object);
+    record = object;
+  }
+  return record;
+}
+
+function readLegacyResultados_(sheet, carreraId, inscriptionsById, definition) {
+  if (!sheet || sheet.getLastRow() < 2) return [];
+  const values = sheet.getDataRange().getValues();
+  const map = getHeaderMapFromHeaders_(values[0]);
+  const normalized = map.pasadaId !== undefined && map.tramoId !== undefined && map.carreraId !== undefined;
+  return values.slice(1).filter(function(row) { return row.some(function(value) { return value !== ''; }); })
+    .map(function(row, index) {
+      const inscripcionId = cellText_(row[map.inscripcionId]);
+      if (!inscriptionsById[inscripcionId]) throw new Error('Resultado sin inscripción en fila ' + (index + 2));
+      let pass;
+      if (normalized) {
+        pass = definition.pasadas.find(function(item) { return item.pasadaId === cellText_(row[map.pasadaId]); });
+      } else {
+        const legacyNumber = Number(row[map.pasada]);
+        pass = Number.isInteger(legacyNumber) && legacyNumber >= 1 && legacyNumber <= 6
+          ? LEGACY_PASADAS[legacyNumber - 1] : null;
+      }
+      if (!pass) throw new Error('Pasada legacy inválida en fila ' + (index + 2));
+      const sourceCarreraId = normalized ? cellText_(row[map.carreraId]) : '';
+      if (sourceCarreraId && sourceCarreraId !== carreraId) {
+        throw new Error('Resultado de otra carrera en fila ' + (index + 2));
+      }
+      return {
+        resultadoId: cellText_(row[map.resultadoId]) || Utilities.getUuid(),
+        timestamp: row[map.timestamp] || new Date(),
+        carreraId: carreraId,
+        inscripcionId: inscripcionId, tramoId: pass.tramoId, pasadaId: pass.pasadaId,
+        piloto: cellText_(row[map.piloto]) || inscriptionsById[inscripcionId].piloto,
+        categoria: cellText_(row[map.categoria]) || inscriptionsById[inscripcionId].categoria,
+        pasadaLabel: normalized ? cellText_(row[map.pasadaLabel]) || pass.label : cellText_(row[map.pasadaLabel]) || pass.label,
+        tiempo: numberOrZero_(row[map.tiempo]), penalizacion: numberOrZero_(row[map.penalizacion]),
+        total: row[map.total] === '' || row[map.total] === undefined
+          ? round3_(numberOrZero_(row[map.tiempo]) + numberOrZero_(row[map.penalizacion]))
+          : numberOrZero_(row[map.total]),
+        juez: cellText_(row[map.juez])
+      };
+    });
+}
+
+function migrateToNormalizedRace_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const config = getConfigValues_();
+  const inscriptionSource = readLegacyInscripciones_(ss.getSheetByName(SHEET_INSCRIPCIONES));
+  const pilots = getPilotosDB_();
+  const categories = getCategoriasDB_();
+  const now = nowString_();
+  const inscriptions = inscriptionSource.map(function(row) {
+    const pilot = resolveLegacyMaster_(row, pilots, 'pilotoId', 'piloto', 'nombre', 'P', ss.getSheetByName(SHEET_PILOTOS_DB),
+      function(id, name) { return { pilotoId: id, nombre: name, alias: '', activo: 'SI', notas: '', createdAt: now, updatedAt: now }; });
+    const categoryRow = { categoriaId: row.categoriaId, categoria: row.categoria };
+    const category = resolveLegacyMaster_(categoryRow, categories, 'categoriaId', 'categoria', 'nombre', 'C', ss.getSheetByName(SHEET_CATEGORIAS_DB),
+      function(id, name) { return { categoriaId: id, nombre: name, activa: 'SI', orden: categories.length + 1, notas: '', createdAt: now, updatedAt: now }; });
+    return {
+      inscripcionId: row.inscripcionId, pilotoId: pilot.pilotoId, categoriaId: category.categoriaId,
+      piloto: pilot.nombre, categoria: category.nombre
+    };
+  });
+  if (inscriptions.length !== inscriptionSource.length) throw new Error('La migración perdió inscripciones');
+  const inscriptionIds = {};
+  const inscriptionPairs = {};
+  inscriptions.forEach(function(row) {
+    if (inscriptionIds[row.inscripcionId]) throw new Error('inscripcionId duplicado en migración');
+    const pair = row.pilotoId + '|' + row.categoriaId;
+    if (inscriptionPairs[pair]) throw new Error('Piloto y categoría duplicados en migración: ' + pair);
+    inscriptionIds[row.inscripcionId] = row;
+    inscriptionPairs[pair] = true;
+  });
+  const carreraId = cellText_(config[CONFIG_CARRERA_ID]) || Utilities.getUuid();
+  const resultSheet = ss.getSheetByName(SHEET_RESULTADOS);
+  const sourceResultCount = resultSheet && resultSheet.getLastRow() > 1
+    ? resultSheet.getDataRange().getValues().slice(1).filter(function(row) {
+        return row.some(function(value) { return value !== ''; });
+      }).length : 0;
+  const hasStoredDefinition = ss.getSheetByName(SHEET_TRAMOS).getLastRow() > 1 &&
+    ss.getSheetByName(SHEET_PASADAS).getLastRow() > 1;
+  const definition = hasStoredDefinition ? getRaceDefinition_() : buildLegacyRaceDefinition_();
+  const resultados = readLegacyResultados_(resultSheet, carreraId, inscriptionIds, definition);
+  if (resultados.length !== sourceResultCount) throw new Error('La migración perdió resultados');
+  const keys = {};
+  resultados.forEach(function(row) {
+    const key = row.carreraId + '|' + row.inscripcionId + '|' + row.pasadaId;
+    if (keys[key]) throw new Error('Resultado duplicado durante la migración: ' + key);
+    keys[key] = true;
+  });
+  validateDefinition_(definition);
+  writeRaceDefinition_(definition);
+  writeObjects_(ss.getSheetByName(SHEET_INSCRIPCIONES), INSCRIPCIONES_HEADERS, inscriptions);
+  writeObjects_(resultSheet, RESULTADOS_HEADERS, resultados);
+  updateConfigValue_(CONFIG_CARRERA_ID, carreraId);
+  updateConfigValue_(CONFIG_CARRERA_ESTADO, config[CONFIG_CARRERA_ESTADO] || (resultados.length ? 'INICIADA' : 'CONFIGURACION'));
+  updateConfigValue_(CONFIG_REVISION, config[CONFIG_REVISION] || '1');
+  updateConfigValue_(CONFIG_CAMPEONATO_PUBLICADA, config[CONFIG_CAMPEONATO_PUBLICADA] || 'NO');
+  if (config[CONFIG_CAMPEONATO_PUBLICACION_INICIADA] === undefined) updateConfigValue_(CONFIG_CAMPEONATO_PUBLICACION_INICIADA, '');
+  refreshClasificacion_(inscriptions, resultados);
+}
+
+function buildLegacyRaceDefinition_() {
+  const tramos = [{ tramoId: 'T1', nombre: 'Tramo 1', orden: 1, numIdas: 3, numVueltas: 3, pasadas: LEGACY_PASADAS.map(clonePass_) }];
+  return { tramos: tramos, pasadas: LEGACY_PASADAS.map(clonePass_), totalPasadas: 6, numDescartes: 1 };
+}
+
+function clonePass_(pass) {
+  return { pasadaId: pass.pasadaId, tramoId: pass.tramoId, label: pass.label, tipo: pass.tipo, numero: pass.numero, orden: pass.orden };
+}
+
+function validateDefinition_(definition) {
+  if (!definition || !Array.isArray(definition.tramos) || !definition.tramos.length || definition.tramos.length > MAX_TRAMOS) {
+    throw new Error('La definición de tramos no es válida');
+  }
+  if (!Array.isArray(definition.pasadas) || definition.pasadas.length < 1 || definition.pasadas.length > MAX_PASADAS) {
+    throw new Error('La carrera debe tener entre 1 y ' + MAX_PASADAS + ' pasadas');
+  }
+  if (Number(definition.totalPasadas) !== definition.pasadas.length) {
+    throw new Error('totalPasadas no coincide con la definición');
+  }
+  const expectedDiscards = definition.pasadas.length === 1 ? 0 : 1;
+  if (Number(definition.numDescartes) !== expectedDiscards) throw new Error('El número de descartes no es válido');
+  const stages = {};
+  definition.tramos.forEach(function(stage, index) {
+    if (!stage.tramoId || stages[stage.tramoId] || stage.orden !== index + 1 || stage.nombre !== 'Tramo ' + (index + 1)) {
+      throw new Error('Tramo duplicado, desordenado o con nombre inválido');
+    }
+    if (!Number.isInteger(stage.numIdas) || stage.numIdas < 1 || !Number.isInteger(stage.numVueltas) ||
+        (stage.numVueltas !== 0 && stage.numVueltas !== stage.numIdas)) {
+      throw new Error('Configuración de idas/vueltas inválida');
+    }
+    stages[stage.tramoId] = stage;
+  });
+  const passIds = {};
+  const passOrders = {};
+  const stagePasses = {};
+  definition.pasadas.forEach(function(pass) {
+    if (!pass.pasadaId || passIds[pass.pasadaId] || !stages[pass.tramoId] ||
+        (pass.tipo !== 'ida' && pass.tipo !== 'vuelta') || !Number.isInteger(pass.numero) || pass.numero < 1 ||
+        !Number.isInteger(pass.orden) || pass.orden < 1 || passOrders[pass.orden]) {
+      throw new Error('Definición de pasada inválida');
+    }
+    passIds[pass.pasadaId] = true;
+    passOrders[pass.orden] = true;
+    const key = pass.tramoId + '|' + pass.tipo + '|' + pass.numero;
+    if (stagePasses[key]) throw new Error('Pasada lógica duplicada');
+    stagePasses[key] = true;
+  });
+  definition.tramos.forEach(function(stage) {
+    for (let number = 1; number <= stage.numIdas; number++) {
+      if (!stagePasses[stage.tramoId + '|ida|' + number]) throw new Error('Falta una ida configurada');
+      if (stage.numVueltas && !stagePasses[stage.tramoId + '|vuelta|' + number]) throw new Error('Falta una vuelta configurada');
+    }
+    const actual = definition.pasadas.filter(function(pass) { return pass.tramoId === stage.tramoId; }).length;
+    if (actual !== stage.numIdas + stage.numVueltas) throw new Error('El número de pasadas del tramo no coincide');
+  });
+  return definition;
+}
+
+function getRaceDefinition_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const tramos = readObjects_(ss.getSheetByName(SHEET_TRAMOS)).map(function(row) {
+    return {
+      tramoId: cellText_(row.tramoId), nombre: cellText_(row.nombre), orden: Number(row.orden),
+      numIdas: Number(row.numIdas), numVueltas: Number(row.numVueltas), pasadas: []
+    };
+  }).sort(compareOrder_);
+  const byId = {};
+  tramos.forEach(function(stage) { byId[stage.tramoId] = stage; });
+  const pasadas = readObjects_(ss.getSheetByName(SHEET_PASADAS)).map(function(row) {
+    return {
+      pasadaId: cellText_(row.pasadaId), tramoId: cellText_(row.tramoId), label: cellText_(row.label),
+      tipo: cellText_(row.tipo), numero: Number(row.numero), orden: Number(row.orden)
+    };
+  }).sort(compareOrder_);
+  pasadas.forEach(function(pass) { if (byId[pass.tramoId]) byId[pass.tramoId].pasadas.push(pass); });
+  return validateDefinition_({
+    tramos: tramos, pasadas: pasadas, totalPasadas: pasadas.length,
+    numDescartes: pasadas.length === 1 ? 0 : 1
+  });
+}
+
+function compareOrder_(a, b) {
+  return Number(a.orden) - Number(b.orden);
+}
+
+function normalizeTramosConfig_(rawTramos) {
+  if (!Array.isArray(rawTramos) || !rawTramos.length || rawTramos.length > MAX_TRAMOS) {
+    throw new Error('La carrera debe contener entre 1 y ' + MAX_TRAMOS + ' tramos');
+  }
+  const ids = {};
+  return rawTramos.map(function(raw, index) {
+    const id = cellText_(raw && (raw.tramoId || raw.id)) || Utilities.getUuid();
+    const idas = Number(raw && raw.numIdas);
+    const vueltas = Number(raw && raw.numVueltas || 0);
+    if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$/.test(id) || ids[id]) throw new Error('Identificador de tramo inválido o duplicado');
+    if (!Number.isInteger(idas) || idas < 1 || !Number.isInteger(vueltas) || (vueltas !== 0 && vueltas !== idas)) {
+      throw new Error('Cada tramo requiere idas >= 1 y vueltas cero o iguales a las idas');
+    }
+    ids[id] = true;
+    return { tramoId: id, nombre: 'Tramo ' + (index + 1), orden: index + 1, numIdas: idas, numVueltas: vueltas, pasadas: [] };
+  });
+}
+
+function buildDefinitionFromTramos_(tramos, existingDefinition) {
+  const old = {};
+  (existingDefinition ? existingDefinition.pasadas : []).forEach(function(pass) {
+    old[pass.tramoId + '|' + pass.tipo + '|' + pass.numero] = pass;
+  });
+  const passes = [];
+  tramos.forEach(function(stage) {
+    let localOrder = 1;
+    for (let number = 1; number <= stage.numIdas; number++) {
+      ['ida', 'vuelta'].forEach(function(type) {
+        if (type === 'vuelta' && number > stage.numVueltas) return;
+        const previous = old[stage.tramoId + '|' + type + '|' + number];
+        const pass = {
+          pasadaId: previous ? previous.pasadaId : Utilities.getUuid(), tramoId: stage.tramoId,
+          label: (type === 'ida' ? 'Ida ' : 'Vuelta ') + number, tipo: type, numero: number,
+          orden: stage.orden * 1000 + localOrder++
+        };
+        stage.pasadas.push(pass);
+        passes.push(pass);
+      });
+    }
+  });
+  return validateDefinition_({
+    tramos: tramos, pasadas: passes, totalPasadas: passes.length,
+    numDescartes: passes.length === 1 ? 0 : 1
+  });
+}
+
+function writeRaceDefinition_(definition) {
+  validateDefinition_(definition);
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  writeObjects_(ss.getSheetByName(SHEET_TRAMOS), TRAMOS_HEADERS, definition.tramos);
+  writeObjects_(ss.getSheetByName(SHEET_PASADAS), PASADAS_HEADERS, definition.pasadas);
+}
+
+function recoverCarreraPublicationStatus_(config) {
+  const status = cellText_(config[CONFIG_CAMPEONATO_PUBLICADA] || 'NO').toUpperCase();
+  if (status !== 'PUBLICANDO') return status;
+  const started = new Date(config[CONFIG_CAMPEONATO_PUBLICACION_INICIADA] || '').getTime();
+  if (isFinite(started) && Date.now() - started <= CHAMPIONSHIP_PUBLICATION_LEASE_MS) return status;
+  updateConfigValue_(CONFIG_CAMPEONATO_PUBLICADA, 'PUBLICACION_INCIERTA');
+  updateConfigValue_(CONFIG_CAMPEONATO_PUBLICACION_INICIADA, '');
+  config[CONFIG_CAMPEONATO_PUBLICADA] = 'PUBLICACION_INCIERTA';
+  return 'PUBLICACION_INCIERTA';
+}
+
+function assertRaceMutable_() {
+  const status = recoverCarreraPublicationStatus_(getConfigValues_());
+  if (status === 'PUBLICANDO') throw new Error('La carrera se está publicando en el campeonato');
+  if (status === 'PUBLICACION_INCIERTA') {
+    throw new Error('El estado de publicación es incierto. Reintenta la publicación antes de modificar la carrera');
+  }
+  if (status === 'SI') throw new Error('La carrera ya está publicada y no admite cambios');
+}
+
+function assertCarreraAdmiteResultados_() {
+  assertRaceMutable_();
+  if (getConfigValue_(CONFIG_CARRERA_ESTADO).toUpperCase() !== 'INICIADA') {
+    throw new Error('La carrera está en configuración. Iníciala antes de registrar resultados');
+  }
+}
+
+function assertExpectedRace_(config, carreraId, revision) {
+  if (!carreraId || cellText_(carreraId) !== cellText_(config[CONFIG_CARRERA_ID])) {
+    throw new Error('La carrera ha cambiado. Actualiza los datos antes de continuar');
+  }
+  if (!Number.isInteger(Number(revision)) || Number(revision) !== Number(config[CONFIG_REVISION])) {
+    throw new Error('La configuración ha cambiado. Actualiza los datos antes de continuar');
+  }
+}
+
+function assertExpectedRaceIfProvided_(config, payload) {
+  if (payload && payload.carreraId !== undefined) {
+    if (cellText_(payload.carreraId) !== cellText_(config[CONFIG_CARRERA_ID])) {
+      throw new Error('La carrera ha cambiado. Actualiza las inscripciones');
+    }
+  }
+}
+
+function bumpConfigRevision_() {
+  const revision = Math.max(0, Number(getConfigValue_(CONFIG_REVISION)) || 0) + 1;
+  updateConfigValue_(CONFIG_REVISION, String(revision));
+  return revision;
+}
+
+function raceConfigResponse_(config) {
+  const definition = getRaceDefinition_();
+  return {
+    schemaVersion: CURRENT_SCHEMA_VERSION, carreraId: cellText_(config[CONFIG_CARRERA_ID]),
+    carrera: cellText_(config.CARRERA_ACTIVA), estado: cellText_(config[CONFIG_CARRERA_ESTADO]),
+    revision: Number(config[CONFIG_REVISION]) || 1,
+    publicacion: cellText_(config[CONFIG_CAMPEONATO_PUBLICADA]) || 'NO',
+    tramos: definition.tramos, pasadas: definition.pasadas,
+    totalPasadas: definition.totalPasadas, numDescartes: definition.numDescartes
+  };
+}
+
+function getConfiguracionCarrera(pin, adminPin) {
+  assertCredentials_(pin, adminPin);
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+    const config = getConfigValues_();
+    recoverCarreraPublicationStatus_(config);
+    return raceConfigResponse_(config);
+  } finally { lock.releaseLock(); }
+}
+
+function actualizarConfiguracionCarrera(pin, adminPin, payload) {
+  assertCredentials_(pin, adminPin);
+  payload = payload || {};
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+    assertRaceMutable_();
+    const config = getConfigValues_();
+    assertExpectedRace_(config, payload.carreraId, payload.revision);
+    if (config[CONFIG_CARRERA_ESTADO] !== 'CONFIGURACION') throw new Error('Los tramos solo se configuran antes de iniciar');
+    const definition = buildDefinitionFromTramos_(normalizeTramosConfig_(payload.tramos), getRaceDefinition_());
+    writeRaceDefinition_(definition);
+    config[CONFIG_REVISION] = String(bumpConfigRevision_());
+    refreshClasificacion_();
+    return raceConfigResponse_(config);
+  } finally { lock.releaseLock(); }
+}
+
+function guardarConfiguracionCarrera(pin, adminPin, payload) {
+  return actualizarConfiguracionCarrera(pin, adminPin, payload);
+}
+
+function iniciarCarrera(pin, adminPin, expectedCarreraId, expectedRevision) {
+  assertCredentials_(pin, adminPin);
+  const request = typeof expectedCarreraId === 'object'
+    ? expectedCarreraId : { carreraId: expectedCarreraId, revision: expectedRevision };
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+    assertRaceMutable_();
+    const config = getConfigValues_();
+    assertExpectedRace_(config, request.carreraId, request.revision);
+    if (config[CONFIG_CARRERA_ESTADO] === 'INICIADA') throw new Error('La carrera ya está iniciada');
+    validateDefinition_(getRaceDefinition_());
+    updateConfigValue_(CONFIG_CARRERA_ESTADO, 'INICIADA');
+    config[CONFIG_CARRERA_ESTADO] = 'INICIADA';
+    config[CONFIG_REVISION] = String(bumpConfigRevision_());
+    return raceConfigResponse_(config);
+  } finally { lock.releaseLock(); }
+}
+
+function aumentarPasadasCarrera(pin, adminPin, payload) {
+  assertCredentials_(pin, adminPin);
+  payload = payload || {};
+  const increment = Number(payload.incremento === undefined ? 1 : payload.incremento);
+  if (!Number.isInteger(increment) || increment < 1) throw new Error('Incremento de pasadas inválido');
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+    assertRaceMutable_();
+    const config = getConfigValues_();
+    assertExpectedRace_(config, payload.carreraId, payload.revision);
+    if (config[CONFIG_CARRERA_ESTADO] !== 'INICIADA') throw new Error('La carrera debe estar iniciada');
+    const current = getRaceDefinition_();
+    const selected = current.tramos.find(function(stage) { return stage.tramoId === cellText_(payload.tramoId); });
+    if (!selected) throw new Error('El tramo ya no existe. Actualiza la configuración');
+    const paired = selected.numVueltas > 0;
+    if ((paired && payload.modo !== 'par') || (!paired && payload.modo !== 'ida')) {
+      throw new Error(paired ? 'El tramo requiere parejas ida/vuelta' : 'El tramo solo admite idas');
+    }
+    const raw = current.tramos.map(function(stage) {
+      return {
+        tramoId: stage.tramoId,
+        numIdas: stage.numIdas + (stage.tramoId === selected.tramoId ? increment : 0),
+        numVueltas: stage.numVueltas + (stage.tramoId === selected.tramoId && paired ? increment : 0)
+      };
+    });
+    const definition = buildDefinitionFromTramos_(normalizeTramosConfig_(raw), current);
+    writeRaceDefinition_(definition);
+    config[CONFIG_REVISION] = String(bumpConfigRevision_());
+    refreshClasificacion_();
+    return raceConfigResponse_(config);
+  } finally { lock.releaseLock(); }
+}
+
+function incrementarPasadasCarrera(pin, adminPin, payload) {
+  return aumentarPasadasCarrera(pin, adminPin, payload);
+}
+
+function getPilotosDB_() {
+  return readObjects_(SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_PILOTOS_DB)).map(function(row) {
+    return {
+      pilotoId: cellText_(row.pilotoId), nombre: cellText_(row.nombre), alias: cellText_(row.alias),
+      activo: cellText_(row.activo) || 'SI', notas: cellText_(row.notas),
+      createdAt: formatDateForClient_(row.createdAt), updatedAt: formatDateForClient_(row.updatedAt)
+    };
+  }).filter(function(row) { return row.pilotoId && row.nombre; });
+}
+
+function getCategoriasDB_() {
+  return readObjects_(SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_CATEGORIAS_DB)).map(function(row) {
+    return {
+      categoriaId: cellText_(row.categoriaId), nombre: cellText_(row.nombre), activa: cellText_(row.activa) || 'SI',
+      orden: Number(row.orden || 999), notas: cellText_(row.notas),
+      createdAt: formatDateForClient_(row.createdAt), updatedAt: formatDateForClient_(row.updatedAt)
+    };
+  }).filter(function(row) { return row.categoriaId && row.nombre; }).sort(function(a, b) {
+    return a.orden - b.orden || a.nombre.localeCompare(b.nombre);
+  });
+}
+
+function getInscripciones_() {
+  return readObjects_(SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_INSCRIPCIONES)).map(function(row) {
+    return {
+      inscripcionId: cellText_(row.inscripcionId), pilotoId: cellText_(row.pilotoId),
+      categoriaId: cellText_(row.categoriaId), piloto: cellText_(row.piloto), categoria: cellText_(row.categoria)
+    };
+  }).filter(validInscripcion_);
+}
+
+function validInscripcion_(row) {
+  return Boolean(row.inscripcionId && row.pilotoId && row.categoriaId && row.piloto && row.categoria);
+}
+
+function getResultados_(carreraId) {
+  const currentCarreraId = cellText_(carreraId === undefined ? getConfigValue_(CONFIG_CARRERA_ID) : carreraId);
+  return readObjects_(SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_RESULTADOS)).map(normalizeResultObject_)
+    .filter(function(row) {
+      return row.resultadoId && row.inscripcionId && row.pasadaId && row.carreraId === currentCarreraId;
+    });
+}
+
+function normalizeResultObject_(row) {
+  return {
+    resultadoId: cellText_(row.resultadoId), timestamp: row.timestamp, carreraId: cellText_(row.carreraId),
+    inscripcionId: cellText_(row.inscripcionId), tramoId: cellText_(row.tramoId), pasadaId: cellText_(row.pasadaId),
+    piloto: cellText_(row.piloto), categoria: cellText_(row.categoria), pasadaLabel: cellText_(row.pasadaLabel),
+    tiempo: numberOrZero_(row.tiempo), penalizacion: numberOrZero_(row.penalizacion),
+    total: numberOrZero_(row.total), juez: cellText_(row.juez)
+  };
+}
+
+function buildResultadosFromValues_(values) {
+  if (!values || !values.length) return [];
+  const headers = values[0].map(cellText_);
+  return values.slice(1).map(function(row) {
+    const object = {};
+    headers.forEach(function(header, index) { object[header] = row[index]; });
+    return normalizeResultObject_(object);
+  }).filter(function(row) { return row.resultadoId; });
+}
+
+function getCategoriasActivas_() {
+  const categories = getCategoriasDB_().filter(function(row) { return row.activa.toUpperCase() !== 'NO'; })
+    .map(function(row) { return row.nombre; });
+  getInscripciones_().forEach(function(row) { categories.push(row.categoria); });
+  return Array.from(new Set(categories.filter(Boolean))).sort();
 }
 
 function getCategorias(pin) {
-  if (!validatePin_(pin)) {
-    throw new Error('PIN incorrecto');
-  }
-
+  if (!validatePin_(pin)) throw new Error('PIN incorrecto');
   return getCategoriasActivas_();
 }
 
 function getRegistroData(pin) {
   const config = getConfigValues_();
-
-  if (String(pin || '').trim() !== String(config.PIN || '').trim()) {
-    throw new Error('PIN incorrecto');
-  }
-
+  if (cellText_(pin) !== cellText_(config.PIN)) throw new Error('PIN incorrecto');
+  const definition = getRaceDefinition_();
   return {
-    categorias: getCategoriasActivas_(),
-    inscripciones: getInscripciones_(),
-    fetchedAt: Date.now(),
-    schemaVersion: CURRENT_SCHEMA_VERSION,
-    environment: config[CONFIG_ENVIRONMENT] || 'PRODUCTION'
+    categorias: getCategoriasActivas_(), inscripciones: getInscripciones_(), tramos: definition.tramos,
+    pasadas: definition.pasadas, totalPasadas: definition.totalPasadas,
+    carreraId: config[CONFIG_CARRERA_ID], carreraEstado: config[CONFIG_CARRERA_ESTADO],
+    configRevision: Number(config[CONFIG_REVISION]) || 1, fetchedAt: Date.now(),
+    schemaVersion: CURRENT_SCHEMA_VERSION, environment: config[CONFIG_ENVIRONMENT] || 'PRODUCTION'
   };
 }
 
-function getCategoriasActivas_() {
-  const categoriasFromDb = getCategoriasDB_()
-    .filter(categoria => String(categoria.activa || '').toUpperCase() !== 'NO')
-    .map(categoria => categoria.nombre)
-    .filter(Boolean);
-
-  if (categoriasFromDb.length > 0) {
-    return categoriasFromDb;
-  }
-
-  const inscripciones = getInscripciones_();
-
-  return [...new Set(inscripciones.map(item => item.categoria))]
-    .filter(Boolean)
-    .sort();
-}
-
 function getInscripcionesByCategoria(pin, categoria) {
-  if (!validatePin_(pin)) {
-    throw new Error('PIN incorrecto');
-  }
-
-  const cleanCategoria = String(categoria || '').trim();
-
-  return getInscripciones_()
-    .filter(item => String(item.categoria || '').trim() === cleanCategoria)
-    .sort((a, b) => {
-      const dorsalA = Number(a.dorsal);
-      const dorsalB = Number(b.dorsal);
-
-      if (!isNaN(dorsalA) && !isNaN(dorsalB)) {
-        return dorsalA - dorsalB;
-      }
-
-      return String(a.dorsal).localeCompare(String(b.dorsal));
-    });
+  if (!validatePin_(pin)) throw new Error('PIN incorrecto');
+  const filter = cellText_(categoria);
+  return getInscripciones_().filter(function(row) { return row.categoria === filter || row.categoriaId === filter; })
+    .sort(function(a, b) { return a.piloto.localeCompare(b.piloto); });
 }
 
-function getInscripciones_() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(SHEET_INSCRIPCIONES);
-
-  if (!sheet || sheet.getLastRow() < 2) {
-    return [];
+function resolvePassFromPayload_(payload, definition) {
+  const id = cellText_(payload && payload.pasadaId);
+  if (id) {
+    const pass = definition.pasadas.find(function(row) { return row.pasadaId === id; });
+    if (!pass) throw new Error('La pasada ya no existe. Actualiza la carrera');
+    return pass;
   }
-
-  const values = sheet.getDataRange().getValues();
-  const headers = values[0].map(function(header) {
-    return String(header || '').trim();
+  const number = Number(payload && payload.pasada);
+  const legacy = definition.pasadas.length === 6 && definition.pasadas.every(function(row, index) {
+    return row.pasadaId === 'P' + (index + 1);
   });
-
-  const result = [];
-
-  const hasPilotoId = headers.includes('pilotoId');
-
-  if (hasPilotoId) {
-    const map = getHeaderMapFromHeaders_(headers);
-
-    for (let i = 1; i < values.length; i++) {
-      const row = values[i];
-
-      const inscripcionId = String(row[map.inscripcionId] || '').trim();
-      const pilotoId = String(row[map.pilotoId] || '').trim();
-      const dorsal = String(row[map.dorsal] || '').trim();
-      const piloto = String(row[map.piloto] || '').trim();
-      const categoria = String(row[map.categoria] || '').trim();
-
-      if (!inscripcionId || !piloto || !categoria) {
-        continue;
-      }
-
-      result.push({
-        inscripcionId: inscripcionId,
-        pilotoId: pilotoId,
-        dorsal: dorsal,
-        piloto: piloto,
-        categoria: categoria
-      });
-    }
-
-    return result;
+  if (!legacy || !Number.isInteger(number) || number < 1 || number > 6) {
+    throw new Error('Esta interfaz está desactualizada. Recarga la aplicación');
   }
+  return definition.pasadas[number - 1];
+}
 
+function normalizeResultPayload_(payload, definition) {
+  if (!payload) throw new Error('No se han recibido datos');
+  const minutes = Number(payload.minutos || 0);
+  const seconds = Number(payload.segundos || 0);
+  const tenths = Number(payload.decimas || 0);
+  const penalty = parseNumber_(payload.penalizacion || 0);
+  if (!cellText_(payload.inscripcionId)) throw new Error('Selecciona un piloto');
+  if (!Number.isInteger(minutes) || minutes < 0 || !Number.isInteger(seconds) || seconds < 0 || seconds > 59 ||
+      !Number.isInteger(tenths) || tenths < 0 || tenths > 9 || !isFinite(penalty) || penalty < 0) {
+    throw new Error('Tiempo o penalización inválidos');
+  }
+  return {
+    inscripcionId: cellText_(payload.inscripcionId), pass: resolvePassFromPayload_(payload, definition),
+    tiempo: round3_(minutes * 60 + seconds + tenths / 10), penalizacion: round3_(penalty),
+    juez: cellText_(payload.juez) || 'Sin identificar'
+  };
+}
+
+function findResultadoRowIndex_(values, carreraId, inscripcionId, pasadaId) {
+  if (!values.length) return -1;
+  const map = getHeaderMapFromHeaders_(values[0]);
   for (let i = 1; i < values.length; i++) {
-    const row = values[i];
-
-    const inscripcionId = String(row[0] || '').trim();
-    const dorsal = String(row[1] || '').trim();
-    const piloto = String(row[2] || '').trim();
-    const categoria = String(row[3] || '').trim();
-
-    if (!inscripcionId || !piloto || !categoria) {
-      continue;
-    }
-
-    result.push({
-      inscripcionId: inscripcionId,
-      pilotoId: '',
-      dorsal: dorsal,
-      piloto: piloto,
-      categoria: categoria
-    });
+    if (cellText_(values[i][map.carreraId]) === cellText_(carreraId) &&
+        cellText_(values[i][map.inscripcionId]) === cellText_(inscripcionId) &&
+        cellText_(values[i][map.pasadaId]) === cellText_(pasadaId)) return i + 1;
   }
+  return -1;
+}
 
+function resultForClient_(row) {
+  const result = Object.assign({}, row);
+  result.timestamp = formatDateForClient_(row.timestamp);
   return result;
 }
 
 function saveResultado(pin, payload) {
-  if (!validatePin_(pin)) {
-    throw new Error('PIN incorrecto');
-  }
-
+  if (!validatePin_(pin)) throw new Error('PIN incorrecto');
   const lock = LockService.getScriptLock();
-
   try {
     lock.waitLock(10000);
     assertCarreraAdmiteResultados_();
-
-    const data = normalizePayload_(payload);
-    const inscripciones = getInscripciones_();
-    const inscripcion = inscripciones.find(function(item) {
-      return item.inscripcionId === data.inscripcionId;
-    });
-
-    if (!inscripcion) {
-      throw new Error('No se ha encontrado la inscripción seleccionada');
-    }
-
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const sheet = ss.getSheetByName(SHEET_RESULTADOS);
+    const config = getConfigValues_();
+    assertExpectedRace_(config, payload && payload.carreraId, payload && payload.configRevision);
+    const data = normalizeResultPayload_(payload, getRaceDefinition_());
+    const inscription = getInscripciones_().find(function(row) { return row.inscripcionId === data.inscripcionId; });
+    if (!inscription) throw new Error('No se ha encontrado la inscripción');
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_RESULTADOS);
     const values = sheet.getDataRange().getValues();
-
-    const existingRowIndex = findResultadoRowIndex_(
-      values,
-      data.inscripcionId,
-      data.pasada
-    );
-
-    const pasadaLabel = getPasadaLabel_(data.pasada);
-    const total = round3_(data.tiempo + data.penalizacion);
-
-    if (existingRowIndex !== -1) {
-      const existing = values[existingRowIndex - 1];
-
-      return {
-        status: 'DUPLICATE',
-        message: 'Ya existe un resultado para esta inscripción y pasada. No se ha guardado ningún cambio.',
-        existing: {
-          resultadoId: String(existing[0] || ''),
-          timestamp: formatDateForClient_(existing[1]),
-          inscripcionId: String(existing[2] || ''),
-          dorsal: String(existing[3] || ''),
-          piloto: String(existing[4] || ''),
-          categoria: String(existing[5] || ''),
-          pasada: String(existing[6] || ''),
-          pasadaLabel: String(existing[7] || ''),
-          tiempo: String(existing[8] || ''),
-          penalizacion: String(existing[9] || ''),
-          total: String(existing[10] || ''),
-          juez: String(existing[11] || '')
-        }
-      };
-    }
-
-    const row = [
-      existingRowIndex !== -1 ? values[existingRowIndex - 1][0] : Utilities.getUuid(),
-      new Date(),
-      inscripcion.inscripcionId,
-      inscripcion.dorsal,
-      inscripcion.piloto,
-      inscripcion.categoria,
-      data.pasada,
-      pasadaLabel,
-      data.tiempo,
-      data.penalizacion,
-      total,
-      data.juez
-    ];
-
-    if (existingRowIndex !== -1) {
-      sheet.getRange(existingRowIndex, 1, 1, row.length).setValues([row]);
-    } else {
-      sheet.appendRow(row);
-    }
-
-    const resultadosActualizados = buildResultadosFromValues_(values.concat([row]));
-    refreshClasificacion_(inscripciones, resultadosActualizados);
-
-    const pasadasRegistradas = values
-      .slice(1)
-      .filter(function(existingRow) {
-        return String(existingRow[2] || '').trim() === data.inscripcionId;
-      })
-      .map(function(existingRow) {
-        return Number(existingRow[6]);
-      })
-      .concat([data.pasada])
-      .filter(function(pasada, index, all) {
-        return PASADAS.some(function(item) {
-          return item.num === pasada;
-        }) && all.indexOf(pasada) === index;
-      })
-      .sort(function(a, b) {
-        return a - b;
+    if (findResultadoRowIndex_(values, config[CONFIG_CARRERA_ID], data.inscripcionId, data.pass.pasadaId) !== -1) {
+      const existing = getResultados_(config[CONFIG_CARRERA_ID]).find(function(row) {
+        return row.carreraId === config[CONFIG_CARRERA_ID] && row.inscripcionId === data.inscripcionId && row.pasadaId === data.pass.pasadaId;
       });
-
-    return {
-      status: existingRowIndex !== -1 ? 'UPDATED' : 'CREATED',
-      message: existingRowIndex !== -1 ? 'Resultado actualizado' : 'Resultado guardado',
-      saved: {
-        dorsal: inscripcion.dorsal,
-        piloto: inscripcion.piloto,
-        categoria: inscripcion.categoria,
-        pasada: data.pasada,
-        pasadaLabel,
-        tiempo: data.tiempo,
-        penalizacion: data.penalizacion,
-        total
-      },
-      pasadasRegistradas: pasadasRegistradas
-    };
-
-  } finally {
-    lock.releaseLock();
-  }
-}
-
-function normalizePayload_(payload) {
-  if (!payload) {
-    throw new Error('No se han recibido datos');
-  }
-
-  const inscripcionId = String(payload.inscripcionId || '').trim();
-  const pasada = Number(payload.pasada);
-  const minutos = Number(payload.minutos || 0);
-  const segundos = Number(payload.segundos || 0);
-  const decimas = Number(payload.decimas || 0);
-  const tiempo = minutos * 60 + segundos + (decimas / 10);
-  const penalizacion = parseNumber_(payload.penalizacion || 0);
-  const juez = String(payload.juez || '').trim() || 'Sin identificar';
-  const overwrite = Boolean(payload.overwrite);
-
-  if (!inscripcionId) {
-    throw new Error('Debes seleccionar un piloto');
-  }
-
-  if (!PASADAS.some(p => p.num === pasada)) {
-    throw new Error('La pasada seleccionada no es válida');
-  }
-
-  if (
-    isNaN(minutos) || minutos < 0 ||
-    isNaN(segundos) || segundos < 0 || segundos > 59 ||
-    isNaN(decimas) || decimas < 0 || decimas > 9 ||
-    isNaN(tiempo) || tiempo < 0
-  ) {
-    throw new Error('El tiempo no es válido');
-  }
-
-  if (isNaN(penalizacion) || penalizacion < 0) {
-    throw new Error('La penalización no es válida');
-  }
-
-  return {
-    inscripcionId,
-    pasada,
-    tiempo: round3_(tiempo),
-    penalizacion: round3_(penalizacion),
-    juez,
-    overwrite
-  };
-}
-
-function parseNumber_(value) {
-  if (typeof value === 'number') {
-    return value;
-  }
-
-  const normalized = String(value || '')
-    .trim()
-    .replace(',', '.');
-
-  return Number(normalized);
-}
-
-function round3_(number) {
-  return Math.round(Number(number) * 1000) / 1000;
-}
-
-function findInscripcion_(inscripcionId) {
-  return getInscripciones_().find(item => item.inscripcionId === inscripcionId);
-}
-
-function findResultadoRowIndex_(values, inscripcionId, pasada) {
-  for (let i = 1; i < values.length; i++) {
-    const rowInscripcionId = String(values[i][2] || '').trim();
-    const rowPasada = Number(values[i][6]);
-
-    if (rowInscripcionId === inscripcionId && rowPasada === pasada) {
-      return i + 1;
+      return { status: 'DUPLICATE', message: 'Ya existe un resultado para esta inscripción y pasada.', existing: resultForClient_(existing) };
     }
-  }
-
-  return -1;
+    const row = {
+      resultadoId: Utilities.getUuid(), timestamp: new Date(), carreraId: config[CONFIG_CARRERA_ID],
+      inscripcionId: inscription.inscripcionId, tramoId: data.pass.tramoId, pasadaId: data.pass.pasadaId,
+      piloto: inscription.piloto, categoria: inscription.categoria, pasadaLabel: data.pass.label,
+      tiempo: data.tiempo, penalizacion: data.penalizacion, total: round3_(data.tiempo + data.penalizacion), juez: data.juez
+    };
+    appendObject_(sheet, row);
+    refreshClasificacion_();
+    return { status: 'CREATED', message: 'Resultado guardado', saved: resultForClient_(row), pasadasRegistradas: getRegisteredPassIds_(data.inscripcionId) };
+  } finally { lock.releaseLock(); }
 }
 
-function getPasadaLabel_(pasada) {
-  const found = PASADAS.find(p => p.num === Number(pasada));
-  return found ? found.label : '';
+function getRegisteredPassIds_(inscripcionId) {
+  const definition = getRaceDefinition_();
+  const order = {};
+  definition.pasadas.forEach(function(pass) { order[pass.pasadaId] = pass.orden; });
+  return Array.from(new Set(getResultados_().filter(function(row) {
+    return row.inscripcionId === inscripcionId && order[row.pasadaId] !== undefined;
+  }).map(function(row) { return row.pasadaId; }))).sort(function(a, b) { return order[a] - order[b]; });
 }
 
-function getClasificacion(pin, categoria) {
-  if (!validatePin_(pin)) {
-    throw new Error('PIN incorrecto');
-  }
-
-  return buildClasificacion_(categoria);
+function getPasadasRegistradas(pin, inscripcionId) {
+  if (!validatePin_(pin)) throw new Error('PIN incorrecto');
+  const ids = getRegisteredPassIds_(cellText_(inscripcionId));
+  const definition = getRaceDefinition_();
+  const legacy = definition.pasadas.length === 6 && definition.pasadas.every(function(row, index) { return row.pasadaId === 'P' + (index + 1); });
+  return legacy ? ids.map(function(id) { return Number(id.slice(1)); }) : ids;
 }
 
-function refreshClasificacion_(inscripciones, resultados) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(SHEET_CLASIFICACION);
+function getResultadoParaCorreccion(pin, adminPin, inscripcionId, pasada) {
+  assertCredentials_(pin, adminPin);
+  const request = typeof pasada === 'object' ? pasada : { pasada: pasada };
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+    const config = getConfigValues_();
+    assertExpectedRace_(config, request.carreraId, request.configRevision);
+    const pass = resolvePassFromPayload_(request, getRaceDefinition_());
+    const result = getResultados_(config[CONFIG_CARRERA_ID]).find(function(row) {
+      return row.inscripcionId === cellText_(inscripcionId) && row.pasadaId === pass.pasadaId;
+    });
+    if (!result) return { status: 'NOT_FOUND', message: 'No existe ningún resultado para la pasada seleccionada.' };
+    const client = resultForClient_(result);
+    client.configRevision = Number(config[CONFIG_REVISION]);
+    Object.assign(client, secondsToTimeParts_(result.tiempo));
+    return { status: 'FOUND', resultado: client };
+  } finally { lock.releaseLock(); }
+}
 
-  const headers = [
-    'categoria',
-    'dorsal',
-    'piloto',
-    'ida1',
-    'vuelta1',
-    'ida2',
-    'vuelta2',
-    'ida3',
-    'vuelta3',
-    'descartada',
-    'penalizaciones',
-    'total',
-    'gap',
-    'estado'
-  ];
-
-  const rows = buildClasificacion_('', inscripciones, resultados);
-
-  const values = rows.map(function(row) {
-    return [
-      row.categoria,
-      row.dorsal,
-      row.piloto,
-      row.ida1,
-      row.vuelta1,
-      row.ida2,
-      row.vuelta2,
-      row.ida3,
-      row.vuelta3,
-      row.descartada,
-      row.penalizaciones,
-      row.total,
-      row.gap,
-      row.estado
-    ];
-  });
-
-  sheet.clearContents();
-
-  sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-
-  if (values.length > 0) {
-    sheet.getRange(2, 1, values.length, headers.length).setValues(values);
-  }
-
+function corregirResultado(pin, adminPin, payload) {
+  assertCredentials_(pin, adminPin);
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+    assertCarreraAdmiteResultados_();
+    const config = getConfigValues_();
+    assertExpectedRace_(config, payload && payload.carreraId, payload && payload.configRevision);
+    const data = normalizeResultPayload_(payload, getRaceDefinition_());
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_RESULTADOS);
+    const values = sheet.getDataRange().getValues();
+    const index = findResultadoRowIndex_(values, config[CONFIG_CARRERA_ID], data.inscripcionId, data.pass.pasadaId);
+    if (index === -1) throw new Error('No existe ningún resultado para corregir');
+    const map = getHeaderMapFromHeaders_(values[0]);
+    const row = values[index - 1].slice();
+    row[map.timestamp] = new Date();
+    row[map.tiempo] = data.tiempo;
+    row[map.penalizacion] = data.penalizacion;
+    row[map.total] = round3_(data.tiempo + data.penalizacion);
+    row[map.juez] = data.juez + ' - Corrección';
+    sheet.getRange(index, 1, 1, row.length).setValues([row]);
+    refreshClasificacion_();
+    const saved = resultForClient_(buildResultadosFromValues_([values[0], row])[0]);
+    saved.configRevision = Number(config[CONFIG_REVISION]);
+    return { status: 'OK', message: 'Resultado corregido correctamente', saved: saved };
+  } finally { lock.releaseLock(); }
 }
 
 function buildClasificacion_(categoriaFilter, inscripcionesInput, resultadosInput) {
-  const inscripciones = (inscripcionesInput || getInscripciones_())
-    .filter(item => !categoriaFilter || item.categoria === categoriaFilter);
-
-  const resultados = resultadosInput || getResultados_();
-  const resultadosByInscripcion = {};
-
-  resultados.forEach(function(resultado) {
-    if (!resultadosByInscripcion[resultado.inscripcionId]) {
-      resultadosByInscripcion[resultado.inscripcionId] = [];
-    }
-
-    resultadosByInscripcion[resultado.inscripcionId].push(resultado);
+  const hasInjectedResults = Array.isArray(resultadosInput);
+  const currentCarreraId = hasInjectedResults ? '' : getConfigValue_(CONFIG_CARRERA_ID);
+  const definition = getRaceDefinition_();
+  const passById = {};
+  definition.pasadas.forEach(function(pass) { passById[pass.pasadaId] = pass; });
+  const inscriptions = (inscripcionesInput || getInscripciones_()).filter(function(row) {
+    return !categoriaFilter || row.categoria === categoriaFilter || row.categoriaId === categoriaFilter;
   });
-
-  const rows = inscripciones.map(inscripcion => {
-    const pilotoResultados = resultadosByInscripcion[inscripcion.inscripcionId] || [];
-
-    const tiempos = {};
-
-    PASADAS.forEach(pasada => {
-      const found = pilotoResultados.find(r => Number(r.pasada) === pasada.num);
-      tiempos[pasada.num] = found ? Number(found.total) : '';
+  const grouped = {};
+  (hasInjectedResults ? resultadosInput : getResultados_(currentCarreraId)).filter(function(result) {
+    return !currentCarreraId || result.carreraId === currentCarreraId;
+  }).forEach(function(result) {
+    if (!passById[result.pasadaId]) return;
+    if (!grouped[result.inscripcionId]) grouped[result.inscripcionId] = {};
+    grouped[result.inscripcionId][result.pasadaId] = result;
+  });
+  const rows = inscriptions.map(function(inscription) {
+    const byPass = grouped[inscription.inscripcionId] || {};
+    const passes = definition.pasadas.map(function(pass) {
+      const result = byPass[pass.pasadaId];
+      return {
+        pasadaId: pass.pasadaId, tramoId: pass.tramoId, label: pass.label, tipo: pass.tipo,
+        numero: pass.numero, orden: pass.orden, tiempo: result ? result.tiempo : '',
+        penalizacion: result ? result.penalizacion : '', total: result ? result.total : '', descartada: false
+      };
     });
-
-    const penalizaciones = pilotoResultados.reduce((sum, r) => {
-      return sum + Number(r.penalizacion || 0);
-    }, 0);
-
-    const completedCount = PASADAS.filter(p => tiempos[p.num] !== '').length;
-
-    let total = '';
-    let estado = 'Sin resultados';
-    let descartada = '';
-
-    const valoresRegistrados = PASADAS
-      .map(p => ({
-        pasada: p.num,
-        label: p.label,
-        valor: tiempos[p.num] !== '' ? Number(tiempos[p.num]) : ''
-      }))
-      .filter(item => item.valor !== '');
-
-    if (completedCount > 0 && completedCount < 6) {
-      total = round3_(
-        valoresRegistrados.reduce((sum, item) => sum + Number(item.valor), 0)
-      );
-
-      estado = penalizaciones > 0 ? 'Pendiente con penalización' : 'Pendiente';
+    const registered = passes.filter(function(pass) { return pass.total !== ''; });
+    const complete = registered.length === definition.totalPasadas;
+    let discarded = null;
+    if (complete && definition.numDescartes === 1) {
+      discarded = registered.slice().sort(function(a, b) { return Number(b.total) - Number(a.total) || b.orden - a.orden; })[0];
+      discarded.descartada = true;
     }
-
-    if (completedCount === 6) {
-      const peor = [...valoresRegistrados].sort((a, b) => b.valor - a.valor)[0];
-
-      descartada = peor.label + ' - ' + peor.valor;
-
-      const valoresValidos = valoresRegistrados.filter(item => item.pasada !== peor.pasada);
-
-      total = round3_(
-        valoresValidos.reduce((sum, item) => sum + Number(item.valor), 0)
-      );
-
-      estado = penalizaciones > 0 ? 'Completo con penalización' : 'Completo';
-    }
-
+    const total = registered.length ? round3_(registered.reduce(function(sum, pass) {
+      return sum + (discarded && pass.pasadaId === discarded.pasadaId ? 0 : Number(pass.total));
+    }, 0)) : '';
+    const penalties = round3_(registered.reduce(function(sum, pass) { return sum + Number(pass.penalizacion || 0); }, 0));
     return {
-      inscripcionId: inscripcion.inscripcionId,
-      categoria: inscripcion.categoria,
-      dorsal: inscripcion.dorsal,
-      piloto: inscripcion.piloto,
-      ida1: tiempos[1],
-      vuelta1: tiempos[2],
-      ida2: tiempos[3],
-      vuelta2: tiempos[4],
-      ida3: tiempos[5],
-      vuelta3: tiempos[6],
-      descartada,
-      penalizaciones: round3_(penalizaciones),
-      total,
-      gap: '',
-      completadas: completedCount,
-      estado
+      inscripcionId: inscription.inscripcionId, pilotoId: inscription.pilotoId, categoriaId: inscription.categoriaId,
+      piloto: inscription.piloto, categoria: inscription.categoria, pasadas: passes,
+      descartada: discarded ? discarded.label + ' - ' + discarded.total : '', penalizaciones: penalties,
+      total: total, gap: '', completadas: registered.length, previstas: definition.totalPasadas,
+      firmaCompletadas: registered.map(function(pass) { return pass.pasadaId; }).sort().join('|'),
+      estado: !registered.length ? 'Sin resultados' : complete
+        ? (penalties ? 'Completo con penalización' : 'Completo')
+        : (penalties ? 'Pendiente con penalización' : 'Pendiente')
     };
   });
-
-  rows.sort((a, b) => {
-    const aHasTotal = a.total !== '';
-    const bHasTotal = b.total !== '';
-
-    if (aHasTotal && !bHasTotal) {
-      return -1;
-    }
-
-    if (!aHasTotal && bHasTotal) {
-      return 1;
-    }
-
-    if (aHasTotal && bHasTotal) {
-      const totalDiff = Number(a.total) - Number(b.total);
-
-      if (totalDiff !== 0) {
-        return totalDiff;
-      }
-    }
-
-    if (a.categoria !== b.categoria) {
-      return a.categoria.localeCompare(b.categoria);
-    }
-
-    const dorsalA = Number(a.dorsal);
-    const dorsalB = Number(b.dorsal);
-
-    if (!isNaN(dorsalA) && !isNaN(dorsalB)) {
-      return dorsalA - dorsalB;
-    }
-
-    return String(a.dorsal).localeCompare(String(b.dorsal));
+  rows.sort(function(a, b) {
+    if (a.total === '' && b.total !== '') return 1;
+    if (a.total !== '' && b.total === '') return -1;
+    if (a.total !== b.total) return Number(a.total) - Number(b.total);
+    return a.categoria.localeCompare(b.categoria) || a.piloto.localeCompare(b.piloto);
   });
-
   rows.forEach(function(row, index) {
-    if (row.total === '') {
-      row.gap = '';
-      return;
-    }
-
-    if (index === 0) {
-      row.gap = '-';
-      return;
-    }
-
-    const previousRow = rows[index - 1];
-
-    const sameCompletedCount =
-      previousRow &&
-      previousRow.total !== '' &&
-      Number(previousRow.completadas) === Number(row.completadas);
-
-    if (!sameCompletedCount) {
-      row.gap = '-';
-      return;
-    }
-
-    row.gap = round3_(Number(row.total) - Number(previousRow.total));
+    if (row.total === '') return;
+    const previous = index ? rows[index - 1] : null;
+    row.gap = previous && previous.total !== '' && previous.categoriaId === row.categoriaId &&
+      previous.firmaCompletadas === row.firmaCompletadas
+      ? round3_(Number(row.total) - Number(previous.total)) : '-';
   });
-
   return rows;
 }
 
-function getResultados_() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(SHEET_RESULTADOS);
-  const values = sheet.getDataRange().getValues();
-
-  return buildResultadosFromValues_(values);
+function refreshClasificacion_(inscripciones, resultados) {
+  writeObjects_(SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_CLASIFICACION),
+    CLASIFICACION_HEADERS, buildClasificacion_('', inscripciones, resultados));
 }
 
-function buildResultadosFromValues_(values) {
+function getClasificacion(pin, categoria) {
+  if (!validatePin_(pin)) throw new Error('PIN incorrecto');
+  return buildClasificacion_(categoria);
+}
 
-  const result = [];
+function calcularMetricasConstancia_(values, type) {
+  const numbers = values.filter(function(row) { return !type || row.tipo === type; }).map(function(row) { return Number(row.valor); });
+  if (!numbers.length) return { mejor: '', peor: '', media: '', diferencia: '' };
+  const best = Math.min.apply(null, numbers);
+  const worst = Math.max.apply(null, numbers);
+  return {
+    mejor: round3_(best), peor: round3_(worst),
+    media: round3_(numbers.reduce(function(sum, value) { return sum + value; }, 0) / numbers.length),
+    diferencia: numbers.length > 1 ? round3_(worst - best) : ''
+  };
+}
 
-  for (let i = 1; i < values.length; i++) {
-    const row = values[i];
-
-    if (!row[0]) {
-      continue;
-    }
-
-    result.push({
-      resultadoId: row[0],
-      timestamp: row[1],
-      inscripcionId: String(row[2] || '').trim(),
-      dorsal: String(row[3] || '').trim(),
-      piloto: String(row[4] || '').trim(),
-      categoria: String(row[5] || '').trim(),
-      pasada: Number(row[6]),
-      pasadaLabel: String(row[7] || '').trim(),
-      tiempo: Number(row[8] || 0),
-      penalizacion: Number(row[9] || 0),
-      total: Number(row[10] || 0),
-      juez: String(row[11] || '').trim()
+function buildDashboardConstancia_() {
+  return buildClasificacion_('').map(function(row) {
+    const values = row.pasadas.filter(function(pass) { return pass.total !== ''; }).map(function(pass) {
+      return { pasadaId: pass.pasadaId, tramoId: pass.tramoId, label: pass.label, tipo: pass.tipo, valor: pass.total };
     });
-  }
-
-  return result;
+    const all = calcularMetricasConstancia_(values, '');
+    const idas = calcularMetricasConstancia_(values, 'ida');
+    const vueltas = calcularMetricasConstancia_(values, 'vuelta');
+    let accumulated = 0;
+    return Object.assign({
+      inscripcionId: row.inscripcionId, pilotoId: row.pilotoId, categoriaId: row.categoriaId,
+      piloto: row.piloto, categoria: row.categoria, pasadas: row.pasadas,
+      tiemposPorPasada: values,
+      progresionAcumulada: row.pasadas.map(function(pass) {
+        if (pass.total === '') return { pasadaId: pass.pasadaId, tramoId: pass.tramoId, label: pass.label, tipo: pass.tipo, valor: '' };
+        accumulated = round3_(accumulated + Number(pass.total));
+        return { pasadaId: pass.pasadaId, tramoId: pass.tramoId, label: pass.label, tipo: pass.tipo, valor: accumulated };
+      }),
+      completadas: row.completadas, previstas: row.previstas, progreso: row.completadas + '/' + row.previstas,
+      estado: row.estado
+    }, {
+      mejor: all.mejor, peor: all.peor, media: all.media, diferencia: all.diferencia,
+      mejorIdas: idas.mejor, peorIdas: idas.peor, mediaIdas: idas.media, diferenciaIdas: idas.diferencia,
+      mejorVueltas: vueltas.mejor, peorVueltas: vueltas.peor, mediaVueltas: vueltas.media, diferenciaVueltas: vueltas.diferencia
+    });
+  });
 }
 
-function resetDemoData_() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-
-  const resultados = ss.getSheetByName(SHEET_RESULTADOS);
-  resultados.clearContents();
-  resultados.getRange(1, 1, 1, 12).setValues([[
-    'resultadoId',
-    'timestamp',
-    'inscripcionId',
-    'dorsal',
-    'piloto',
-    'categoria',
-    'pasada',
-    'pasadaLabel',
-    'tiempo',
-    'penalizacion',
-    'total',
-    'juez'
-  ]]);
-
-  refreshClasificacion_();
+function getDashboardData(pin) {
+  if (!validatePin_(pin)) throw new Error('PIN incorrecto');
+  const definition = getRaceDefinition_();
+  const rows = buildDashboardConstancia_();
+  return {
+    carrera: getConfigValue_('CARRERA_ACTIVA') || 'Rally RC', updatedAt: nowString_(),
+    tramos: definition.tramos, pasadas: definition.pasadas,
+    categorias: Array.from(new Set(rows.map(function(row) { return row.categoria; }))).sort(),
+    pilotos: Array.from(new Set(rows.map(function(row) { return row.piloto; }))).sort(), rows: rows
+  };
 }
-function updateConfigValue_(key, value) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(SHEET_CONFIG);
+
+function getDashboardPilotos(pin, categoria) {
+  if (!validatePin_(pin)) throw new Error('PIN incorrecto');
+  return Array.from(new Set(getInscripciones_().filter(function(row) {
+    return !categoria || row.categoria === categoria || row.categoriaId === categoria;
+  }).map(function(row) { return row.piloto; }))).sort();
+}
+
+function getAdminCatalogosData(pin, adminPin) {
+  assertCredentials_(pin, adminPin);
+  return { pilotos: getPilotosDB_(), categorias: getCategoriasDB_(), inscripciones: getInscripciones_() };
+}
+
+function getPilotoDBById_(id) {
+  return getPilotosDB_().find(function(row) { return row.pilotoId === cellText_(id); });
+}
+
+function getCategoriaDBByIdOrName_(value) {
+  const text = cellText_(value);
+  return getCategoriasDB_().find(function(row) { return row.categoriaId === text || normalizeText_(row.nombre) === normalizeText_(text); });
+}
+
+function validateEnrollment_(payload, currentId, inscriptions) {
+  payload = payload || {};
+  const pilot = getPilotoDBById_(payload.pilotoId);
+  const category = getCategoriaDBByIdOrName_(payload.categoriaId || payload.categoria);
+  if (!pilot || pilot.activo.toUpperCase() === 'NO') throw new Error('Piloto inexistente o inactivo');
+  if (!category || category.activa.toUpperCase() === 'NO') throw new Error('Categoría inexistente o inactiva');
+  if ((inscriptions || getInscripciones_()).some(function(row) {
+    return row.inscripcionId !== currentId && row.pilotoId === pilot.pilotoId && row.categoriaId === category.categoriaId;
+  })) throw new Error('Este piloto ya está inscrito en esta categoría');
+  return { piloto: pilot, categoria: category };
+}
+
+function getNextInscripcionId_() {
+  return getNextId_('I', getInscripciones_().map(function(row) { return row.inscripcionId; }));
+}
+
+function getInscripcionRowIndex_(id) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_INSCRIPCIONES);
   const values = sheet.getDataRange().getValues();
-
-  for (let i = 1; i < values.length; i++) {
-    if (String(values[i][0]).trim() === key) {
-      sheet.getRange(i + 1, 2).setValue(value);
-      return;
-    }
-  }
-
-  sheet.appendRow([key, value]);
+  const map = getHeaderMapFromHeaders_(values[0]);
+  for (let i = 1; i < values.length; i++) if (cellText_(values[i][map.inscripcionId]) === cellText_(id)) return i + 1;
+  return -1;
 }
 
-function ensureCarreraPublicationConfig_() {
-  const config = getConfigValues_();
-
-  if (!String(config[CONFIG_CARRERA_ID] || '').trim()) {
-    updateConfigValue_(CONFIG_CARRERA_ID, Utilities.getUuid());
-  }
-
-  if (!String(config[CONFIG_CAMPEONATO_PUBLICADA] || '').trim()) {
-    updateConfigValue_(CONFIG_CAMPEONATO_PUBLICADA, 'NO');
-  }
-
-  if (config[CONFIG_CAMPEONATO_PUBLICACION_INICIADA] === undefined) {
-    updateConfigValue_(CONFIG_CAMPEONATO_PUBLICACION_INICIADA, '');
-  }
+function inscripcionTieneResultados_(id) {
+  return getResultados_().some(function(row) { return row.inscripcionId === cellText_(id); });
 }
 
-function assertCarreraAdmiteResultados_() {
-  const status = recoverCarreraPublicationStatus_(getConfigValues_());
-
-  if (status === 'PUBLICANDO') {
-    throw new Error('La carrera se está publicando en el campeonato');
-  }
-
-  if (status === 'SI') {
-    throw new Error('La carrera ya está publicada. Las correcciones deben hacerse en la hoja del campeonato');
-  }
-}
-
-function recoverCarreraPublicationStatus_(config) {
-  const status = String(config[CONFIG_CAMPEONATO_PUBLICADA] || 'NO').toUpperCase();
-
-  if (status !== 'PUBLICANDO') {
-    return status;
-  }
-
-  const startedAt = new Date(
-    String(config[CONFIG_CAMPEONATO_PUBLICACION_INICIADA] || '')
-  ).getTime();
-  const stale = !isFinite(startedAt) || Date.now() - startedAt > CHAMPIONSHIP_PUBLICATION_LEASE_MS;
-
-  if (!stale) {
-    return status;
-  }
-
-  updateConfigValue_(CONFIG_CAMPEONATO_PUBLICADA, 'NO');
-  updateConfigValue_(CONFIG_CAMPEONATO_PUBLICACION_INICIADA, '');
-  config[CONFIG_CAMPEONATO_PUBLICADA] = 'NO';
-  config[CONFIG_CAMPEONATO_PUBLICACION_INICIADA] = '';
-  return 'NO';
-}
-
-function generarNuevaCarrera(pin, adminPin, nombreCarrera) {
-  if (!validatePin_(pin)) {
-    throw new Error('PIN de carrera incorrecto');
-  }
-
-  if (!validateAdminPin_(adminPin)) {
-    throw new Error('Contraseña de administración incorrecta');
-  }
-
+function crearInscripcionAdmin(pin, adminPin, payload) {
+  assertCredentials_(pin, adminPin);
   const lock = LockService.getScriptLock();
-
   try {
     lock.waitLock(10000);
+    assertRaceMutable_();
+    const config = getConfigValues_();
+    assertExpectedRaceIfProvided_(config, payload);
+    const validated = validateEnrollment_(payload, '', getInscripciones_());
+    const row = {
+      inscripcionId: getNextInscripcionId_(), pilotoId: validated.piloto.pilotoId,
+      categoriaId: validated.categoria.categoriaId, piloto: validated.piloto.nombre, categoria: validated.categoria.nombre
+    };
+    appendObject_(SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_INSCRIPCIONES), row);
+    refreshClasificacion_();
+    return { status: 'OK', message: 'Inscripción creada correctamente', inscripcion: row };
+  } finally { lock.releaseLock(); }
+}
 
-    if (recoverCarreraPublicationStatus_(getConfigValues_()) === 'PUBLICANDO') {
-      throw new Error('Espera a que termine la publicación del campeonato');
+function editarInscripcionAdmin(pin, adminPin, payload) {
+  assertCredentials_(pin, adminPin);
+  payload = payload || {};
+  const id = cellText_(payload.inscripcionId);
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+    assertRaceMutable_();
+    assertExpectedRaceIfProvided_(getConfigValues_(), payload);
+    if (!id) throw new Error('inscripcionId es obligatorio');
+    if (inscripcionTieneResultados_(id)) throw new Error('No se puede editar una inscripción con resultados');
+    const validated = validateEnrollment_(payload, id, getInscripciones_());
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_INSCRIPCIONES);
+    const index = getInscripcionRowIndex_(id);
+    if (index === -1) throw new Error('No se ha encontrado la inscripción');
+    const map = getHeaderMap_(sheet);
+    const row = { inscripcionId: id, pilotoId: validated.piloto.pilotoId, categoriaId: validated.categoria.categoriaId,
+      piloto: validated.piloto.nombre, categoria: validated.categoria.nombre };
+    INSCRIPCIONES_HEADERS.forEach(function(header) { sheet.getRange(index, map[header] + 1).setValue(row[header]); });
+    refreshClasificacion_();
+    return { status: 'OK', message: 'Inscripción actualizada correctamente', inscripcion: row };
+  } finally { lock.releaseLock(); }
+}
+
+function eliminarInscripcionAdmin(pin, adminPin, inscripcionId) {
+  assertCredentials_(pin, adminPin);
+  const request = typeof inscripcionId === 'object' ? inscripcionId : { inscripcionId: inscripcionId };
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+    assertRaceMutable_();
+    assertExpectedRaceIfProvided_(getConfigValues_(), request);
+    const id = cellText_(request.inscripcionId);
+    if (!id) throw new Error('inscripcionId es obligatorio');
+    if (inscripcionTieneResultados_(id)) throw new Error('No se puede eliminar una inscripción con resultados');
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_INSCRIPCIONES);
+    const index = getInscripcionRowIndex_(id);
+    if (index === -1) throw new Error('No se ha encontrado la inscripción');
+    sheet.deleteRow(index);
+    refreshClasificacion_();
+    return { status: 'OK', message: 'Inscripción eliminada correctamente' };
+  } finally { lock.releaseLock(); }
+}
+
+function createPilotUnlocked_(payload) {
+  payload = payload || {};
+  const name = cellText_(payload.nombre);
+  if (!name) throw new Error('El nombre del piloto es obligatorio');
+  const pilots = getPilotosDB_();
+  if (pilots.some(function(row) { return normalizeText_(row.nombre) === normalizeText_(name); })) throw new Error('Ya existe un piloto con ese nombre');
+  const now = nowString_();
+  const pilot = {
+    pilotoId: getNextId_('P', pilots.map(function(row) { return row.pilotoId; })), nombre: name,
+    alias: cellText_(payload.alias), activo: cellText_(payload.activo).toUpperCase() === 'NO' ? 'NO' : 'SI',
+    notas: cellText_(payload.notas), createdAt: now, updatedAt: now
+  };
+  appendObject_(SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_PILOTOS_DB), pilot);
+  return pilot;
+}
+
+function crearPilotoAdmin(pin, adminPin, payload) {
+  assertCredentials_(pin, adminPin);
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+    assertRaceMutable_();
+    const pilot = createPilotUnlocked_(payload);
+    return { status: 'OK', message: 'Piloto creado correctamente', piloto: pilot };
+  } finally { lock.releaseLock(); }
+}
+
+function editarPilotoAdmin(pin, adminPin, payload) {
+  assertCredentials_(pin, adminPin);
+  payload = payload || {};
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+    assertRaceMutable_();
+    const id = cellText_(payload.pilotoId);
+    const name = cellText_(payload.nombre);
+    const pilots = getPilotosDB_();
+    if (!id || !name) throw new Error('pilotoId y nombre son obligatorios');
+    if (pilots.some(function(row) { return row.pilotoId !== id && normalizeText_(row.nombre) === normalizeText_(name); })) throw new Error('Ya existe otro piloto con ese nombre');
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_PILOTOS_DB);
+    const values = sheet.getDataRange().getValues();
+    const map = getHeaderMapFromHeaders_(values[0]);
+    let index = -1;
+    for (let i = 1; i < values.length; i++) if (cellText_(values[i][map.pilotoId]) === id) index = i + 1;
+    if (index === -1) throw new Error('No se ha encontrado el piloto');
+    sheet.getRange(index, map.nombre + 1).setValue(name);
+    sheet.getRange(index, map.alias + 1).setValue(cellText_(payload.alias));
+    sheet.getRange(index, map.activo + 1).setValue(cellText_(payload.activo).toUpperCase() === 'NO' ? 'NO' : 'SI');
+    sheet.getRange(index, map.notas + 1).setValue(cellText_(payload.notas));
+    sheet.getRange(index, map.updatedAt + 1).setValue(nowString_());
+    syncActiveDenormalizedName_('pilotoId', id, 'piloto', name);
+    refreshClasificacion_();
+    return { status: 'OK', message: 'Piloto actualizado correctamente' };
+  } finally { lock.releaseLock(); }
+}
+
+function createCategoryUnlocked_(payload) {
+  payload = payload || {};
+  const name = cellText_(payload.nombre);
+  if (!name) throw new Error('El nombre de la categoría es obligatorio');
+  const categories = getCategoriasDB_();
+  if (categories.some(function(row) { return normalizeText_(row.nombre) === normalizeText_(name); })) throw new Error('Ya existe una categoría con ese nombre');
+  const now = nowString_();
+  const category = {
+    categoriaId: getNextId_('C', categories.map(function(row) { return row.categoriaId; })), nombre: name,
+    activa: cellText_(payload.activa).toUpperCase() === 'NO' ? 'NO' : 'SI',
+    orden: Number(payload.orden) > 0 ? Number(payload.orden) : categories.length + 1,
+    notas: cellText_(payload.notas), createdAt: now, updatedAt: now
+  };
+  appendObject_(SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_CATEGORIAS_DB), category);
+  return category;
+}
+
+function crearCategoriaAdmin(pin, adminPin, payload) {
+  assertCredentials_(pin, adminPin);
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+    assertRaceMutable_();
+    const category = createCategoryUnlocked_(payload);
+    return { status: 'OK', message: 'Categoría creada correctamente', categoria: category };
+  } finally { lock.releaseLock(); }
+}
+
+function editarCategoriaAdmin(pin, adminPin, payload) {
+  assertCredentials_(pin, adminPin);
+  payload = payload || {};
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+    assertRaceMutable_();
+    const id = cellText_(payload.categoriaId);
+    const name = cellText_(payload.nombre);
+    const categories = getCategoriasDB_();
+    if (!id || !name) throw new Error('categoriaId y nombre son obligatorios');
+    if (categories.some(function(row) { return row.categoriaId !== id && normalizeText_(row.nombre) === normalizeText_(name); })) throw new Error('Ya existe otra categoría con ese nombre');
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_CATEGORIAS_DB);
+    const values = sheet.getDataRange().getValues();
+    const map = getHeaderMapFromHeaders_(values[0]);
+    let index = -1;
+    for (let i = 1; i < values.length; i++) if (cellText_(values[i][map.categoriaId]) === id) index = i + 1;
+    if (index === -1) throw new Error('No se ha encontrado la categoría');
+    sheet.getRange(index, map.nombre + 1).setValue(name);
+    sheet.getRange(index, map.activa + 1).setValue(cellText_(payload.activa).toUpperCase() === 'NO' ? 'NO' : 'SI');
+    sheet.getRange(index, map.orden + 1).setValue(Number(payload.orden) > 0 ? Number(payload.orden) : 999);
+    sheet.getRange(index, map.notas + 1).setValue(cellText_(payload.notas));
+    sheet.getRange(index, map.updatedAt + 1).setValue(nowString_());
+    syncActiveDenormalizedName_('categoriaId', id, 'categoria', name);
+    refreshClasificacion_();
+    return { status: 'OK', message: 'Categoría actualizada correctamente' };
+  } finally { lock.releaseLock(); }
+}
+
+function syncActiveDenormalizedName_(idHeader, id, nameHeader, name) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const inscriptionSheet = ss.getSheetByName(SHEET_INSCRIPCIONES);
+  const inscriptionIds = {};
+  if (inscriptionSheet.getLastRow() >= 2) {
+    const values = inscriptionSheet.getDataRange().getValues();
+    const map = getHeaderMapFromHeaders_(values[0]);
+    for (let i = 1; i < values.length; i++) {
+      if (cellText_(values[i][map[idHeader]]) === id) {
+        inscriptionIds[cellText_(values[i][map.inscripcionId])] = true;
+        inscriptionSheet.getRange(i + 1, map[nameHeader] + 1).setValue(name);
+      }
     }
+  }
+  const resultSheet = ss.getSheetByName(SHEET_RESULTADOS);
+  if (!Object.keys(inscriptionIds).length || resultSheet.getLastRow() < 2) return;
+  const resultValues = resultSheet.getDataRange().getValues();
+  const resultMap = getHeaderMapFromHeaders_(resultValues[0]);
+  const carreraId = getConfigValue_(CONFIG_CARRERA_ID);
+  for (let i = 1; i < resultValues.length; i++) {
+    if (cellText_(resultValues[i][resultMap.carreraId]) === carreraId &&
+        inscriptionIds[cellText_(resultValues[i][resultMap.inscripcionId])]) {
+      resultSheet.getRange(i + 1, resultMap[nameHeader] + 1).setValue(name);
+    }
+  }
+}
 
+function crearPilotoEInscribirAdmin(pin, adminPin, payload) {
+  assertCredentials_(pin, adminPin);
+  payload = payload || {};
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+    assertRaceMutable_();
+    const config = getConfigValues_();
+    assertExpectedRaceIfProvided_(config, payload);
+    const category = getCategoriaDBByIdOrName_(payload.categoriaId || payload.categoria);
+    if (!category || category.activa.toUpperCase() === 'NO') throw new Error('Categoría inexistente o inactiva');
+    const name = cellText_(payload.nombre);
+    if (!name) throw new Error('El nombre del piloto es obligatorio');
+    if (getPilotosDB_().some(function(row) { return normalizeText_(row.nombre) === normalizeText_(name); })) throw new Error('Ya existe un piloto con ese nombre');
     const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const pilotSheet = ss.getSheetByName(SHEET_PILOTOS_DB);
+    const inscriptionSheet = ss.getSheetByName(SHEET_INSCRIPCIONES);
+    const pilotLastRow = pilotSheet.getLastRow();
+    const inscriptionLastRow = inscriptionSheet.getLastRow();
+    const pilot = createPilotUnlocked_(Object.assign({}, payload, { activo: 'SI' }));
+    const row = {
+      inscripcionId: getNextInscripcionId_(), pilotoId: pilot.pilotoId, categoriaId: category.categoriaId,
+      piloto: pilot.nombre, categoria: category.nombre
+    };
+    try {
+      appendObject_(inscriptionSheet, row);
+      refreshClasificacion_();
+    } catch (error) {
+      if (inscriptionSheet.getLastRow() > inscriptionLastRow) {
+        inscriptionSheet.deleteRow(inscriptionSheet.getLastRow());
+      }
+      if (pilotSheet.getLastRow() > pilotLastRow) {
+        pilotSheet.deleteRow(pilotSheet.getLastRow());
+      }
+      try {
+        refreshClasificacion_();
+      } catch (refreshError) {
+        // Preserve the original write error; active pilot/enrollment rows are already rolled back.
+      }
+      throw error;
+    }
+    return { status: 'OK', message: 'Piloto creado e inscrito correctamente', piloto: pilot, inscripcion: row };
+  } finally { lock.releaseLock(); }
+}
 
-    const timestamp = Utilities.formatDate(
-      new Date(),
-      Session.getScriptTimeZone(),
-      'yyyy-MM-dd_HH-mm-ss'
-    );
+function normalizeRaceEnrollments_(rows) {
+  if (!Array.isArray(rows)) throw new Error('Las inscripciones de la nueva carrera no son válidas');
+  const pilots = {};
+  getPilotosDB_().forEach(function(row) { pilots[row.pilotoId] = row; });
+  const categories = {};
+  getCategoriasDB_().forEach(function(row) { categories[row.categoriaId] = row; });
+  const ids = {};
+  const pairs = {};
+  return rows.map(function(raw) {
+    const pilot = pilots[cellText_(raw.pilotoId)];
+    const category = categories[cellText_(raw.categoriaId)];
+    if (!pilot || pilot.activo.toUpperCase() === 'NO' || !category || category.activa.toUpperCase() === 'NO') {
+      throw new Error('La nueva carrera contiene una inscripción no canónica o inactiva');
+    }
+    const id = cellText_(raw.inscripcionId) || Utilities.getUuid();
+    const pair = pilot.pilotoId + '|' + category.categoriaId;
+    if (ids[id] || pairs[pair]) throw new Error('La nueva carrera contiene inscripciones duplicadas');
+    ids[id] = true;
+    pairs[pair] = true;
+    return { inscripcionId: id, pilotoId: pilot.pilotoId, categoriaId: category.categoriaId, piloto: pilot.nombre, categoria: category.nombre };
+  });
+}
 
-    const resultadosSheet = ss.getSheetByName(SHEET_RESULTADOS);
-    const clasificacionSheet = ss.getSheetByName(SHEET_CLASIFICACION);
+function backupActiveRaceSheets_(ss, label) {
+  const suffix = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd_HH-mm-ss');
+  [SHEET_CONFIG, SHEET_TRAMOS, SHEET_PASADAS, SHEET_INSCRIPCIONES, SHEET_RESULTADOS, SHEET_CLASIFICACION]
+    .forEach(function(name) {
+      const sheet = ss.getSheetByName(name);
+      if (sheet) sheet.copyTo(ss).setName(uniqueBackupName_(ss, name + '_backup_' + label + '_' + suffix));
+    });
+}
 
-    // Crear backups antes de limpiar
-    resultadosSheet.copyTo(ss).setName('Resultados_backup_' + timestamp);
-    clasificacionSheet.copyTo(ss).setName('Clasificacion_backup_' + timestamp);
-
-    // Limpiar resultados
-    resultadosSheet.clearContents();
-    resultadosSheet.getRange(1, 1, 1, 12).setValues([[
-      'resultadoId',
-      'timestamp',
-      'inscripcionId',
-      'dorsal',
-      'piloto',
-      'categoria',
-      'pasada',
-      'pasadaLabel',
-      'tiempo',
-      'penalizacion',
-      'total',
-      'juez'
-    ]]);
-    resultadosSheet.setFrozenRows(1);
-
-    // Limpiar clasificación
-    clasificacionSheet.clearContents();
-    clasificacionSheet.getRange(1, 1, 1, 14).setValues([[
-      'categoria',
-      'dorsal',
-      'piloto',
-      'ida1',
-      'vuelta1',
-      'ida2',
-      'vuelta2',
-      'ida3',
-      'vuelta3',
-      'descartada',
-      'penalizaciones',
-      'total',
-      'gap',
-      'estado'
-    ]]);
-    clasificacionSheet.setFrozenRows(1);
-
-    const carrera = String(nombreCarrera || '').trim() || 'Nueva carrera';
-
-    updateConfigValue_('CARRERA_ACTIVA', carrera);
+function generarNuevaCarrera(pin, adminPin, nombreCarrera, tramosPayload) {
+  assertCredentials_(pin, adminPin);
+  const request = nombreCarrera && typeof nombreCarrera === 'object'
+    ? nombreCarrera : { nombre: nombreCarrera, tramos: tramosPayload };
+  const name = cellText_(request.nombre || request.nombreCarrera);
+  if (!name || name.length > 200) throw new Error('Nombre de carrera inválido');
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+    const config = getConfigValues_();
+    assertExpectedRace_(config, request.carreraId, request.revision);
+    const publicationStatus = recoverCarreraPublicationStatus_(config);
+    if (publicationStatus === 'PUBLICANDO') throw new Error('Espera a que termine la publicación');
+    if (publicationStatus === 'PUBLICACION_INCIERTA') {
+      throw new Error('Reintenta la publicación incierta antes de crear una carrera nueva');
+    }
+    const definition = buildDefinitionFromTramos_(normalizeTramosConfig_(request.tramos), null);
+    const enrollments = normalizeRaceEnrollments_(Array.isArray(request.inscripciones) ? request.inscripciones : getInscripciones_());
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    backupActiveRaceSheets_(ss, 'nueva_carrera');
+    writeRaceDefinition_(definition);
+    writeObjects_(ss.getSheetByName(SHEET_INSCRIPCIONES), INSCRIPCIONES_HEADERS, enrollments);
+    writeObjects_(ss.getSheetByName(SHEET_RESULTADOS), RESULTADOS_HEADERS, []);
+    updateConfigValue_('CARRERA_ACTIVA', name);
     updateConfigValue_(CONFIG_CARRERA_ID, Utilities.getUuid());
+    updateConfigValue_(CONFIG_CARRERA_ESTADO, 'CONFIGURACION');
+    updateConfigValue_(CONFIG_REVISION, '1');
     updateConfigValue_(CONFIG_CAMPEONATO_PUBLICADA, 'NO');
     updateConfigValue_(CONFIG_CAMPEONATO_PUBLICACION_INICIADA, '');
-
-    // Regenera clasificación vacía con las inscripciones actuales
     refreshClasificacion_();
-
-    return {
-      status: 'OK',
-      message: 'Nueva carrera generada correctamente. Se han creado copias de seguridad de Resultados y Clasificación.',
-      carrera: carrera
-    };
-
-  } finally {
-    lock.releaseLock();
-  }
+    return { status: 'OK', message: 'Nueva carrera creada en estado CONFIGURACION', carrera: name, configuracion: raceConfigResponse_(getConfigValues_()) };
+  } finally { lock.releaseLock(); }
 }
 
 function getEstadoPublicacionCampeonato(pin, adminPin) {
-  if (!validatePin_(pin)) {
-    throw new Error('PIN de carrera incorrecto');
-  }
-
-  if (!validateAdminPin_(adminPin)) {
-    throw new Error('Contraseña de administración incorrecta');
-  }
-
+  assertCredentials_(pin, adminPin);
   const lock = LockService.getScriptLock();
   let config;
-
   try {
     lock.waitLock(10000);
     config = getConfigValues_();
     recoverCarreraPublicationStatus_(config);
-  } finally {
-    lock.releaseLock();
-  }
-
+  } finally { lock.releaseLock(); }
   const properties = PropertiesService.getScriptProperties();
-  const clasificacion = buildClasificacion_('');
-  const endpointConfigurado = Boolean(
-    String(properties.getProperty(CHAMPIONSHIP_ENDPOINT_PROPERTY) || '').trim()
-  );
-  const tokenConfigurado = Boolean(
-    String(properties.getProperty(CHAMPIONSHIP_TOKEN_PROPERTY) || '')
-  );
-
+  const classification = buildClasificacion_('');
+  const expected = getRaceDefinition_().totalPasadas;
+  const endpoint = Boolean(cellText_(properties.getProperty(CHAMPIONSHIP_ENDPOINT_PROPERTY)));
+  const token = Boolean(String(properties.getProperty(CHAMPIONSHIP_TOKEN_PROPERTY) || ''));
   return {
-    carreraId: String(config[CONFIG_CARRERA_ID] || ''),
-    carrera: String(config.CARRERA_ACTIVA || 'Rally RC'),
-    estado: String(config[CONFIG_CAMPEONATO_PUBLICADA] || 'NO').toUpperCase(),
-    participantes: clasificacion.length,
-    incompletos: clasificacion.filter(function(row) {
-      return Number(row.completadas) < 6;
-    }).length,
-    endpointConfigurado: endpointConfigurado,
-    tokenConfigurado: tokenConfigurado,
-    configurado: endpointConfigurado && tokenConfigurado
+    carreraId: config[CONFIG_CARRERA_ID], carrera: config.CARRERA_ACTIVA,
+    carreraEstado: config[CONFIG_CARRERA_ESTADO], configRevision: Number(config[CONFIG_REVISION]) || 1,
+    estado: cellText_(config[CONFIG_CAMPEONATO_PUBLICADA] || 'NO').toUpperCase(), participantes: classification.length,
+    incompletos: classification.filter(function(row) { return row.completadas < expected; }).length,
+    endpointConfigurado: endpoint, tokenConfigurado: token, configurado: endpoint && token
   };
-}
-
-function publicarResultadosCampeonato(pin, adminPin, expectedCarreraId) {
-  if (!validatePin_(pin)) {
-    throw new Error('PIN de carrera incorrecto');
-  }
-
-  if (!validateAdminPin_(adminPin)) {
-    throw new Error('Contraseña de administración incorrecta');
-  }
-
-  const properties = PropertiesService.getScriptProperties();
-  const endpoint = String(properties.getProperty(CHAMPIONSHIP_ENDPOINT_PROPERTY) || '').trim();
-  const token = String(properties.getProperty(CHAMPIONSHIP_TOKEN_PROPERTY) || '');
-
-  if (!endpoint || !token) {
-    throw new Error('Configura CHAMPIONSHIP_ENDPOINT y CHAMPIONSHIP_TOKEN en las propiedades del script');
-  }
-
-  const lock = LockService.getScriptLock();
-  let snapshot;
-
-  try {
-    lock.waitLock(10000);
-
-    const config = getConfigValues_();
-    const status = recoverCarreraPublicationStatus_(config);
-    const carreraId = String(config[CONFIG_CARRERA_ID] || '');
-
-    if (!expectedCarreraId || String(expectedCarreraId) !== carreraId) {
-      throw new Error('La carrera ha cambiado desde la confirmación. Actualiza el estado antes de publicar');
-    }
-
-    if (status === 'SI') {
-      throw new Error('Esta carrera ya está publicada en el campeonato');
-    }
-
-    if (status === 'PUBLICANDO') {
-      throw new Error('Ya hay una publicación del campeonato en curso');
-    }
-
-    snapshot = buildCampeonatoSnapshot_(config);
-    updateConfigValue_(CONFIG_CAMPEONATO_PUBLICADA, 'PUBLICANDO');
-    updateConfigValue_(CONFIG_CAMPEONATO_PUBLICACION_INICIADA, new Date().toISOString());
-  } finally {
-    lock.releaseLock();
-  }
-
-  try {
-    const response = UrlFetchApp.fetch(endpoint, {
-      method: 'post',
-      contentType: 'application/json',
-      payload: JSON.stringify({
-        token: token,
-        payload: snapshot
-      }),
-      followRedirects: true,
-      muteHttpExceptions: true
-    });
-
-    const responseCode = response.getResponseCode();
-    const responseText = response.getContentText();
-    let responseData;
-
-    try {
-      responseData = JSON.parse(responseText);
-    } catch (error) {
-      throw new Error('La app de campeonato no devolvió una respuesta válida (HTTP ' + responseCode + ')');
-    }
-
-    if (!responseData || !responseData.ok) {
-      throw new Error(
-        responseData && responseData.message
-          ? responseData.message
-          : 'La app de campeonato rechazó la publicación'
-      );
-    }
-
-    setCarreraPublicationStatus_(snapshot.carrera.carreraId, 'SI');
-
-    return {
-      status: responseData.status,
-      message: responseData.status === 'ALREADY_EXISTS'
-        ? 'La carrera ya existía en el campeonato y se ha marcado como publicada'
-        : 'Resultados publicados correctamente en el campeonato',
-      carreraId: snapshot.carrera.carreraId,
-      incompletos: snapshot.incompletos
-    };
-  } catch (error) {
-    setCarreraPublicationStatus_(snapshot.carrera.carreraId, 'NO');
-    throw error;
-  }
 }
 
 function buildCampeonatoSnapshot_(config) {
-  const carreraId = String(config[CONFIG_CARRERA_ID] || '').trim();
-  const carrera = String(config.CARRERA_ACTIVA || 'Rally RC').trim();
-
-  if (!carreraId) {
-    throw new Error('La carrera no tiene identificador. Ejecuta setupSheets() antes de publicar');
-  }
-
-  const inscripciones = getInscripciones_();
-  const resultados = getResultados_();
-
-  if (!inscripciones.length) {
-    throw new Error('No hay inscripciones para publicar');
-  }
-
-  const inscripcionesById = {};
-  inscripciones.forEach(function(inscripcion) {
-    inscripcionesById[inscripcion.inscripcionId] = inscripcion;
-  });
-
-  const categoriasByName = {};
-  getCategoriasDB_().forEach(function(categoria) {
-    categoriasByName[normalizeText_(categoria.nombre)] = categoria;
-  });
-
-  const categorias = [...new Set(inscripciones.map(function(inscripcion) {
-    return inscripcion.categoria;
-  }))].filter(Boolean).sort();
-
+  if (config[CONFIG_CARRERA_ESTADO] !== 'INICIADA') throw new Error('La carrera debe estar iniciada');
+  const definition = getRaceDefinition_();
+  const inscriptions = getInscripciones_();
+  if (!inscriptions.length) throw new Error('No hay inscripciones para publicar');
   const rows = [];
-
-  categorias.forEach(function(categoriaNombre) {
-    const categoria = categoriasByName[normalizeText_(categoriaNombre)] || {};
-    const clasificacion = buildClasificacion_(categoriaNombre, inscripciones, resultados);
-    const completos = clasificacion.filter(function(row) {
-      return Number(row.completadas) === 6 && /^Completo/i.test(String(row.estado || ''));
-    });
-    const incompletos = clasificacion.filter(function(row) {
-      return completos.indexOf(row) === -1;
-    });
-    const clasificacionPublicable = completos.concat(incompletos);
-
-    clasificacionPublicable.forEach(function(row, index) {
-      const inscripcion = inscripcionesById[row.inscripcionId] || {};
-
+  Array.from(new Set(inscriptions.map(function(row) { return row.categoriaId; }))).forEach(function(categoryId) {
+    buildClasificacion_(categoryId).forEach(function(row, index) {
       rows.push({
-        inscripcionId: row.inscripcionId,
-        pilotoId: String(inscripcion.pilotoId || ''),
-        piloto: row.piloto,
-        categoriaId: String(categoria.categoriaId || ''),
-        categoria: row.categoria,
-        dorsal: row.dorsal,
-        posicion: index + 1,
-        ida1: row.ida1,
-        vuelta1: row.vuelta1,
-        ida2: row.ida2,
-        vuelta2: row.vuelta2,
-        ida3: row.ida3,
-        vuelta3: row.vuelta3,
-        descartada: row.descartada,
-        penalizaciones: row.penalizaciones,
-        total: row.total,
-        gap: row.gap,
-        completadas: row.completadas,
-        estado: row.estado
+        inscripcionId: row.inscripcionId, pilotoId: row.pilotoId, piloto: row.piloto,
+        categoriaId: row.categoriaId, categoria: row.categoria, posicion: index + 1,
+        pasadas: row.pasadas.filter(function(pass) { return pass.total !== ''; }).map(function(pass) {
+          return { pasadaId: pass.pasadaId, tramoId: pass.tramoId, tiempo: pass.tiempo,
+            penalizacion: pass.penalizacion, total: pass.total, descartada: pass.descartada };
+        }),
+        descartada: row.descartada, penalizaciones: row.penalizaciones, total: row.total,
+        gap: row.gap, completadas: row.completadas, previstas: row.previstas, estado: row.estado
       });
     });
   });
-
-  return {
-    schemaVersion: 1,
+  const snapshot = {
+    schemaVersion: 2,
     carrera: {
-      carreraId: carreraId,
-      nombre: carrera
+      carreraId: config[CONFIG_CARRERA_ID], nombre: config.CARRERA_ACTIVA,
+      definicion: {
+        tramos: definition.tramos.map(function(stage) { return { tramoId: stage.tramoId, nombre: stage.nombre, orden: stage.orden }; }),
+        pasadas: definition.pasadas, totalPasadas: definition.totalPasadas, numDescartes: definition.numDescartes
+      }
     },
     fechaPublicacion: new Date().toISOString(),
-    incompletos: rows.filter(function(row) {
-      return Number(row.completadas) < 6;
-    }).length,
+    incompletos: rows.filter(function(row) { return row.completadas < row.previstas; }).length,
     resultados: rows
   };
+  snapshot.payloadHash = sha256Hex_(JSON.stringify({
+    schemaVersion: snapshot.schemaVersion,
+    carrera: snapshot.carrera,
+    incompletos: snapshot.incompletos,
+    resultados: snapshot.resultados
+  }));
+  return snapshot;
+}
+
+function sha256Hex_(value) {
+  return Utilities.computeDigest(
+    Utilities.DigestAlgorithm.SHA_256,
+    value,
+    Utilities.Charset.UTF_8
+  ).map(function(byte) {
+    return ('0' + ((byte + 256) % 256).toString(16)).slice(-2);
+  }).join('');
 }
 
 function setCarreraPublicationStatus_(carreraId, status) {
   const lock = LockService.getScriptLock();
-
   try {
     lock.waitLock(10000);
     const config = getConfigValues_();
-
-    if (String(config[CONFIG_CARRERA_ID] || '') === String(carreraId || '')) {
+    if (config[CONFIG_CARRERA_ID] === carreraId) {
       updateConfigValue_(CONFIG_CAMPEONATO_PUBLICADA, status);
       updateConfigValue_(CONFIG_CAMPEONATO_PUBLICACION_INICIADA, '');
     }
-  } finally {
-    lock.releaseLock();
-  }
+  } finally { lock.releaseLock(); }
 }
 
-function formatDateForClient_(value) {
-  if (!value) {
-    return '';
-  }
-
-  if (Object.prototype.toString.call(value) === '[object Date]') {
-    return Utilities.formatDate(
-      value,
-      Session.getScriptTimeZone(),
-      'yyyy-MM-dd HH:mm:ss'
-    );
-  }
-
-  return String(value);
-}
-
-function secondsToTimeParts_(secondsValue) {
-  const totalTenths = Math.round(Number(secondsValue || 0) * 10);
-
-  const minutes = Math.floor(totalTenths / 600);
-  const remainingTenths = totalTenths % 600;
-  const seconds = Math.floor(remainingTenths / 10);
-  const decimas = remainingTenths % 10;
-
-  return {
-    minutos: minutes,
-    segundos: seconds,
-    decimas: decimas
-  };
-}
-
-function getResultadoParaCorreccion(pin, adminPin, inscripcionId, pasada) {
-  if (!validatePin_(pin)) {
-    throw new Error('PIN de carrera incorrecto');
-  }
-
-  if (!validateAdminPin_(adminPin)) {
-    throw new Error('Contraseña de administración incorrecta');
-  }
-
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(SHEET_RESULTADOS);
-  const values = sheet.getDataRange().getValues();
-
-  const rowIndex = findResultadoRowIndex_(values, inscripcionId, Number(pasada));
-
-  if (rowIndex === -1) {
-    return {
-      status: 'NOT_FOUND',
-      message: 'No existe ningún resultado para la categoría, piloto y pasada seleccionados.'
-    };
-  }
-
-  const row = values[rowIndex - 1];
-  const timeParts = secondsToTimeParts_(row[8]);
-
-  return {
-    status: 'FOUND',
-    resultado: {
-      resultadoId: String(row[0] || ''),
-      timestamp: formatDateForClient_(row[1]),
-      inscripcionId: String(row[2] || ''),
-      dorsal: String(row[3] || ''),
-      piloto: String(row[4] || ''),
-      categoria: String(row[5] || ''),
-      pasada: Number(row[6]),
-      pasadaLabel: String(row[7] || ''),
-      tiempo: Number(row[8] || 0),
-      minutos: timeParts.minutos,
-      segundos: timeParts.segundos,
-      decimas: timeParts.decimas,
-      penalizacion: Number(row[9] || 0),
-      total: Number(row[10] || 0),
-      juez: String(row[11] || '')
-    }
-  };
-}
-
-function corregirResultado(pin, adminPin, payload) {
-  if (!validatePin_(pin)) {
-    throw new Error('PIN de carrera incorrecto');
-  }
-
-  if (!validateAdminPin_(adminPin)) {
-    throw new Error('Contraseña de administración incorrecta');
-  }
-
+function publicarResultadosCampeonato(pin, adminPin, expectedCarreraId, expectedRevision) {
+  assertCredentials_(pin, adminPin);
+  const request = typeof expectedCarreraId === 'object'
+    ? expectedCarreraId : { carreraId: expectedCarreraId, revision: expectedRevision };
+  const properties = PropertiesService.getScriptProperties();
+  const endpoint = cellText_(properties.getProperty(CHAMPIONSHIP_ENDPOINT_PROPERTY));
+  const token = String(properties.getProperty(CHAMPIONSHIP_TOKEN_PROPERTY) || '');
+  if (!endpoint || !token) throw new Error('Configura CHAMPIONSHIP_ENDPOINT y CHAMPIONSHIP_TOKEN');
   const lock = LockService.getScriptLock();
-
+  let snapshot;
   try {
     lock.waitLock(10000);
-    assertCarreraAdmiteResultados_();
-
-    if (!payload) {
-      throw new Error('No se han recibido datos para corregir');
+    const config = getConfigValues_();
+    assertExpectedRace_(config, request.carreraId, request.revision);
+    const status = recoverCarreraPublicationStatus_(config);
+    if (status === 'SI') throw new Error('La carrera ya está publicada');
+    if (status === 'PUBLICANDO') throw new Error('Ya hay una publicación en curso');
+    snapshot = buildCampeonatoSnapshot_(config);
+    updateConfigValue_(CONFIG_CAMPEONATO_PUBLICADA, 'PUBLICANDO');
+    updateConfigValue_(CONFIG_CAMPEONATO_PUBLICACION_INICIADA, new Date().toISOString());
+  } finally { lock.releaseLock(); }
+  try {
+    const response = UrlFetchApp.fetch(endpoint, {
+      method: 'post', contentType: 'application/json', payload: JSON.stringify({ token: token, payload: snapshot }),
+      followRedirects: true, muteHttpExceptions: true
+    });
+    let data;
+    try { data = JSON.parse(response.getContentText()); }
+    catch (error) { throw new Error('El campeonato no devolvió JSON válido (HTTP ' + response.getResponseCode() + ')'); }
+    if (data && data.ok === false) {
+      const rejection = new Error(data.message || 'La publicación fue rechazada');
+      rejection.publicationDefinitive = true;
+      throw rejection;
     }
-
-    const inscripcionId = String(payload.inscripcionId || '').trim();
-    const pasada = Number(payload.pasada);
-    const minutos = Number(payload.minutos || 0);
-    const segundos = Number(payload.segundos || 0);
-    const decimas = Number(payload.decimas || 0);
-    const penalizacion = parseNumber_(payload.penalizacion || 0);
-    const juez = String(payload.juez || '').trim() || 'Administración';
-
-    if (!inscripcionId) {
-      throw new Error('Debes seleccionar un piloto');
-    }
-
-    if (!PASADAS.some(p => p.num === pasada)) {
-      throw new Error('La pasada seleccionada no es válida');
-    }
-
-    if (
-      isNaN(minutos) || minutos < 0 ||
-      isNaN(segundos) || segundos < 0 || segundos > 59 ||
-      isNaN(decimas) || decimas < 0 || decimas > 9
-    ) {
-      throw new Error('El tiempo no es válido. Revisa minutos, segundos y décimas.');
-    }
-
-    if (isNaN(penalizacion) || penalizacion < 0) {
-      throw new Error('La penalización no es válida');
-    }
-
-    const tiempo = round3_(minutos * 60 + segundos + (decimas / 10));
-    const total = round3_(tiempo + penalizacion);
-
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const sheet = ss.getSheetByName(SHEET_RESULTADOS);
-    const values = sheet.getDataRange().getValues();
-
-    const rowIndex = findResultadoRowIndex_(values, inscripcionId, pasada);
-
-    if (rowIndex === -1) {
-      throw new Error('No existe ningún resultado para corregir');
-    }
-
-    const existing = values[rowIndex - 1];
-
-    const updatedRow = [
-      existing[0],
-      new Date(),
-      existing[2],
-      existing[3],
-      existing[4],
-      existing[5],
-      existing[6],
-      existing[7],
-      tiempo,
-      round3_(penalizacion),
-      total,
-      juez + ' - Corrección'
-    ];
-
-    sheet.getRange(rowIndex, 1, 1, updatedRow.length).setValues([updatedRow]);
-
-    refreshClasificacion_();
-
+    if (!data || data.ok !== true) throw new Error('La respuesta del campeonato es ambigua');
+    setCarreraPublicationStatus_(snapshot.carrera.carreraId, 'SI');
     return {
-      status: 'OK',
-      message: 'Resultado corregido correctamente',
-      saved: {
-        dorsal: String(existing[3] || ''),
-        piloto: String(existing[4] || ''),
-        categoria: String(existing[5] || ''),
-        pasadaLabel: String(existing[7] || ''),
-        tiempo: tiempo,
-        penalizacion: round3_(penalizacion),
-        total: total
-      }
+      status: data.status, message: 'Resultados publicados correctamente', carreraId: snapshot.carrera.carreraId,
+      incompletos: snapshot.incompletos, payloadHash: snapshot.payloadHash
     };
-
-  } finally {
-    lock.releaseLock();
-  }
-}
-function getPasadasRegistradas(pin, inscripcionId) {
-  if (!validatePin_(pin)) {
-    throw new Error('PIN incorrecto');
-  }
-
-  const cleanInscripcionId = String(inscripcionId || '').trim();
-
-  if (!cleanInscripcionId) {
-    return [];
-  }
-
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(SHEET_RESULTADOS);
-  const values = sheet.getDataRange().getValues();
-
-  const pasadas = [];
-
-  for (let i = 1; i < values.length; i++) {
-    const rowInscripcionId = String(values[i][2] || '').trim();
-    const rowPasada = Number(values[i][6]);
-
-    if (rowInscripcionId === cleanInscripcionId && rowPasada) {
-      pasadas.push(rowPasada);
-    }
-  }
-
-  return [...new Set(pasadas)].sort((a, b) => a - b);
-}
-function getDashboardPilotos(pin, categoria) {
-  if (!validatePin_(pin)) {
-    throw new Error('PIN incorrecto');
-  }
-
-  const cleanCategoria = String(categoria || '').trim();
-
-  const inscripciones = getInscripciones_()
-    .filter(item => !cleanCategoria || item.categoria === cleanCategoria);
-
-  const pilotos = [...new Set(inscripciones.map(item => item.piloto))]
-    .filter(Boolean)
-    .sort();
-
-  return pilotos;
-}
-function getDashboardData(pin) {
-  if (!validatePin_(pin)) {
-    throw new Error('PIN incorrecto');
-  }
-
-  const carreraActiva = getConfigValue_('CARRERA_ACTIVA') || 'Rally RC';
-  const rows = buildDashboardConstancia_();
-
-  const categorias = [...new Set(rows.map(row => row.categoria))]
-    .filter(Boolean)
-    .sort();
-
-  const pilotos = [...new Set(rows.map(row => row.piloto))]
-    .filter(Boolean)
-    .sort();
-
-  return {
-    carrera: carreraActiva,
-    updatedAt: Utilities.formatDate(
-      new Date(),
-      Session.getScriptTimeZone(),
-      'yyyy-MM-dd HH:mm:ss'
-    ),
-    categorias: categorias,
-    pilotos: pilotos,
-    pasadas: PASADAS,
-    rows: rows
-  };
-}
-function buildDashboardConstancia_() {
-  const inscripciones = getInscripciones_();
-  const resultados = getResultados_();
-
-  const rows = inscripciones.map(inscripcion => {
-    const pilotoResultados = resultados.filter(r =>
-      r.inscripcionId === inscripcion.inscripcionId
+  } catch (error) {
+    setCarreraPublicationStatus_(
+      snapshot.carrera.carreraId,
+      error && error.publicationDefinitive ? 'NO' : 'PUBLICACION_INCIERTA'
     );
-
-    const tiempos = {};
-
-    PASADAS.forEach(pasada => {
-      const found = pilotoResultados.find(r => Number(r.pasada) === pasada.num);
-      tiempos[pasada.num] = found ? Number(found.total) : '';
-    });
-
-    const valores = PASADAS
-      .map(p => ({
-        pasada: p.num,
-        label: p.label,
-        tipo: p.tipo,
-        valor: tiempos[p.num] !== '' ? Number(tiempos[p.num]) : ''
-      }))
-      .filter(item => item.valor !== '');
-
-    const completadas = valores.length;
-
-    const metricasTodas = calcularMetricasConstancia_(valores, '');
-    const metricasIdas = calcularMetricasConstancia_(valores, 'ida');
-    const metricasVueltas = calcularMetricasConstancia_(valores, 'vuelta');
-
-    return {
-      categoria: inscripcion.categoria,
-      dorsal: inscripcion.dorsal,
-      piloto: inscripcion.piloto,
-      inscripcionId: inscripcion.inscripcionId,
-
-      ida1: tiempos[1],
-      vuelta1: tiempos[2],
-      ida2: tiempos[3],
-      vuelta2: tiempos[4],
-      ida3: tiempos[5],
-      vuelta3: tiempos[6],
-
-      completadas: completadas,
-      progreso: completadas + '/6',
-
-      mejor: metricasTodas.mejor,
-      peor: metricasTodas.peor,
-      media: metricasTodas.media,
-      diferencia: metricasTodas.diferencia,
-
-      mejorIdas: metricasIdas.mejor,
-      peorIdas: metricasIdas.peor,
-      mediaIdas: metricasIdas.media,
-      diferenciaIdas: metricasIdas.diferencia,
-
-      mejorVueltas: metricasVueltas.mejor,
-      peorVueltas: metricasVueltas.peor,
-      mediaVueltas: metricasVueltas.media,
-      diferenciaVueltas: metricasVueltas.diferencia,
-
-      tiemposPorPasada: buildTiemposPorPasada_(tiempos),
-      progresionAcumulada: buildProgresionAcumulada_(tiempos),
-
-      estado: completadas === 0
-        ? 'Sin resultados'
-        : completadas === 6
-          ? 'Completo'
-          : 'En curso'
-    };
-  });
-
-  rows.sort((a, b) => {
-    if (a.categoria !== b.categoria) {
-      return a.categoria.localeCompare(b.categoria);
-    }
-
-    const dorsalA = Number(a.dorsal);
-    const dorsalB = Number(b.dorsal);
-
-    if (!isNaN(dorsalA) && !isNaN(dorsalB)) {
-      return dorsalA - dorsalB;
-    }
-
-    return String(a.dorsal).localeCompare(String(b.dorsal));
-  });
-
-  return rows;
-}
-function calcularMetricasConstancia_(valores, tipoFilter) {
-  const filtrados = valores.filter(item => {
-    if (!tipoFilter) {
-      return true;
-    }
-
-    return item.tipo === tipoFilter;
-  });
-
-  if (!filtrados.length) {
-    return {
-      mejor: '',
-      peor: '',
-      media: '',
-      diferencia: ''
-    };
+    throw error;
   }
-
-  const numeros = filtrados.map(item => Number(item.valor));
-
-  const mejor = round3_(Math.min.apply(null, numeros));
-  const peor = round3_(Math.max.apply(null, numeros));
-  const media = round3_(
-    numeros.reduce((sum, value) => sum + value, 0) / numeros.length
-  );
-
-  const diferencia = numeros.length >= 2
-    ? round3_(peor - mejor)
-    : '';
-
-  return {
-    mejor: mejor,
-    peor: peor,
-    media: media,
-    diferencia: diferencia
-  };
 }
 
-function buildTiemposPorPasada_(tiempos) {
-  return PASADAS.map(pasada => {
-    const valor = tiempos[pasada.num];
-
-    return {
-      pasada: pasada.num,
-      label: pasada.label,
-      tipo: pasada.tipo,
-      valor: valor !== '' ? Number(valor) : ''
-    };
-  });
-}
-
-function buildProgresionAcumulada_(tiempos) {
-  let acumulado = 0;
-
-  return PASADAS.map(pasada => {
-    const valor = tiempos[pasada.num];
-
-    if (valor === '') {
-      return {
-        pasada: pasada.num,
-        label: pasada.label,
-        tipo: pasada.tipo,
-        valor: ''
-      };
-    }
-
-    acumulado = round3_(acumulado + Number(valor));
-
-    return {
-      pasada: pasada.num,
-      label: pasada.label,
-      tipo: pasada.tipo,
-      valor: acumulado
-    };
-  });
-}
-
-function getHeaderMap_(sheet) {
-  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-
-  return getHeaderMapFromHeaders_(headers);
-}
-
-function getHeaderMapFromHeaders_(headers) {
-  const map = {};
-
-  headers.forEach(function(header, index) {
-    map[String(header || '').trim()] = index;
-  });
-
-  return map;
-}
-
-function normalizeText_(value) {
-  return String(value || '')
-    .trim()
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
-}
-
-function nowString_() {
-  return Utilities.formatDate(
-    new Date(),
-    Session.getScriptTimeZone(),
-    'yyyy-MM-dd HH:mm:ss'
-  );
-}
-
-function getNextId_(prefix, existingIds) {
-  let max = 0;
-
-  existingIds.forEach(function(id) {
-    const cleanId = String(id || '').trim();
-
-    if (!cleanId.startsWith(prefix)) {
-      return;
-    }
-
-    const numberPart = Number(cleanId.replace(prefix, ''));
-
-    if (!isNaN(numberPart) && numberPart > max) {
-      max = numberPart;
-    }
-  });
-
-  return prefix + String(max + 1).padStart(3, '0');
-}
-
-function getPilotosDB_() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(SHEET_PILOTOS_DB);
-
-  if (!sheet || sheet.getLastRow() < 2) {
-    return [];
-  }
-
-  const values = sheet.getDataRange().getValues();
-  const map = getHeaderMapFromHeaders_(values[0]);
-  const result = [];
-
-  for (let i = 1; i < values.length; i++) {
-    const row = values[i];
-
-    const pilotoId = String(row[map.pilotoId] || '').trim();
-    const nombre = String(row[map.nombre] || '').trim();
-
-    if (!pilotoId || !nombre) {
-      continue;
-    }
-
-    result.push({
-      pilotoId: pilotoId,
-      nombre: nombre,
-      alias: String(row[map.alias] || '').trim(),
-      activo: String(row[map.activo] || 'SI').trim() || 'SI',
-      notas: String(row[map.notas] || '').trim(),
-      createdAt: String(row[map.createdAt] || '').trim(),
-      updatedAt: String(row[map.updatedAt] || '').trim()
-    });
-  }
-
-  return result;
-}
-
-function getCategoriasDB_() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(SHEET_CATEGORIAS_DB);
-
-  if (!sheet || sheet.getLastRow() < 2) {
-    return [];
-  }
-
-  const values = sheet.getDataRange().getValues();
-  const map = getHeaderMapFromHeaders_(values[0]);
-  const result = [];
-
-  for (let i = 1; i < values.length; i++) {
-    const row = values[i];
-
-    const categoriaId = String(row[map.categoriaId] || '').trim();
-    const nombre = String(row[map.nombre] || '').trim();
-
-    if (!categoriaId || !nombre) {
-      continue;
-    }
-
-    result.push({
-      categoriaId: categoriaId,
-      nombre: nombre,
-      activa: String(row[map.activa] || 'SI').trim() || 'SI',
-      orden: Number(row[map.orden] || 999),
-      notas: String(row[map.notas] || '').trim(),
-      createdAt: String(row[map.createdAt] || '').trim(),
-      updatedAt: String(row[map.updatedAt] || '').trim()
-    });
-  }
-
-  result.sort(function(a, b) {
-    if (Number(a.orden) !== Number(b.orden)) {
-      return Number(a.orden) - Number(b.orden);
-    }
-
-    return a.nombre.localeCompare(b.nombre);
-  });
-
-  return result;
-}
-
-function migrarPilotosYCategoriasDesdeInscripciones_() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-
-  const inscripcionesSheet = ss.getSheetByName(SHEET_INSCRIPCIONES);
-  const pilotosSheet = ss.getSheetByName(SHEET_PILOTOS_DB);
-  const categoriasSheet = ss.getSheetByName(SHEET_CATEGORIAS_DB);
-
-  if (!inscripcionesSheet || inscripcionesSheet.getLastRow() < 2) {
-    return;
-  }
-
-  const inscripcionesValues = inscripcionesSheet.getDataRange().getValues();
-  const inscripcionesHeaders = inscripcionesValues[0].map(function(header) {
-    return String(header || '').trim();
-  });
-
-  const oldFormat = !inscripcionesHeaders.includes('pilotoId');
-
-  let inscripciones = [];
-
-  if (oldFormat) {
-    for (let i = 1; i < inscripcionesValues.length; i++) {
-      const row = inscripcionesValues[i];
-
-      const inscripcionId = String(row[0] || '').trim();
-      const dorsal = String(row[1] || '').trim();
-      const piloto = String(row[2] || '').trim();
-      const categoria = String(row[3] || '').trim();
-
-      if (!inscripcionId || !piloto || !categoria) {
-        continue;
-      }
-
-      inscripciones.push({
-        inscripcionId: inscripcionId,
-        pilotoId: '',
-        dorsal: dorsal,
-        piloto: piloto,
-        categoria: categoria
-      });
-    }
-  } else {
-    const map = getHeaderMapFromHeaders_(inscripcionesHeaders);
-
-    for (let i = 1; i < inscripcionesValues.length; i++) {
-      const row = inscripcionesValues[i];
-
-      const inscripcionId = String(row[map.inscripcionId] || '').trim();
-      const pilotoId = String(row[map.pilotoId] || '').trim();
-      const dorsal = String(row[map.dorsal] || '').trim();
-      const piloto = String(row[map.piloto] || '').trim();
-      const categoria = String(row[map.categoria] || '').trim();
-
-      if (!inscripcionId || !piloto || !categoria) {
-        continue;
-      }
-
-      inscripciones.push({
-        inscripcionId: inscripcionId,
-        pilotoId: pilotoId,
-        dorsal: dorsal,
-        piloto: piloto,
-        categoria: categoria
-      });
-    }
-  }
-
-  const pilotosExistentes = getPilotosDB_();
-  const categoriasExistentes = getCategoriasDB_();
-
-  const pilotosByName = {};
-  pilotosExistentes.forEach(function(piloto) {
-    pilotosByName[normalizeText_(piloto.nombre)] = piloto;
-  });
-
-  const categoriasByName = {};
-  categoriasExistentes.forEach(function(categoria) {
-    categoriasByName[normalizeText_(categoria.nombre)] = categoria;
-  });
-
-  const existingPilotoIds = pilotosExistentes.map(function(p) {
-    return p.pilotoId;
-  });
-
-  const existingCategoriaIds = categoriasExistentes.map(function(c) {
-    return c.categoriaId;
-  });
-
-  const nuevosPilotos = [];
-  const nuevasCategorias = [];
-
-  inscripciones.forEach(function(inscripcion) {
-    const pilotoKey = normalizeText_(inscripcion.piloto);
-
-    if (!pilotosByName[pilotoKey]) {
-      const pilotoId = getNextId_(
-        'P',
-        existingPilotoIds.concat(nuevosPilotos.map(function(p) {
-          return p[0];
-        }))
-      );
-
-      const now = nowString_();
-
-      const pilotoRow = [
-        pilotoId,
-        inscripcion.piloto,
-        '',
-        'SI',
-        '',
-        now,
-        now
-      ];
-
-      nuevosPilotos.push(pilotoRow);
-
-      pilotosByName[pilotoKey] = {
-        pilotoId: pilotoId,
-        nombre: inscripcion.piloto
-      };
-    }
-
-    const categoriaKey = normalizeText_(inscripcion.categoria);
-
-    if (!categoriasByName[categoriaKey]) {
-      const categoriaId = getNextId_(
-        'C',
-        existingCategoriaIds.concat(nuevasCategorias.map(function(c) {
-          return c[0];
-        }))
-      );
-
-      const now = nowString_();
-
-      const categoriaRow = [
-        categoriaId,
-        inscripcion.categoria,
-        'SI',
-        categoriasExistentes.length + nuevasCategorias.length + 1,
-        '',
-        now,
-        now
-      ];
-
-      nuevasCategorias.push(categoriaRow);
-
-      categoriasByName[categoriaKey] = {
-        categoriaId: categoriaId,
-        nombre: inscripcion.categoria
-      };
-    }
-  });
-
-  if (nuevosPilotos.length > 0) {
-    pilotosSheet
-      .getRange(pilotosSheet.getLastRow() + 1, 1, nuevosPilotos.length, nuevosPilotos[0].length)
-      .setValues(nuevosPilotos);
-  }
-
-  if (nuevasCategorias.length > 0) {
-    categoriasSheet
-      .getRange(categoriasSheet.getLastRow() + 1, 1, nuevasCategorias.length, nuevasCategorias[0].length)
-      .setValues(nuevasCategorias);
-  }
-
-  migrarFormatoInscripciones_(inscripciones, pilotosByName);
-}
-
-function migrarFormatoInscripciones_(inscripciones, pilotosByName) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(SHEET_INSCRIPCIONES);
-
-  const headers = [
-    'inscripcionId',
-    'pilotoId',
-    'dorsal',
-    'piloto',
-    'categoria'
-  ];
-
-  const rows = inscripciones.map(function(inscripcion) {
-    const pilotoKey = normalizeText_(inscripcion.piloto);
-    const piloto = pilotosByName[pilotoKey];
-
-    return [
-      inscripcion.inscripcionId,
-      piloto ? piloto.pilotoId : inscripcion.pilotoId,
-      inscripcion.dorsal,
-      inscripcion.piloto,
-      inscripcion.categoria
-    ];
-  });
-
-  sheet.clearContents();
-  sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-
-  if (rows.length > 0) {
-    sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
-  }
-
-  sheet.setFrozenRows(1);
-  autoResize_(sheet);
-}
-
-function getAdminCatalogosData(pin, adminPin) {
-  if (!validatePin_(pin)) {
-    throw new Error('PIN incorrecto');
-  }
-
-  if (!validateAdminPin_(adminPin)) {
-    throw new Error('PIN de administración incorrecto');
-  }
-
-  return {
-    pilotos: getPilotosDB_(),
-    categorias: getCategoriasDB_(),
-    inscripciones: getInscripciones_()
-  };
-}
-
-function crearPilotoAdmin(pin, adminPin, payload) {
-  if (!validatePin_(pin)) {
-    throw new Error('PIN incorrecto');
-  }
-
-  if (!validateAdminPin_(adminPin)) {
-    throw new Error('PIN de administración incorrecto');
-  }
-
-  assertCarreraAdmiteResultados_();
-
-  const nombre = String(payload.nombre || '').trim();
-  const alias = String(payload.alias || '').trim();
-  const notas = String(payload.notas || '').trim();
-  const activo = String(payload.activo || 'SI').trim().toUpperCase() === 'NO'
-    ? 'NO'
-    : 'SI';
-
-  if (!nombre) {
-    throw new Error('El nombre del piloto es obligatorio');
-  }
-
-  const pilotos = getPilotosDB_();
-  const nombreNormalizado = normalizeText_(nombre);
-
-  const existe = pilotos.some(function(piloto) {
-    return normalizeText_(piloto.nombre) === nombreNormalizado;
-  });
-
-  if (existe) {
-    throw new Error('Ya existe un piloto con ese nombre');
-  }
-
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(SHEET_PILOTOS_DB);
-
-  const pilotoId = getNextId_(
-    'P',
-    pilotos.map(function(piloto) {
-      return piloto.pilotoId;
-    })
-  );
-
-  const now = nowString_();
-
-  sheet.appendRow([
-    pilotoId,
-    nombre,
-    alias,
-    activo,
-    notas,
-    now,
-    now
-  ]);
-
-  autoResize_(sheet);
-
-  return {
-    status: 'OK',
-    message: 'Piloto creado correctamente',
-    piloto: {
-      pilotoId: pilotoId,
-      nombre: nombre,
-      alias: alias,
-      activo: activo,
-      notas: notas,
-      createdAt: now,
-      updatedAt: now
-    }
-  };
-}
-
-function editarPilotoAdmin(pin, adminPin, payload) {
-  if (!validatePin_(pin)) {
-    throw new Error('PIN incorrecto');
-  }
-
-  if (!validateAdminPin_(adminPin)) {
-    throw new Error('PIN de administración incorrecto');
-  }
-
+function resetDemoData_() {
   const lock = LockService.getScriptLock();
-  lock.waitLock(10000);
-
   try {
-    assertCarreraAdmiteResultados_();
-
-  const pilotoId = String(payload.pilotoId || '').trim();
-  const nombre = String(payload.nombre || '').trim();
-  const alias = String(payload.alias || '').trim();
-  const notas = String(payload.notas || '').trim();
-  const activo = String(payload.activo || 'SI').trim().toUpperCase() === 'NO'
-    ? 'NO'
-    : 'SI';
-
-  if (!pilotoId) {
-    throw new Error('El pilotoId es obligatorio');
-  }
-
-  if (!nombre) {
-    throw new Error('El nombre del piloto es obligatorio');
-  }
-
-  const pilotos = getPilotosDB_();
-  const nombreNormalizado = normalizeText_(nombre);
-
-  const duplicado = pilotos.some(function(piloto) {
-    return piloto.pilotoId !== pilotoId &&
-      normalizeText_(piloto.nombre) === nombreNormalizado;
-  });
-
-  if (duplicado) {
-    throw new Error('Ya existe otro piloto con ese nombre');
-  }
-
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(SHEET_PILOTOS_DB);
-  const values = sheet.getDataRange().getValues();
-  const map = getHeaderMap_(sheet);
-
-  let rowIndex = -1;
-
-  for (let i = 1; i < values.length; i++) {
-    if (String(values[i][map.pilotoId] || '').trim() === pilotoId) {
-      rowIndex = i + 1;
-      break;
-    }
-  }
-
-  if (rowIndex === -1) {
-    throw new Error('No se ha encontrado el piloto');
-  }
-
-  const now = nowString_();
-
-  sheet.getRange(rowIndex, map.nombre + 1).setValue(nombre);
-  sheet.getRange(rowIndex, map.alias + 1).setValue(alias);
-  sheet.getRange(rowIndex, map.activo + 1).setValue(activo);
-  sheet.getRange(rowIndex, map.notas + 1).setValue(notas);
-  sheet.getRange(rowIndex, map.updatedAt + 1).setValue(now);
-
-  sincronizarNombrePilotoEnInscripciones_(pilotoId, nombre);
-
-  autoResize_(sheet);
-
-    return {
-      status: 'OK',
-      message: 'Piloto actualizado correctamente'
-    };
-  } finally {
-    lock.releaseLock();
-  }
-}
-
-function sincronizarNombrePilotoEnInscripciones_(pilotoId, nombre) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(SHEET_INSCRIPCIONES);
-
-  if (!sheet || sheet.getLastRow() < 2) {
-    return;
-  }
-
-  const values = sheet.getDataRange().getValues();
-  const map = getHeaderMap_(sheet);
-
-  if (map.pilotoId === undefined || map.piloto === undefined) {
-    return;
-  }
-
-  for (let i = 1; i < values.length; i++) {
-    const rowPilotoId = String(values[i][map.pilotoId] || '').trim();
-
-    if (rowPilotoId === pilotoId) {
-      sheet.getRange(i + 1, map.piloto + 1).setValue(nombre);
-    }
-  }
-}
-
-function crearCategoriaAdmin(pin, adminPin, payload) {
-  if (!validatePin_(pin)) {
-    throw new Error('PIN incorrecto');
-  }
-
-  if (!validateAdminPin_(adminPin)) {
-    throw new Error('PIN de administración incorrecto');
-  }
-
-  assertCarreraAdmiteResultados_();
-
-  const nombre = String(payload.nombre || '').trim();
-  const notas = String(payload.notas || '').trim();
-  const activa = String(payload.activa || 'SI').trim().toUpperCase() === 'NO'
-    ? 'NO'
-    : 'SI';
-
-  let orden = Number(payload.orden || 0);
-
-  if (!nombre) {
-    throw new Error('El nombre de la categoría es obligatorio');
-  }
-
-  const categorias = getCategoriasDB_();
-  const nombreNormalizado = normalizeText_(nombre);
-
-  const existe = categorias.some(function(categoria) {
-    return normalizeText_(categoria.nombre) === nombreNormalizado;
-  });
-
-  if (existe) {
-    throw new Error('Ya existe una categoría con ese nombre');
-  }
-
-  if (isNaN(orden) || orden <= 0) {
-    orden = categorias.length + 1;
-  }
-
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(SHEET_CATEGORIAS_DB);
-
-  const categoriaId = getNextId_(
-    'C',
-    categorias.map(function(categoria) {
-      return categoria.categoriaId;
-    })
-  );
-
-  const now = nowString_();
-
-  sheet.appendRow([
-    categoriaId,
-    nombre,
-    activa,
-    orden,
-    notas,
-    now,
-    now
-  ]);
-
-  autoResize_(sheet);
-
-  return {
-    status: 'OK',
-    message: 'Categoría creada correctamente',
-    categoria: {
-      categoriaId: categoriaId,
-      nombre: nombre,
-      activa: activa,
-      orden: orden,
-      notas: notas,
-      createdAt: now,
-      updatedAt: now
-    }
-  };
-}
-
-function editarCategoriaAdmin(pin, adminPin, payload) {
-  if (!validatePin_(pin)) {
-    throw new Error('PIN incorrecto');
-  }
-
-  if (!validateAdminPin_(adminPin)) {
-    throw new Error('PIN de administración incorrecto');
-  }
-
-  const lock = LockService.getScriptLock();
-  lock.waitLock(10000);
-
-  try {
-    assertCarreraAdmiteResultados_();
-
-  const categoriaId = String(payload.categoriaId || '').trim();
-  const nombre = String(payload.nombre || '').trim();
-  const notas = String(payload.notas || '').trim();
-  const activa = String(payload.activa || 'SI').trim().toUpperCase() === 'NO'
-    ? 'NO'
-    : 'SI';
-
-  let orden = Number(payload.orden || 0);
-
-  if (!categoriaId) {
-    throw new Error('El categoriaId es obligatorio');
-  }
-
-  if (!nombre) {
-    throw new Error('El nombre de la categoría es obligatorio');
-  }
-
-  if (isNaN(orden) || orden <= 0) {
-    orden = 999;
-  }
-
-  const categorias = getCategoriasDB_();
-  const categoriaActual = categorias.find(function(categoria) {
-    return categoria.categoriaId === categoriaId;
-  });
-
-  if (!categoriaActual) {
-    throw new Error('No se ha encontrado la categoría');
-  }
-
-  const nombreNormalizado = normalizeText_(nombre);
-
-  const duplicada = categorias.some(function(categoria) {
-    return categoria.categoriaId !== categoriaId &&
-      normalizeText_(categoria.nombre) === nombreNormalizado;
-  });
-
-  if (duplicada) {
-    throw new Error('Ya existe otra categoría con ese nombre');
-  }
-
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(SHEET_CATEGORIAS_DB);
-  const values = sheet.getDataRange().getValues();
-  const map = getHeaderMap_(sheet);
-
-  let rowIndex = -1;
-
-  for (let i = 1; i < values.length; i++) {
-    if (String(values[i][map.categoriaId] || '').trim() === categoriaId) {
-      rowIndex = i + 1;
-      break;
-    }
-  }
-
-  if (rowIndex === -1) {
-    throw new Error('No se ha encontrado la categoría');
-  }
-
-  const oldName = categoriaActual.nombre;
-  const now = nowString_();
-
-  sheet.getRange(rowIndex, map.nombre + 1).setValue(nombre);
-  sheet.getRange(rowIndex, map.activa + 1).setValue(activa);
-  sheet.getRange(rowIndex, map.orden + 1).setValue(orden);
-  sheet.getRange(rowIndex, map.notas + 1).setValue(notas);
-  sheet.getRange(rowIndex, map.updatedAt + 1).setValue(now);
-
-  sincronizarNombreCategoriaEnInscripciones_(oldName, nombre);
-
-  autoResize_(sheet);
-
-    return {
-      status: 'OK',
-      message: 'Categoría actualizada correctamente'
-    };
-  } finally {
-    lock.releaseLock();
-  }
-}
-
-function sincronizarNombreCategoriaEnInscripciones_(oldName, newName) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(SHEET_INSCRIPCIONES);
-
-  if (!sheet || sheet.getLastRow() < 2) {
-    return;
-  }
-
-  const values = sheet.getDataRange().getValues();
-  const map = getHeaderMap_(sheet);
-
-  if (map.categoria === undefined) {
-    return;
-  }
-
-  const oldNameNormalized = normalizeText_(oldName);
-
-  for (let i = 1; i < values.length; i++) {
-    const rowCategoria = String(values[i][map.categoria] || '').trim();
-
-    if (normalizeText_(rowCategoria) === oldNameNormalized) {
-      sheet.getRange(i + 1, map.categoria + 1).setValue(newName);
-    }
-  }
-}
-function getNextInscripcionId_() {
-  const inscripciones = getInscripciones_();
-
-  return getNextId_(
-    'I',
-    inscripciones.map(function(item) {
-      return item.inscripcionId;
-    })
-  );
-}
-
-function getPilotoDBById_(pilotoId) {
-  return getPilotosDB_().find(function(piloto) {
-    return piloto.pilotoId === pilotoId;
-  });
-}
-
-function getCategoriaDBByNombre_(nombre) {
-  const nombreNormalizado = normalizeText_(nombre);
-
-  return getCategoriasDB_().find(function(categoria) {
-    return normalizeText_(categoria.nombre) === nombreNormalizado;
-  });
-}
-
-function getInscripcionRowIndex_(inscripcionId) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(SHEET_INSCRIPCIONES);
-
-  if (!sheet || sheet.getLastRow() < 2) {
-    return -1;
-  }
-
-  const values = sheet.getDataRange().getValues();
-  const map = getHeaderMap_(sheet);
-
-  for (let i = 1; i < values.length; i++) {
-    const rowInscripcionId = String(values[i][map.inscripcionId] || '').trim();
-
-    if (rowInscripcionId === inscripcionId) {
-      return i + 1;
-    }
-  }
-
-  return -1;
-}
-
-function inscripcionTieneResultados_(inscripcionId) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(SHEET_RESULTADOS);
-
-  if (!sheet || sheet.getLastRow() < 2) {
-    return false;
-  }
-
-  const values = sheet.getDataRange().getValues();
-  const map = getHeaderMap_(sheet);
-
-  const inscripcionIndex = map.inscripcionId !== undefined
-    ? map.inscripcionId
-    : 2;
-
-  for (let i = 1; i < values.length; i++) {
-    const rowInscripcionId = String(values[i][inscripcionIndex] || '').trim();
-
-    if (rowInscripcionId === inscripcionId) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-function validarInscripcionAdmin_(payload, currentInscripcionId) {
-  const pilotoId = String(payload.pilotoId || '').trim();
-  const dorsal = String(payload.dorsal || '').trim();
-  const categoria = String(payload.categoria || '').trim();
-
-  if (!pilotoId) {
-    throw new Error('Selecciona un piloto');
-  }
-
-  if (!categoria) {
-    throw new Error('Selecciona una categoría');
-  }
-
-  if (!dorsal) {
-    throw new Error('Introduce un dorsal');
-  }
-
-  const piloto = getPilotoDBById_(pilotoId);
-
-  if (!piloto) {
-    throw new Error('No se ha encontrado el piloto en la base de datos');
-  }
-
-  if (String(piloto.activo || '').toUpperCase() === 'NO') {
-    throw new Error('El piloto seleccionado está inactivo');
-  }
-
-  const categoriaDB = getCategoriaDBByNombre_(categoria);
-
-  if (!categoriaDB) {
-    throw new Error('No se ha encontrado la categoría en la base de datos');
-  }
-
-  if (String(categoriaDB.activa || '').toUpperCase() === 'NO') {
-    throw new Error('La categoría seleccionada está inactiva');
-  }
-
-  const inscripciones = getInscripciones_();
-  const categoriaNormalizada = normalizeText_(categoria);
-
-  const duplicadoPilotoCategoria = inscripciones.some(function(item) {
-    return item.inscripcionId !== currentInscripcionId &&
-      String(item.pilotoId || '').trim() === pilotoId &&
-      normalizeText_(item.categoria) === categoriaNormalizada;
-  });
-
-  if (duplicadoPilotoCategoria) {
-    throw new Error('Este piloto ya está inscrito en esta categoría');
-  }
-
-  const duplicadoDorsalCategoria = inscripciones.some(function(item) {
-    return item.inscripcionId !== currentInscripcionId &&
-      String(item.dorsal || '').trim() === dorsal &&
-      normalizeText_(item.categoria) === categoriaNormalizada;
-  });
-
-  if (duplicadoDorsalCategoria) {
-    throw new Error('Ya existe una inscripción con ese dorsal en esta categoría');
-  }
-
-  return {
-    piloto: piloto,
-    categoria: categoriaDB,
-    dorsal: dorsal
-  };
-}
-function crearInscripcionAdmin(pin, adminPin, payload) {
-  if (!validatePin_(pin)) {
-    throw new Error('PIN incorrecto');
-  }
-
-  if (!validateAdminPin_(adminPin)) {
-    throw new Error('PIN de administración incorrecto');
-  }
-
-  const lock = LockService.getScriptLock();
-  lock.waitLock(10000);
-
-  try {
-    assertCarreraAdmiteResultados_();
-    const validated = validarInscripcionAdmin_(payload, '');
-
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const sheet = ss.getSheetByName(SHEET_INSCRIPCIONES);
-
-    const inscripcionId = getNextInscripcionId_();
-
-    sheet.appendRow([
-      inscripcionId,
-      validated.piloto.pilotoId,
-      validated.dorsal,
-      validated.piloto.nombre,
-      validated.categoria.nombre
-    ]);
-
-    autoResize_(sheet);
+    lock.waitLock(10000);
+    assertRaceMutable_();
+    writeObjects_(SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_RESULTADOS), RESULTADOS_HEADERS, []);
     refreshClasificacion_();
-
-    return {
-      status: 'OK',
-      message: 'Inscripción creada correctamente',
-      inscripcion: {
-        inscripcionId: inscripcionId,
-        pilotoId: validated.piloto.pilotoId,
-        dorsal: validated.dorsal,
-        piloto: validated.piloto.nombre,
-        categoria: validated.categoria.nombre
-      }
-    };
-  } finally {
-    lock.releaseLock();
-  }
+  } finally { lock.releaseLock(); }
 }
-function editarInscripcionAdmin(pin, adminPin, payload) {
-  if (!validatePin_(pin)) {
-    throw new Error('PIN incorrecto');
-  }
-
-  if (!validateAdminPin_(adminPin)) {
-    throw new Error('PIN de administración incorrecto');
-  }
-
-  const inscripcionId = String(payload.inscripcionId || '').trim();
-
-  if (!inscripcionId) {
-    throw new Error('El inscripcionId es obligatorio');
-  }
-
-  if (inscripcionTieneResultados_(inscripcionId)) {
-    throw new Error('No se puede editar una inscripción que ya tiene resultados registrados');
-  }
-
-  const lock = LockService.getScriptLock();
-  lock.waitLock(10000);
-
-  try {
-    assertCarreraAdmiteResultados_();
-
-    if (inscripcionTieneResultados_(inscripcionId)) {
-      throw new Error('No se puede editar una inscripción que ya tiene resultados registrados');
-    }
-
-    const validated = validarInscripcionAdmin_(payload, inscripcionId);
-
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const sheet = ss.getSheetByName(SHEET_INSCRIPCIONES);
-    const rowIndex = getInscripcionRowIndex_(inscripcionId);
-
-    if (rowIndex === -1) {
-      throw new Error('No se ha encontrado la inscripción');
-    }
-
-    sheet.getRange(rowIndex, 1, 1, 5).setValues([[
-      inscripcionId,
-      validated.piloto.pilotoId,
-      validated.dorsal,
-      validated.piloto.nombre,
-      validated.categoria.nombre
-    ]]);
-
-    autoResize_(sheet);
-    refreshClasificacion_();
-
-    return {
-      status: 'OK',
-      message: 'Inscripción actualizada correctamente'
-    };
-  } finally {
-    lock.releaseLock();
-  }
-}
-function eliminarInscripcionAdmin(pin, adminPin, inscripcionId) {
-  if (!validatePin_(pin)) {
-    throw new Error('PIN incorrecto');
-  }
-
-  if (!validateAdminPin_(adminPin)) {
-    throw new Error('PIN de administración incorrecto');
-  }
-
-  const cleanInscripcionId = String(inscripcionId || '').trim();
-
-  if (!cleanInscripcionId) {
-    throw new Error('El inscripcionId es obligatorio');
-  }
-
-  if (inscripcionTieneResultados_(cleanInscripcionId)) {
-    throw new Error('No se puede eliminar una inscripción que ya tiene resultados registrados');
-  }
-
-  const lock = LockService.getScriptLock();
-  lock.waitLock(10000);
-
-  try {
-    assertCarreraAdmiteResultados_();
-
-    if (inscripcionTieneResultados_(cleanInscripcionId)) {
-      throw new Error('No se puede eliminar una inscripción que ya tiene resultados registrados');
-    }
-
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const sheet = ss.getSheetByName(SHEET_INSCRIPCIONES);
-    const rowIndex = getInscripcionRowIndex_(cleanInscripcionId);
-
-    if (rowIndex === -1) {
-      throw new Error('No se ha encontrado la inscripción');
-    }
-
-    sheet.deleteRow(rowIndex);
-
-    autoResize_(sheet);
-    refreshClasificacion_();
-
-    return {
-      status: 'OK',
-      message: 'Inscripción eliminada correctamente'
-    };
-  } finally {
-    lock.releaseLock();
-  }
-}
-function crearPilotoEInscribirAdmin(pin, adminPin, payload) {
-  if (!validatePin_(pin)) {
-    throw new Error('PIN incorrecto');
-  }
-
-  if (!validateAdminPin_(adminPin)) {
-    throw new Error('PIN de administración incorrecto');
-  }
-
-  assertCarreraAdmiteResultados_();
-
-  const nombre = String(payload.nombre || '').trim();
-  const alias = String(payload.alias || '').trim();
-  const notas = String(payload.notas || '').trim();
-  const categoria = String(payload.categoria || '').trim();
-  const dorsal = String(payload.dorsal || '').trim();
-
-  if (!nombre) {
-    throw new Error('El nombre del piloto es obligatorio');
-  }
-
-  if (!categoria) {
-    throw new Error('Selecciona una categoría');
-  }
-
-  if (!dorsal) {
-    throw new Error('Introduce un dorsal');
-  }
-
-  const pilotoResult = crearPilotoAdmin(pin, adminPin, {
-    nombre: nombre,
-    alias: alias,
-    activo: 'SI',
-    notas: notas
-  });
-
-  const inscripcionResult = crearInscripcionAdmin(pin, adminPin, {
-    pilotoId: pilotoResult.piloto.pilotoId,
-    categoria: categoria,
-    dorsal: dorsal
-  });
-
-  return {
-    status: 'OK',
-    message: 'Piloto creado e inscrito correctamente',
-    piloto: pilotoResult.piloto,
-    inscripcion: inscripcionResult.inscripcion
-  };
-}
-/*
-function testAdminCatalogos() {
-  const pin = '1234';
-  const adminPin = '9999';
-
-  const data = getAdminCatalogosData(pin, adminPin);
-
-  Logger.log('Pilotos:');
-  Logger.log(JSON.stringify(data.pilotos, null, 2));
-
-  Logger.log('Categorías:');
-  Logger.log(JSON.stringify(data.categorias, null, 2));
-
-  Logger.log('Inscripciones:');
-  Logger.log(JSON.stringify(data.inscripciones, null, 2));
-}
-
-function testEditarCategoriaAdmin() {
-  const pin = '1234';
-  const adminPin = '9999';
-
-  const result = editarCategoriaAdmin(pin, adminPin, {
-    categoriaId: 'C004',
-    nombre: 'Categoria Test Editada',
-    activa: 'SI',
-    orden: 99,
-    notas: 'Editada desde test'
-  });
-
-  Logger.log(JSON.stringify(result, null, 2));
-}
-
-function testCrearPilotoAdmin() {
-  const pin = '1234';
-  const adminPin = '9999';
-
-  const result = crearPilotoAdmin(pin, adminPin, {
-    nombre: 'Piloto Test',
-    alias: '',
-    activo: 'SI',
-    notas: 'Creado desde test'
-  });
-
-  Logger.log(JSON.stringify(result, null, 2));
-}
-function testCrearCategoriaAdmin() {
-  const pin = '1234';
-  const adminPin = '9999';
-
-  const result = crearCategoriaAdmin(pin, adminPin, {
-    nombre: 'Categoria Test',
-    activa: 'SI',
-    orden: 99,
-    notas: 'Creada desde test'
-  });
-
-  Logger.log(JSON.stringify(result, null, 2));
-}
-
-function testEditarPilotoAdmin() {
-  const pin = '1234';
-  const adminPin = '9999';
-
-  const result = editarPilotoAdmin(pin, adminPin, {
-    pilotoId: 'P012',
-    nombre: 'Piloto Test Editado 3',
-    alias: '',
-    activo: 'SI',
-    notas: 'Editado desde test 3'
-  });
-
-  Logger.log(JSON.stringify(result, null, 2));
-}
-
-function testDashboardData() {
-  const data = getDashboardData('1234');
-
-  Logger.log(JSON.stringify(data, null, 2));
-}
-
-function testMigracionPilotosCategorias() {
-  setupSheets();
-
-  Logger.log('PilotosDB');
-  Logger.log(JSON.stringify(getPilotosDB_(), null, 2));
-
-  Logger.log('CategoriasDB');
-  Logger.log(JSON.stringify(getCategoriasDB_(), null, 2));
-
-  Logger.log('Inscripciones');
-  Logger.log(JSON.stringify(getInscripciones_(), null, 2));
-}
-function testRegistroInscripciones() {
-  const categorias = getCategorias('1234');
-  Logger.log('Categorías:');
-  Logger.log(JSON.stringify(categorias, null, 2));
-
-  if (categorias.length > 0) {
-    const inscripciones = getInscripcionesByCategoria('1234', categorias[0]);
-    Logger.log('Inscripciones de ' + categorias[0] + ':');
-    Logger.log(JSON.stringify(inscripciones, null, 2));
-  }
-}*/

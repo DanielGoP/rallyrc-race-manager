@@ -2,7 +2,10 @@ const CHAMP_SHEET_CONFIG = 'Config';
 const CHAMP_SHEET_POINTS = 'Puntuacion';
 const CHAMP_SHEET_RACES = 'Carreras';
 const CHAMP_SHEET_RESULTS = 'ResultadosCampeonato';
-const CHAMP_SCHEMA_VERSION = '1';
+const CHAMP_SHEET_STAGES = 'TramosCarrera';
+const CHAMP_SHEET_CLASSIFICATIONS = 'ClasificacionesCampeonato';
+const CHAMP_SHEET_TIMES = 'TiemposCampeonato';
+const CHAMP_SCHEMA_VERSION = '2';
 // Es el nombre de la Script Property; no sustituirlo por el token real.
 const CHAMP_IMPORT_TOKEN_PROPERTY = 'CHAMPIONSHIP_TOKEN';
 
@@ -27,12 +30,16 @@ const CHAMP_POINTS_ROWS = [
   [10, 1]
 ];
 
-const CHAMP_RACE_HEADERS = [
+const CHAMP_RACE_BASE_HEADERS = [
   'carreraId',
   'nombre',
   'fechaPublicacion',
   'totalParticipantes'
 ];
+const CHAMP_RACE_HEADERS = CHAMP_RACE_BASE_HEADERS.concat([
+  'schemaVersion',
+  'payloadHash'
+]);
 
 const CHAMP_RESULT_HEADERS = [
   'carreraId',
@@ -57,6 +64,47 @@ const CHAMP_RESULT_HEADERS = [
   'estado'
 ];
 
+const CHAMP_STAGE_HEADERS = [
+  'carreraId',
+  'tramoId',
+  'tramoNombre',
+  'tramoOrden',
+  'pasadaId',
+  'pasadaLabel',
+  'pasadaTipo',
+  'pasadaNumero',
+  'pasadaOrden',
+  'totalPasadas',
+  'numDescartes'
+];
+
+const CHAMP_CLASSIFICATION_HEADERS = [
+  'carreraId',
+  'inscripcionId',
+  'pilotoId',
+  'piloto',
+  'categoriaId',
+  'categoria',
+  'posicion',
+  'descartada',
+  'penalizaciones',
+  'total',
+  'gap',
+  'completadas',
+  'previstas',
+  'estado'
+];
+
+const CHAMP_TIME_HEADERS = [
+  'carreraId',
+  'inscripcionId',
+  'pasadaId',
+  'tiempo',
+  'penalizacion',
+  'total',
+  'descartada'
+];
+
 function doGet() {
   assertChampionshipReady_();
 
@@ -69,10 +117,10 @@ function doGet() {
 
 function doPost(e) {
   try {
-    setupChampionshipSheets();
-
     const request = parseChampionshipRequest_(e);
     validateChampionshipToken_(request.token);
+    validateChampionshipPayloadVersion_(request.payload);
+    setupChampionshipSheets();
     const result = importChampionshipRace_(request.payload);
 
     return championshipJsonResponse_({
@@ -97,6 +145,11 @@ function setupChampionshipSheets() {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const created = [];
+    const existingConfig = ss.getSheetByName(CHAMP_SHEET_CONFIG);
+    if (existingConfig && existingConfig.getLastRow() > 0 && existingConfig.getLastColumn() > 0) {
+      validateChampionshipHeaders_(existingConfig, CHAMP_CONFIG_ROWS[0]);
+      assertChampionshipSchemaNotFuture_(existingConfig);
+    }
 
     const config = ensureChampionshipSheet_(
       ss,
@@ -108,7 +161,6 @@ function setupChampionshipSheets() {
       created.push(CHAMP_SHEET_CONFIG);
     }
     ensureChampionshipConfigRows_(config.sheet);
-    validateChampionshipSchema_(config.sheet);
 
     const points = ensureChampionshipSheet_(
       ss,
@@ -124,11 +176,12 @@ function setupChampionshipSheets() {
       ss,
       CHAMP_SHEET_RACES,
       [CHAMP_RACE_HEADERS],
-      CHAMP_RACE_HEADERS
+      CHAMP_RACE_BASE_HEADERS
     );
     if (races.created) {
       created.push(CHAMP_SHEET_RACES);
     }
+    ensureChampionshipRaceColumns_(races.sheet);
 
     const results = ensureChampionshipSheet_(
       ss,
@@ -140,15 +193,54 @@ function setupChampionshipSheets() {
       created.push(CHAMP_SHEET_RESULTS);
     }
 
+    const stages = ensureChampionshipSheet_(
+      ss,
+      CHAMP_SHEET_STAGES,
+      [CHAMP_STAGE_HEADERS],
+      CHAMP_STAGE_HEADERS
+    );
+    if (stages.created) {
+      created.push(CHAMP_SHEET_STAGES);
+    }
+
+    const classifications = ensureChampionshipSheet_(
+      ss,
+      CHAMP_SHEET_CLASSIFICATIONS,
+      [CHAMP_CLASSIFICATION_HEADERS],
+      CHAMP_CLASSIFICATION_HEADERS
+    );
+    if (classifications.created) {
+      created.push(CHAMP_SHEET_CLASSIFICATIONS);
+    }
+
+    const times = ensureChampionshipSheet_(
+      ss,
+      CHAMP_SHEET_TIMES,
+      [CHAMP_TIME_HEADERS],
+      CHAMP_TIME_HEADERS
+    );
+    if (times.created) {
+      created.push(CHAMP_SHEET_TIMES);
+    }
+
+    migrateChampionshipSchema_(config.sheet);
+
     formatChampionshipSheet_(config.sheet);
     formatChampionshipSheet_(points.sheet);
     formatChampionshipSheet_(races.sheet);
     formatChampionshipSheet_(results.sheet);
+    formatChampionshipSheet_(stages.sheet);
+    formatChampionshipSheet_(classifications.sheet);
+    formatChampionshipSheet_(times.sheet);
 
     points.sheet.getRange('A:B').setNumberFormat('0.###');
     races.sheet.getRange('D:D').setNumberFormat('0');
+    races.sheet.getRange('E:F').setNumberFormat('@');
     results.sheet.getRange('H:N').setNumberFormat('0.###');
     results.sheet.getRange('P:S').setNumberFormat('0.###');
+    stages.sheet.getRange('D:K').setNumberFormat('0.###');
+    classifications.sheet.getRange('G:M').setNumberFormat('0.###');
+    times.sheet.getRange('D:F').setNumberFormat('0.###');
 
     return {
       status: 'OK',
@@ -168,7 +260,10 @@ function assertChampionshipReady_() {
     CHAMP_SHEET_CONFIG,
     CHAMP_SHEET_POINTS,
     CHAMP_SHEET_RACES,
-    CHAMP_SHEET_RESULTS
+    CHAMP_SHEET_RESULTS,
+    CHAMP_SHEET_STAGES,
+    CHAMP_SHEET_CLASSIFICATIONS,
+    CHAMP_SHEET_TIMES
   ];
   const missing = required.filter(function(name) {
     return !ss.getSheetByName(name);
@@ -182,6 +277,9 @@ function assertChampionshipReady_() {
   validateChampionshipHeaders_(ss.getSheetByName(CHAMP_SHEET_POINTS), CHAMP_POINTS_ROWS[0]);
   validateChampionshipHeaders_(ss.getSheetByName(CHAMP_SHEET_RACES), CHAMP_RACE_HEADERS);
   validateChampionshipHeaders_(ss.getSheetByName(CHAMP_SHEET_RESULTS), CHAMP_RESULT_HEADERS);
+  validateChampionshipHeaders_(ss.getSheetByName(CHAMP_SHEET_STAGES), CHAMP_STAGE_HEADERS);
+  validateChampionshipHeaders_(ss.getSheetByName(CHAMP_SHEET_CLASSIFICATIONS), CHAMP_CLASSIFICATION_HEADERS);
+  validateChampionshipHeaders_(ss.getSheetByName(CHAMP_SHEET_TIMES), CHAMP_TIME_HEADERS);
   validateChampionshipSchema_(ss.getSheetByName(CHAMP_SHEET_CONFIG));
 }
 
@@ -246,6 +344,19 @@ function ensureChampionshipConfigRows_(sheet) {
   });
 }
 
+function ensureChampionshipRaceColumns_(sheet) {
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(function(value) {
+    return String(value || '').trim();
+  });
+  CHAMP_RACE_HEADERS.forEach(function(header) {
+    if (headers.indexOf(header) === -1) {
+      sheet.getRange(1, sheet.getLastColumn() + 1).setValue(header);
+      headers.push(header);
+    }
+  });
+  validateChampionshipHeaders_(sheet, CHAMP_RACE_HEADERS);
+}
+
 function validateChampionshipSchema_(sheet) {
   const config = readChampionshipConfig_(sheet);
   const versionText = String(config.SCHEMA_VERSION || '').trim();
@@ -264,6 +375,50 @@ function validateChampionshipSchema_(sheet) {
   if (version < supported) {
     throw new Error('La hoja de campeonato requiere una migración de esquema');
   }
+}
+
+function assertChampionshipSchemaNotFuture_(sheet) {
+  const config = readChampionshipConfig_(sheet);
+  const versionText = String(config.SCHEMA_VERSION || '').trim();
+  if (!versionText) {
+    return;
+  }
+  if (!/^\d+$/.test(versionText)) {
+    throw new Error('SCHEMA_VERSION del campeonato no es válido');
+  }
+  if (Number(versionText) > Number(CHAMP_SCHEMA_VERSION)) {
+    throw new Error('La hoja de campeonato usa un esquema más reciente que esta aplicación');
+  }
+}
+
+function migrateChampionshipSchema_(sheet) {
+  const config = readChampionshipConfig_(sheet);
+  const versionText = String(config.SCHEMA_VERSION || '').trim();
+
+  if (!/^\d+$/.test(versionText)) {
+    throw new Error('SCHEMA_VERSION del campeonato no es válido');
+  }
+
+  const version = Number(versionText);
+  const supported = Number(CHAMP_SCHEMA_VERSION);
+  if (version > supported) {
+    throw new Error('La hoja de campeonato usa un esquema más reciente que esta aplicación');
+  }
+  if (version < 1) {
+    throw new Error('La hoja de campeonato usa un esquema no compatible');
+  }
+  if (version === supported) {
+    return;
+  }
+
+  const values = sheet.getDataRange().getValues();
+  for (let i = 1; i < values.length; i++) {
+    if (String(values[i][0] || '').trim() === 'SCHEMA_VERSION') {
+      sheet.getRange(i + 1, 2).setValue(CHAMP_SCHEMA_VERSION);
+      return;
+    }
+  }
+  sheet.appendRow(['SCHEMA_VERSION', CHAMP_SCHEMA_VERSION]);
 }
 
 function formatChampionshipSheet_(sheet) {
@@ -317,6 +472,13 @@ function validateChampionshipToken_(receivedToken) {
   }
 }
 
+function validateChampionshipPayloadVersion_(payload) {
+  const version = Number(payload && payload.schemaVersion);
+  if (version !== 1 && version !== 2) {
+    throw new Error('La versión del envío no es compatible');
+  }
+}
+
 function importChampionshipRace_(payload) {
   const normalized = normalizeChampionshipPayload_(payload);
   const lock = LockService.getScriptLock();
@@ -326,40 +488,70 @@ function importChampionshipRace_(payload) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const racesSheet = ss.getSheetByName(CHAMP_SHEET_RACES);
     const resultsSheet = ss.getSheetByName(CHAMP_SHEET_RESULTS);
+    const stagesSheet = ss.getSheetByName(CHAMP_SHEET_STAGES);
+    const classificationsSheet = ss.getSheetByName(CHAMP_SHEET_CLASSIFICATIONS);
+    const timesSheet = ss.getSheetByName(CHAMP_SHEET_TIMES);
     const races = readChampionshipTable_(racesSheet);
 
-    const existing = races.some(function(race) {
+    const existing = races.find(function(race) {
       return String(race.carreraId || '') === normalized.carreraId;
     });
 
     if (existing) {
-      return {
-        status: 'ALREADY_EXISTS',
-        carreraId: normalized.carreraId,
-        message: 'La carrera ya estaba publicada y no se ha modificado'
-      };
+      return resolveChampionshipDuplicate_(existing, normalized);
     }
 
     deleteOrphanChampionshipRows_(resultsSheet, normalized.carreraId);
+    deleteOrphanChampionshipRows_(stagesSheet, normalized.carreraId);
+    deleteOrphanChampionshipRows_(classificationsSheet, normalized.carreraId);
+    deleteOrphanChampionshipRows_(timesSheet, normalized.carreraId);
 
-    const resultRows = normalized.resultados.map(function(row) {
-      return CHAMP_RESULT_HEADERS.map(function(header) {
-        return sanitizeChampionshipCell_(row[header]);
+    if (normalized.schemaVersion === 1) {
+      appendChampionshipObjects_(resultsSheet, CHAMP_RESULT_HEADERS, normalized.resultados);
+    } else {
+      appendChampionshipObjects_(stagesSheet, CHAMP_STAGE_HEADERS, normalized.definicion.pasadas.map(function(pass) {
+        const stage = normalized.definicion.tramosById[pass.tramoId];
+        return {
+          carreraId: normalized.carreraId,
+          tramoId: pass.tramoId,
+          tramoNombre: stage.nombre,
+          tramoOrden: stage.orden,
+          pasadaId: pass.pasadaId,
+          pasadaLabel: pass.label,
+          pasadaTipo: pass.tipo,
+          pasadaNumero: pass.numero,
+          pasadaOrden: pass.orden,
+          totalPasadas: normalized.definicion.totalPasadas,
+          numDescartes: normalized.definicion.numDescartes
+        };
+      }));
+      appendChampionshipObjects_(classificationsSheet, CHAMP_CLASSIFICATION_HEADERS, normalized.resultados);
+
+      const timeRows = [];
+      normalized.resultados.forEach(function(row) {
+        row.pasadas.forEach(function(pass) {
+          timeRows.push({
+            carreraId: normalized.carreraId,
+            inscripcionId: row.inscripcionId,
+            pasadaId: pass.pasadaId,
+            tiempo: pass.tiempo,
+            penalizacion: pass.penalizacion,
+            total: pass.total,
+            descartada: pass.descartada ? 'SI' : ''
+          });
+        });
       });
-    });
-
-    if (resultRows.length) {
-      resultsSheet
-        .getRange(resultsSheet.getLastRow() + 1, 1, resultRows.length, CHAMP_RESULT_HEADERS.length)
-        .setValues(resultRows);
+      appendChampionshipObjects_(timesSheet, CHAMP_TIME_HEADERS, timeRows);
     }
 
-    racesSheet.appendRow([
-      sanitizeChampionshipCell_(normalized.carreraId),
-      sanitizeChampionshipCell_(normalized.nombre),
-      normalized.fechaPublicacion,
-      normalized.resultados.length
-    ]);
+    appendChampionshipObjects_(racesSheet, CHAMP_RACE_HEADERS, [{
+      carreraId: normalized.carreraId,
+      nombre: normalized.nombre,
+      fechaPublicacion: normalized.fechaPublicacion,
+      totalParticipantes: normalized.resultados.length,
+      schemaVersion: normalized.schemaVersion,
+      payloadHash: normalized.payloadHash
+    }]);
 
     return {
       status: 'IMPORTED',
@@ -371,12 +563,27 @@ function importChampionshipRace_(payload) {
   }
 }
 
+function resolveChampionshipDuplicate_(existing, normalized) {
+  if (normalized.schemaVersion === 2) {
+    const existingHash = String(existing.payloadHash || '').trim().toLowerCase();
+    if (!existingHash || existingHash !== normalized.payloadHash) {
+      throw new Error('Conflicto de carrera: el carreraId ya existe con un payloadHash diferente');
+    }
+  }
+  return {
+    status: 'ALREADY_EXISTS',
+    carreraId: normalized.carreraId,
+    message: 'La carrera ya estaba publicada y no se ha modificado'
+  };
+}
+
 function normalizeChampionshipPayload_(payload) {
   if (!payload || typeof payload !== 'object') {
     throw new Error('No se ha recibido la carrera');
   }
 
-  if (Number(payload.schemaVersion) !== 1) {
+  const schemaVersion = Number(payload.schemaVersion);
+  if (schemaVersion !== 1 && schemaVersion !== 2) {
     throw new Error('La versión del envío no es compatible');
   }
 
@@ -384,6 +591,7 @@ function normalizeChampionshipPayload_(payload) {
   const carreraId = String(race.carreraId || '').trim();
   const nombre = String(race.nombre || '').trim();
   const fechaPublicacion = String(payload.fechaPublicacion || '').trim();
+  const payloadHash = schemaVersion === 2 ? String(payload.payloadHash || '').trim().toLowerCase() : '';
   const resultados = Array.isArray(payload.resultados) ? payload.resultados : [];
 
   if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$/.test(carreraId)) {
@@ -398,6 +606,13 @@ function normalizeChampionshipPayload_(payload) {
     throw new Error('La fecha de publicación no es válida');
   }
 
+  if (schemaVersion === 2 && !/^[a-f0-9]{64}$/.test(payloadHash)) {
+    throw new Error('payloadHash de la carrera no es válido');
+  }
+  if (schemaVersion === 2 && computeChampionshipPayloadHash_(payload) !== payloadHash) {
+    throw new Error('payloadHash no coincide con el contenido de la carrera');
+  }
+
   if (!resultados.length) {
     throw new Error('La carrera no contiene resultados de clasificación');
   }
@@ -406,78 +621,347 @@ function normalizeChampionshipPayload_(payload) {
     throw new Error('La carrera supera el máximo de participantes permitido');
   }
 
+  const definicion = schemaVersion === 2
+    ? normalizeChampionshipDefinition_(race.definicion)
+    : buildLegacyChampionshipDefinition_();
   const normalizedRows = resultados.map(function(row) {
-    return normalizeChampionshipResult_(carreraId, row);
+    return schemaVersion === 2
+      ? normalizeChampionshipV2Result_(carreraId, row, definicion)
+      : normalizeChampionshipResult_(carreraId, row);
   });
   validateChampionshipResultSet_(normalizedRows);
 
   return {
+    schemaVersion: schemaVersion,
     carreraId: carreraId,
     nombre: nombre,
     fechaPublicacion: new Date(fechaPublicacion).toISOString(),
+    payloadHash: payloadHash,
+    definicion: definicion,
     resultados: normalizedRows
   };
 }
 
-function normalizeChampionshipResult_(carreraId, row) {
+function computeChampionshipPayloadHash_(payload) {
+  return championshipSha256Hex_(JSON.stringify({
+    schemaVersion: payload.schemaVersion,
+    carrera: payload.carrera,
+    incompletos: payload.incompletos,
+    resultados: payload.resultados
+  }));
+}
+
+function championshipSha256Hex_(value) {
+  return Utilities.computeDigest(
+    Utilities.DigestAlgorithm.SHA_256,
+    value,
+    Utilities.Charset.UTF_8
+  ).map(function(byte) {
+    return ('0' + ((byte + 256) % 256).toString(16)).slice(-2);
+  }).join('');
+}
+
+function normalizeChampionshipDefinition_(definition) {
+  if (!definition || typeof definition !== 'object') {
+    throw new Error('La carrera no contiene una definición válida');
+  }
+
+  const rawStages = Array.isArray(definition.tramos) ? definition.tramos : [];
+  let rawPasses = Array.isArray(definition.pasadas) ? definition.pasadas : [];
+  if (!rawPasses.length) {
+    rawPasses = [];
+    rawStages.forEach(function(stage) {
+      (Array.isArray(stage.pasadas) ? stage.pasadas : []).forEach(function(pass) {
+        rawPasses.push(Object.assign({}, pass, {
+          tramoId: pass.tramoId || stage.tramoId || stage.id
+        }));
+      });
+    });
+  }
+
+  if (!rawStages.length || !rawPasses.length || rawStages.length > 100 || rawPasses.length > 500) {
+    throw new Error('La definición de tramos y pasadas no es válida');
+  }
+
+  const stagesById = {};
+  const stages = rawStages.map(function(stage, index) {
+    const tramoId = championshipIdentifier_(stage && (stage.tramoId || stage.id), 'tramo');
+    const nombre = championshipText_(stage && (stage.nombre || stage.label), 'nombre de tramo', 200);
+    const orden = championshipPositiveInteger_(stage && stage.orden, index + 1, 'orden de tramo');
+    if (stagesById[tramoId]) {
+      throw new Error('La definición contiene un tramo duplicado');
+    }
+    const normalized = { tramoId: tramoId, nombre: nombre, orden: orden };
+    stagesById[tramoId] = normalized;
+    return normalized;
+  }).sort(function(a, b) {
+    return a.orden - b.orden;
+  });
+
+  const passIds = {};
+  const passes = rawPasses.map(function(pass, index) {
+    const pasadaId = championshipIdentifier_(pass && (pass.pasadaId || pass.id), 'pasada');
+    const tramoId = championshipIdentifier_(pass && pass.tramoId, 'tramo de pasada');
+    if (!stagesById[tramoId] || passIds[pasadaId]) {
+      throw new Error('La definición contiene una pasada duplicada o sin tramo');
+    }
+    passIds[pasadaId] = true;
+    return {
+      pasadaId: pasadaId,
+      tramoId: tramoId,
+      label: championshipText_(pass && (pass.label || pass.nombre), 'nombre de pasada', 200),
+      tipo: String(pass && pass.tipo || '').trim().slice(0, 100),
+      numero: championshipPositiveInteger_(pass && (pass.numero || pass.num), index + 1, 'número de pasada'),
+      orden: championshipPositiveInteger_(pass && pass.orden, index + 1, 'orden de pasada')
+    };
+  }).sort(function(a, b) {
+    return a.orden - b.orden;
+  });
+
+  const usedStages = {};
+  passes.forEach(function(pass) {
+    usedStages[pass.tramoId] = true;
+  });
+  stages.forEach(function(stage) {
+    if (!usedStages[stage.tramoId]) {
+      throw new Error('La definición contiene un tramo sin pasadas');
+    }
+  });
+
+  const totalPasadas = Number(definition.totalPasadas);
+  const numDescartes = Number(definition.numDescartes || 0);
+  if (!Number.isInteger(totalPasadas) || totalPasadas !== passes.length) {
+    throw new Error('totalPasadas no coincide con las pasadas configuradas');
+  }
+  const expectedDiscards = totalPasadas === 1 ? 0 : 1;
+  if (!Number.isInteger(numDescartes) || numDescartes !== expectedDiscards) {
+    throw new Error('numDescartes no es válido');
+  }
+
+  return {
+    tramos: stages,
+    tramosById: stagesById,
+    pasadas: passes,
+    totalPasadas: totalPasadas,
+    numDescartes: numDescartes
+  };
+}
+
+function normalizeChampionshipV2Result_(carreraId, row, definition) {
+  const base = normalizeChampionshipResultBase_(carreraId, row, true);
+  const rawPasses = Array.isArray(row && row.pasadas) ? row.pasadas : [];
+  const definitionsById = {};
+  definition.pasadas.forEach(function(pass) {
+    definitionsById[pass.pasadaId] = pass;
+  });
+  const seen = {};
+  const passes = rawPasses.map(function(pass) {
+    const pasadaId = championshipIdentifier_(pass && (pass.pasadaId || pass.id), 'pasada de resultado');
+    if (!definitionsById[pasadaId] || seen[pasadaId]) {
+      throw new Error('Existe un tiempo duplicado o para una pasada no configurada');
+    }
+    seen[pasadaId] = true;
+    const definitionPass = definitionsById[pasadaId];
+    const time = championshipNonnegativeNumber_(pass.tiempo, 'tiempo de pasada', false);
+    const penalty = championshipNonnegativeNumber_(pass.penalizacion, 'penalización de pasada', true);
+    const expectedTotal = championshipRound3_(time + penalty);
+    const receivedTotal = championshipNonnegativeNumber_(pass.total, 'total de pasada', false);
+    if (!championshipNumbersEqual_(receivedTotal, expectedTotal)) {
+      throw new Error('El total de una pasada no coincide con tiempo más penalización');
+    }
+    return {
+      pasadaId: pasadaId,
+      tiempo: time,
+      penalizacion: penalty,
+      total: expectedTotal,
+      orden: definitionPass.orden,
+      label: definitionPass.label,
+      descartada: pass.descartada === true || String(pass.descartada || '').toUpperCase() === 'SI'
+    };
+  });
+  const completadas = Number(row && row.completadas);
+  const previstas = Number(row && row.previstas);
+  if (!Number.isInteger(completadas) || completadas < 0 || completadas > definition.totalPasadas || completadas !== passes.length) {
+    throw new Error('El número de pasadas completadas no es válido');
+  }
+  if (!Number.isInteger(previstas) || previstas !== definition.totalPasadas) {
+    throw new Error('Las pasadas previstas no coinciden con la carrera');
+  }
+
+  const complete = completadas === previstas;
+  const expectedDiscarded = complete
+    ? passes.slice().sort(function(a, b) {
+      return b.total - a.total || b.orden - a.orden;
+    }).slice(0, definition.numDescartes)
+    : [];
+  const expectedDiscardedIds = {};
+  expectedDiscarded.forEach(function(pass) {
+    expectedDiscardedIds[pass.pasadaId] = true;
+  });
+  passes.forEach(function(pass) {
+    if (pass.descartada !== Boolean(expectedDiscardedIds[pass.pasadaId])) {
+      throw new Error('Las pasadas descartadas no coinciden con la configuración de carrera');
+    }
+  });
+
+  const expectedPenalties = championshipRound3_(passes.reduce(function(sum, pass) {
+    return sum + pass.penalizacion;
+  }, 0));
+  const receivedPenalties = championshipNonnegativeNumber_(row.penalizaciones, 'penalizaciones', true);
+  if (!championshipNumbersEqual_(receivedPenalties, expectedPenalties)) {
+    throw new Error('Las penalizaciones no coinciden con la suma de las pasadas');
+  }
+
+  const expectedTotal = passes.length
+    ? championshipRound3_(passes.reduce(function(sum, pass) {
+      return sum + (expectedDiscardedIds[pass.pasadaId] ? 0 : pass.total);
+    }, 0))
+    : '';
+  const receivedTotal = championshipNumberOrBlank_(row.total);
+  if ((expectedTotal === '' && receivedTotal !== '') ||
+      (expectedTotal !== '' && !championshipNumbersEqual_(receivedTotal, expectedTotal))) {
+    throw new Error('El total de clasificación no coincide con las pasadas puntuables');
+  }
+
+  const expectedDiscardText = expectedDiscarded.map(function(pass) {
+    return pass.label + ' - ' + pass.total;
+  }).join(' · ');
+  if (String(row.descartada || '').trim() !== expectedDiscardText) {
+    throw new Error('La descripción de pasadas descartadas no coincide con los descartes');
+  }
+
+  const expectedState = !passes.length
+    ? 'Sin resultados'
+    : complete
+      ? (expectedPenalties > 0 ? 'Completo con penalización' : 'Completo')
+      : (expectedPenalties > 0 ? 'Pendiente con penalización' : 'Pendiente');
+  if (String(row.estado || '').trim() !== expectedState) {
+    throw new Error('El estado no coincide con las pasadas completadas');
+  }
+
+  const gap = row.gap === '-' ? '-' : championshipNumberOrBlank_(row.gap);
+  if (gap !== '' && gap !== '-' && Number(gap) < 0) {
+    throw new Error('El gap no puede ser negativo');
+  }
+
+  base.pasadas = passes.map(function(pass) {
+    return {
+      pasadaId: pass.pasadaId,
+      tiempo: pass.tiempo,
+      penalizacion: pass.penalizacion,
+      total: pass.total,
+      descartada: pass.descartada
+    };
+  });
+  base.descartada = expectedDiscardText;
+  base.penalizaciones = expectedPenalties;
+  base.total = expectedTotal;
+  base.gap = gap;
+  base.completadas = completadas;
+  base.previstas = previstas;
+  base.estado = expectedState;
+  return base;
+}
+
+function normalizeChampionshipResultBase_(carreraId, row, requireStableIds) {
   const inscripcionId = String(row && row.inscripcionId || '').trim();
   const piloto = String(row && row.piloto || '').trim();
   const categoria = String(row && row.categoria || '').trim();
   const posicion = Number(row && row.posicion);
-
   if (!inscripcionId || !piloto || !categoria || !Number.isInteger(posicion) || posicion < 1) {
     throw new Error('Existe una fila de clasificación incompleta o inválida');
   }
+  const pilotoId = String(row.pilotoId || '').trim();
+  const categoriaId = String(row.categoriaId || '').trim();
+  if (requireStableIds && (!pilotoId || !categoriaId)) {
+    throw new Error('Los resultados v2 requieren pilotoId y categoriaId');
+  }
+  return {
+    carreraId: carreraId,
+    inscripcionId: inscripcionId,
+    pilotoId: pilotoId,
+    piloto: piloto,
+    categoriaId: categoriaId,
+    categoria: categoria,
+    posicion: posicion
+  };
+}
 
+function normalizeChampionshipResult_(carreraId, row) {
+  const base = normalizeChampionshipResultBase_(carreraId, row);
   const completadas = Number(row && row.completadas);
-
   if (!Number.isInteger(completadas) || completadas < 0 || completadas > 6) {
     throw new Error('El número de pasadas completadas no es válido');
   }
-
-  const normalized = {
-    carreraId: carreraId,
-    inscripcionId: inscripcionId,
-    pilotoId: String(row.pilotoId || '').trim(),
-    piloto: piloto,
-    categoriaId: String(row.categoriaId || '').trim(),
-    categoria: categoria,
-    dorsal: String(row.dorsal || '').trim(),
-    posicion: posicion,
-    ida1: championshipNumberOrBlank_(row.ida1),
-    vuelta1: championshipNumberOrBlank_(row.vuelta1),
-    ida2: championshipNumberOrBlank_(row.ida2),
-    vuelta2: championshipNumberOrBlank_(row.vuelta2),
-    ida3: championshipNumberOrBlank_(row.ida3),
-    vuelta3: championshipNumberOrBlank_(row.vuelta3),
-    descartada: String(row.descartada || '').trim(),
-    penalizaciones: championshipNumberOrBlank_(row.penalizaciones),
-    total: championshipNumberOrBlank_(row.total),
-    gap: row.gap === '-' ? '-' : championshipNumberOrBlank_(row.gap),
-    completadas: completadas,
-    estado: String(row.estado || '').trim()
-  };
-
-  const splitCount = [
-    normalized.ida1,
-    normalized.vuelta1,
-    normalized.ida2,
-    normalized.vuelta2,
-    normalized.ida3,
-    normalized.vuelta3
-  ].filter(function(value) {
-    return value !== '';
-  }).length;
-
-  if (splitCount !== completadas) {
+  const definition = buildLegacyChampionshipDefinition_();
+  const splits = definition.pasadas.map(function(pass) {
+    const value = championshipNonnegativeNumberOrBlank_(row[pass.pasadaId], 'pasada legacy');
+    return Object.assign({}, pass, { total: value });
+  });
+  const completedSplits = splits.filter(function(pass) { return pass.total !== ''; });
+  if (completedSplits.length !== completadas) {
     throw new Error('Las pasadas completadas no coinciden con los tiempos recibidos');
   }
-
-  if (/^Completo/i.test(normalized.estado) && (completadas !== 6 || normalized.total === '')) {
-    throw new Error('Un resultado completo debe contener sus seis pasadas y un total');
+  const penalties = championshipNonnegativeNumber_(row.penalizaciones, 'penalizaciones legacy', true);
+  const complete = completadas === definition.totalPasadas;
+  const discarded = complete
+    ? completedSplits.slice().sort(function(a, b) {
+      return Number(b.total) - Number(a.total) || b.orden - a.orden;
+    })[0]
+    : null;
+  if (discarded) {
+    validateLegacyDiscardText_(row.descartada, discarded);
+  } else if (String(row.descartada || '').trim()) {
+    throw new Error('Una clasificación legacy incompleta no puede contener descarte');
   }
-
+  const expectedTotal = completedSplits.length
+    ? championshipRound3_(completedSplits.reduce(function(sum, pass) {
+      return sum + (discarded && pass.pasadaId === discarded.pasadaId ? 0 : Number(pass.total));
+    }, 0))
+    : '';
+  const receivedTotal = championshipNonnegativeNumberOrBlank_(row.total, 'total legacy');
+  if ((expectedTotal === '' && receivedTotal !== '') ||
+      (expectedTotal !== '' && !championshipNumbersEqual_(expectedTotal, receivedTotal))) {
+    throw new Error('El total legacy no coincide con las pasadas puntuables');
+  }
+  const expectedState = !completedSplits.length
+    ? 'Sin resultados'
+    : complete
+      ? (penalties > 0 ? 'Completo con penalización' : 'Completo')
+      : (penalties > 0 ? 'Pendiente con penalización' : 'Pendiente');
+  if (String(row.estado || '').trim() !== expectedState) {
+    throw new Error('El estado legacy no coincide con sus pasadas y penalizaciones');
+  }
+  const gap = row.gap === '-' ? '-' : championshipNonnegativeNumberOrBlank_(row.gap, 'gap legacy');
+  const normalized = Object.assign(base, {
+    dorsal: String(row.dorsal || '').trim(),
+    ida1: splits[0].total,
+    vuelta1: splits[1].total,
+    ida2: splits[2].total,
+    vuelta2: splits[3].total,
+    ida3: splits[4].total,
+    vuelta3: splits[5].total,
+    descartada: discarded ? discarded.label + ' - ' + discarded.total : '',
+    penalizaciones: penalties,
+    total: expectedTotal,
+    gap: gap,
+    completadas: completadas,
+    estado: expectedState,
+    previstas: 6
+  });
   return normalized;
+}
+
+function validateLegacyDiscardText_(value, discarded) {
+  const text = String(value || '').trim();
+  const prefix = discarded.label + ' - ';
+  if (text.indexOf(prefix) !== 0) {
+    throw new Error('La pasada descartada legacy no coincide con la peor pasada');
+  }
+  const discardedTotal = championshipNonnegativeNumber_(text.slice(prefix.length), 'descarte legacy', false);
+  if (!championshipNumbersEqual_(discardedTotal, discarded.total)) {
+    throw new Error('La pasada descartada legacy no coincide con la peor pasada');
+  }
 }
 
 function validateChampionshipResultSet_(rows) {
@@ -521,6 +1005,78 @@ function championshipNumberOrBlank_(value) {
   return number;
 }
 
+function championshipNonnegativeNumber_(value, label, blankAsZero) {
+  if ((value === '' || value === null || value === undefined) && blankAsZero) {
+    return 0;
+  }
+  const number = Number(value);
+  if (!isFinite(number) || number < 0 || value === '' || value === null || value === undefined) {
+    throw new Error('El valor de ' + label + ' no es válido');
+  }
+  return number;
+}
+
+function championshipNonnegativeNumberOrBlank_(value, label) {
+  if (value === '' || value === null || value === undefined) {
+    return '';
+  }
+  return championshipNonnegativeNumber_(value, label, false);
+}
+
+function championshipRound3_(value) {
+  return Math.round((Number(value) + Number.EPSILON) * 1000) / 1000;
+}
+
+function championshipNumbersEqual_(left, right) {
+  return Math.abs(Number(left) - Number(right)) < 0.0005;
+}
+
+function championshipIdentifier_(value, label) {
+  const identifier = String(value || '').trim();
+  if (!/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,99}$/.test(identifier)) {
+    throw new Error('El identificador de ' + label + ' no es válido');
+  }
+  return identifier;
+}
+
+function championshipText_(value, label, maxLength) {
+  const text = String(value || '').trim();
+  if (!text || text.length > maxLength) {
+    throw new Error('El ' + label + ' no es válido');
+  }
+  return text;
+}
+
+function championshipPositiveInteger_(value, fallback, label) {
+  const number = value === '' || value === null || value === undefined
+    ? fallback
+    : Number(value);
+  if (!Number.isInteger(number) || number < 1) {
+    throw new Error('El ' + label + ' no es válido');
+  }
+  return number;
+}
+
+function buildLegacyChampionshipDefinition_() {
+  const stages = [
+    { tramoId: 'ida', nombre: 'Ida', orden: 1 },
+    { tramoId: 'vuelta', nombre: 'Vuelta', orden: 2 }
+  ];
+  const stagesById = { ida: stages[0], vuelta: stages[1] };
+  const passes = [];
+  for (let index = 1; index <= 3; index++) {
+    passes.push({ pasadaId: 'ida' + index, tramoId: 'ida', label: 'Ida ' + index, tipo: 'ida', numero: index, orden: index * 2 - 1 });
+    passes.push({ pasadaId: 'vuelta' + index, tramoId: 'vuelta', label: 'Vuelta ' + index, tipo: 'vuelta', numero: index, orden: index * 2 });
+  }
+  return {
+    tramos: stages,
+    tramosById: stagesById,
+    pasadas: passes,
+    totalPasadas: 6,
+    numDescartes: 1
+  };
+}
+
 function sanitizeChampionshipCell_(value) {
   if (typeof value !== 'string') {
     return value;
@@ -530,26 +1086,29 @@ function sanitizeChampionshipCell_(value) {
   return /^[=+\-@]/.test(clean) ? "'" + clean : clean;
 }
 
+function appendChampionshipObjects_(sheet, headers, objects) {
+  if (!objects.length) {
+    return;
+  }
+  const rows = objects.map(function(item) {
+    return headers.map(function(header) {
+      return sanitizeChampionshipCell_(item[header]);
+    });
+  });
+  sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, headers.length).setValues(rows);
+}
+
 function deleteOrphanChampionshipRows_(sheet, carreraId) {
   if (sheet.getLastRow() < 2) {
     return;
   }
 
   const rowCount = sheet.getLastRow() - 1;
-  const columnCount = CHAMP_RESULT_HEADERS.length;
-  const range = sheet.getRange(2, 1, rowCount, columnCount);
-  const values = range.getValues();
-  const retained = values.filter(function(row) {
-    return String(row[0] || '') !== carreraId;
-  });
-
-  if (retained.length === values.length) {
-    return;
-  }
-
-  range.clearContent();
-  if (retained.length) {
-    sheet.getRange(2, 1, retained.length, columnCount).setValues(retained);
+  const raceIds = sheet.getRange(2, 1, rowCount, 1).getValues();
+  for (let index = raceIds.length - 1; index >= 0; index--) {
+    if (String(raceIds[index][0] || '') === carreraId) {
+      sheet.deleteRow(index + 2);
+    }
   }
 }
 
@@ -560,26 +1119,62 @@ function championshipJsonResponse_(payload) {
 }
 
 function getChampionshipData() {
-  assertChampionshipReady_();
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    return buildChampionshipData_();
+  } finally {
+    lock.releaseLock();
+  }
+}
 
+function buildChampionshipData_() {
+  assertChampionshipReady_();
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const config = readChampionshipConfig_(ss.getSheetByName(CHAMP_SHEET_CONFIG));
   const points = readChampionshipPoints_(ss.getSheetByName(CHAMP_SHEET_POINTS));
-  const races = readChampionshipTable_(ss.getSheetByName(CHAMP_SHEET_RACES))
-    .map(normalizeRaceForClient_)
+  const rawRaces = readChampionshipTable_(ss.getSheetByName(CHAMP_SHEET_RACES));
+  const raceIds = {};
+  rawRaces.forEach(function(race) {
+    raceIds[String(race.carreraId || '')] = true;
+  });
+  const stageRows = readChampionshipTable_(ss.getSheetByName(CHAMP_SHEET_STAGES))
+    .filter(function(row) {
+      return raceIds[String(row.carreraId || '')];
+    });
+  const definitions = buildChampionshipDefinitionsForClient_(stageRows);
+  const races = rawRaces
+    .map(function(race) {
+      return normalizeRaceForClient_(race, definitions[String(race.carreraId || '')]);
+    })
     .sort(function(a, b) {
       return String(b.fechaPublicacion).localeCompare(String(a.fechaPublicacion));
     });
-  const raceIds = {};
-  races.forEach(function(race) {
-    raceIds[race.carreraId] = true;
-  });
-
-  const results = readChampionshipTable_(ss.getSheetByName(CHAMP_SHEET_RESULTS))
+  const legacyResults = readChampionshipTable_(ss.getSheetByName(CHAMP_SHEET_RESULTS))
     .filter(function(row) {
       return raceIds[String(row.carreraId || '')];
     })
     .map(normalizeResultForClient_);
+  const timesByResult = buildChampionshipTimesForClient_(
+    readChampionshipTable_(ss.getSheetByName(CHAMP_SHEET_TIMES)).filter(function(row) {
+      return raceIds[String(row.carreraId || '')];
+    }),
+    definitions
+  );
+  const dynamicResults = readChampionshipTable_(ss.getSheetByName(CHAMP_SHEET_CLASSIFICATIONS))
+    .filter(function(row) {
+      return raceIds[String(row.carreraId || '')];
+    })
+    .map(function(row) {
+      const key = String(row.carreraId || '') + '|' + String(row.inscripcionId || '');
+      return normalizeDynamicResultForClient_(
+        row,
+        timesByResult[key] || [],
+        definitions[String(row.carreraId || '')]
+      );
+    });
+  const results = legacyResults.concat(dynamicResults);
+  reconcileChampionshipIdentities_(results);
   validateChampionshipClientResults_(results);
   recalculateChampionshipRacePositions_(results);
   const discardCount = parseChampionshipDiscards_(config.NUM_DESCARTES);
@@ -649,16 +1244,33 @@ function readChampionshipTable_(sheet) {
   });
 }
 
-function normalizeRaceForClient_(race) {
+function normalizeRaceForClient_(race, definition) {
   return {
     carreraId: String(race.carreraId || ''),
     nombre: String(race.nombre || ''),
     fechaPublicacion: championshipDateForClient_(race.fechaPublicacion),
-    totalParticipantes: Number(race.totalParticipantes || 0)
+    totalParticipantes: Number(race.totalParticipantes || 0),
+    definicion: definition || championshipDefinitionForClient_(buildLegacyChampionshipDefinition_())
   };
 }
 
 function normalizeResultForClient_(row) {
+  const definition = buildLegacyChampionshipDefinition_();
+  const passes = definition.pasadas.map(function(pass) {
+    const value = championshipClientNumber_(row[pass.pasadaId]);
+    return {
+      pasadaId: pass.pasadaId,
+      tramoId: pass.tramoId,
+      label: pass.label,
+      tipo: pass.tipo,
+      numero: pass.numero,
+      orden: pass.orden,
+      tiempo: value,
+      penalizacion: '',
+      total: value,
+      descartada: String(row.descartada || '').indexOf(pass.label + ' -') === 0
+    };
+  });
   return {
     carreraId: String(row.carreraId || ''),
     inscripcionId: String(row.inscripcionId || ''),
@@ -666,20 +1278,164 @@ function normalizeResultForClient_(row) {
     piloto: String(row.piloto || ''),
     categoriaId: String(row.categoriaId || ''),
     categoria: String(row.categoria || ''),
-    dorsal: String(row.dorsal || ''),
     posicion: championshipRequiredNumber_(row.posicion, 'posición'),
-    ida1: championshipClientNumber_(row.ida1),
-    vuelta1: championshipClientNumber_(row.vuelta1),
-    ida2: championshipClientNumber_(row.ida2),
-    vuelta2: championshipClientNumber_(row.vuelta2),
-    ida3: championshipClientNumber_(row.ida3),
-    vuelta3: championshipClientNumber_(row.vuelta3),
+    pasadas: passes,
     descartada: String(row.descartada || ''),
     penalizaciones: championshipClientNumber_(row.penalizaciones),
     total: championshipClientNumber_(row.total),
     gap: row.gap === '-' ? '-' : championshipClientNumber_(row.gap),
     completadas: championshipRequiredNumber_(row.completadas, 'pasadas completadas'),
-    estado: String(row.estado || '')
+    previstas: 6,
+    estado: String(row.estado || ''),
+    sourceSchemaVersion: 1
+  };
+}
+
+function normalizeDynamicResultForClient_(row, passes, definition) {
+  if (!definition) {
+    throw new Error('ClasificacionesCampeonato contiene una carrera sin definición');
+  }
+  return {
+    carreraId: String(row.carreraId || ''),
+    inscripcionId: String(row.inscripcionId || ''),
+    pilotoId: String(row.pilotoId || ''),
+    piloto: String(row.piloto || ''),
+    categoriaId: String(row.categoriaId || ''),
+    categoria: String(row.categoria || ''),
+    posicion: championshipRequiredNumber_(row.posicion, 'posición'),
+    pasadas: passes,
+    descartada: String(row.descartada || ''),
+    penalizaciones: championshipClientNumber_(row.penalizaciones),
+    total: championshipClientNumber_(row.total),
+    gap: row.gap === '-' ? '-' : championshipClientNumber_(row.gap),
+    completadas: championshipRequiredNumber_(row.completadas, 'pasadas completadas'),
+    previstas: definition.totalPasadas,
+    estado: String(row.estado || ''),
+    sourceSchemaVersion: 2
+  };
+}
+
+function reconcileChampionshipIdentities_(results) {
+  const pilotIdsByName = {};
+  const categoryIdsByName = {};
+  results.forEach(function(row) {
+    if (Number(row.sourceSchemaVersion || 2) !== 2) {
+      return;
+    }
+    registerChampionshipStableName_(pilotIdsByName, row.piloto, row.pilotoId);
+    registerChampionshipStableName_(categoryIdsByName, row.categoria, row.categoriaId);
+  });
+  results.forEach(function(row) {
+    if (!String(row.pilotoId || '').trim()) {
+      const pilotId = pilotIdsByName[championshipNormalize_(row.piloto)];
+      if (pilotId) {
+        row.pilotoId = pilotId;
+      }
+    }
+    if (!String(row.categoriaId || '').trim()) {
+      const categoryId = categoryIdsByName[championshipNormalize_(row.categoria)];
+      if (categoryId) {
+        row.categoriaId = categoryId;
+      }
+    }
+  });
+  return results;
+}
+
+function registerChampionshipStableName_(map, name, id) {
+  const normalizedName = championshipNormalize_(name);
+  const stableId = String(id || '').trim();
+  if (!normalizedName || !stableId) {
+    return;
+  }
+  if (!Object.prototype.hasOwnProperty.call(map, normalizedName)) {
+    map[normalizedName] = stableId;
+  } else if (map[normalizedName] !== stableId) {
+    map[normalizedName] = '';
+  }
+}
+
+function buildChampionshipDefinitionsForClient_(rows) {
+  const grouped = {};
+  rows.forEach(function(row) {
+    const raceId = String(row.carreraId || '');
+    if (!raceId) {
+      return;
+    }
+    if (!grouped[raceId]) {
+      grouped[raceId] = { stages: {}, passes: [], totalPasadas: Number(row.totalPasadas), numDescartes: Number(row.numDescartes || 0) };
+    }
+    const group = grouped[raceId];
+    const stageId = String(row.tramoId || '');
+    if (!group.stages[stageId]) {
+      group.stages[stageId] = {
+        tramoId: stageId,
+        nombre: String(row.tramoNombre || ''),
+        orden: championshipRequiredNumber_(row.tramoOrden, 'orden de tramo')
+      };
+    }
+    group.passes.push({
+      pasadaId: String(row.pasadaId || ''),
+      tramoId: stageId,
+      label: String(row.pasadaLabel || ''),
+      tipo: String(row.pasadaTipo || ''),
+      numero: championshipRequiredNumber_(row.pasadaNumero, 'número de pasada'),
+      orden: championshipRequiredNumber_(row.pasadaOrden, 'orden de pasada')
+    });
+  });
+
+  const definitions = {};
+  Object.keys(grouped).forEach(function(raceId) {
+    const group = grouped[raceId];
+    definitions[raceId] = {
+      tramos: Object.keys(group.stages).map(function(id) { return group.stages[id]; }).sort(function(a, b) { return a.orden - b.orden; }),
+      pasadas: group.passes.sort(function(a, b) { return a.orden - b.orden; }),
+      totalPasadas: group.totalPasadas,
+      numDescartes: group.numDescartes
+    };
+  });
+  return definitions;
+}
+
+function buildChampionshipTimesForClient_(rows, definitions) {
+  const passesByRace = {};
+  Object.keys(definitions).forEach(function(raceId) {
+    passesByRace[raceId] = {};
+    definitions[raceId].pasadas.forEach(function(pass) {
+      passesByRace[raceId][pass.pasadaId] = pass;
+    });
+  });
+  const grouped = {};
+  rows.forEach(function(row) {
+    const raceId = String(row.carreraId || '');
+    const passId = String(row.pasadaId || '');
+    const definition = passesByRace[raceId] && passesByRace[raceId][passId];
+    if (!definition) {
+      throw new Error('TiemposCampeonato contiene una pasada no configurada');
+    }
+    const key = raceId + '|' + String(row.inscripcionId || '');
+    if (!grouped[key]) {
+      grouped[key] = [];
+    }
+    grouped[key].push(Object.assign({}, definition, {
+      tiempo: championshipClientNumber_(row.tiempo),
+      penalizacion: championshipClientNumber_(row.penalizacion),
+      total: championshipClientNumber_(row.total),
+      descartada: String(row.descartada || '').toUpperCase() === 'SI'
+    }));
+  });
+  Object.keys(grouped).forEach(function(key) {
+    grouped[key].sort(function(a, b) { return a.orden - b.orden; });
+  });
+  return grouped;
+}
+
+function championshipDefinitionForClient_(definition) {
+  return {
+    tramos: definition.tramos,
+    pasadas: definition.pasadas,
+    totalPasadas: definition.totalPasadas,
+    numDescartes: definition.numDescartes
   };
 }
 
@@ -769,29 +1525,24 @@ function compareChampionshipRaceResult_(a, b) {
     return aHasTotal ? -1 : 1;
   }
 
-  const dorsalA = Number(a.dorsal);
-  const dorsalB = Number(b.dorsal);
-  if (isFinite(dorsalA) && isFinite(dorsalB) && dorsalA !== dorsalB) {
-    return dorsalA - dorsalB;
-  }
-  return String(a.dorsal).localeCompare(String(b.dorsal));
+  const pilotComparison = String(a.piloto || '').localeCompare(String(b.piloto || ''));
+  return pilotComparison || String(a.inscripcionId || '').localeCompare(String(b.inscripcionId || ''));
 }
 
 function championshipResultIsComplete_(row) {
-  const splits = [
-    row.ida1,
-    row.vuelta1,
-    row.ida2,
-    row.vuelta2,
-    row.ida3,
-    row.vuelta3
-  ];
+  const hasDynamicPasses = Array.isArray(row.pasadas);
+  const passes = hasDynamicPasses ? row.pasadas : [
+    row.ida1, row.vuelta1, row.ida2, row.vuelta2, row.ida3, row.vuelta3
+  ].map(function(total) { return { total: total }; });
+  const expected = Number(row.previstas || (hasDynamicPasses ? 0 : 6));
 
   return /^Completo/i.test(String(row.estado || '')) &&
-    Number(row.completadas) === 6 &&
+    Number.isInteger(expected) && expected > 0 &&
+    Number(row.completadas) === expected &&
     row.total !== '' &&
-    splits.every(function(value) {
-      return value !== '' && value !== null && value !== undefined && isFinite(Number(value));
+    passes.length === expected &&
+    passes.every(function(pass) {
+      return pass.total !== '' && pass.total !== null && pass.total !== undefined && isFinite(Number(pass.total));
     });
 }
 
@@ -838,6 +1589,7 @@ function buildChampionshipPilots_(results) {
 }
 
 function buildChampionshipStandings_(races, results, points, discardValue) {
+  reconcileChampionshipIdentities_(results);
   const racesById = {};
   races.forEach(function(race) {
     racesById[race.carreraId] = race;
@@ -845,6 +1597,16 @@ function buildChampionshipStandings_(races, results, points, discardValue) {
 
   const groups = {};
   const categoryNames = {};
+  const pilotNames = {};
+  const categoryRaces = {};
+
+  results.forEach(function(row) {
+    const categoryKey = championshipCategoryKey_(row);
+    if (!categoryRaces[categoryKey]) {
+      categoryRaces[categoryKey] = {};
+    }
+    categoryRaces[categoryKey][row.carreraId] = true;
+  });
 
   results.forEach(function(row) {
     const categoryKey = championshipCategoryKey_(row);
@@ -853,6 +1615,7 @@ function buildChampionshipStandings_(races, results, points, discardValue) {
     const completed = championshipResultIsComplete_(row);
     const score = completed ? Number(points[row.posicion] || 0) : 0;
     categoryNames[categoryKey] = row.categoria;
+    pilotNames[pilotKey] = row.piloto;
 
     if (!groups[groupKey]) {
       groups[groupKey] = {
@@ -860,6 +1623,7 @@ function buildChampionshipStandings_(races, results, points, discardValue) {
         categoria: row.categoria,
         pilotoId: pilotKey,
         piloto: row.piloto,
+        participaciones: 0,
         resultados: []
       };
     }
@@ -873,14 +1637,37 @@ function buildChampionshipStandings_(races, results, points, discardValue) {
       posicion: row.posicion,
       puntos: score,
       completo: completed,
+      participado: true,
       descartado: false
     });
+    groups[groupKey].participaciones++;
   });
 
   const requestedDiscards = Math.max(0, Math.floor(Number(discardValue || 0)));
   Object.keys(groups).forEach(function(groupKey) {
     const group = groups[groupKey];
     group.categoria = categoryNames[group.categoriaId] || group.categoria;
+    group.piloto = pilotNames[group.pilotoId] || group.piloto;
+    const participatedRaceIds = {};
+    group.resultados.forEach(function(result) {
+      participatedRaceIds[result.carreraId] = true;
+    });
+    Object.keys(categoryRaces[group.categoriaId] || {}).forEach(function(raceId) {
+      if (participatedRaceIds[raceId]) {
+        return;
+      }
+      const race = racesById[raceId] || {};
+      group.resultados.push({
+        carreraId: raceId,
+        carrera: race.nombre || '',
+        fechaPublicacion: race.fechaPublicacion || '',
+        posicion: '',
+        puntos: 0,
+        completo: false,
+        participado: false,
+        descartado: false
+      });
+    });
   });
   const standings = Object.keys(groups).map(function(groupKey) {
     const group = groups[groupKey];
@@ -918,7 +1705,7 @@ function buildChampionshipStandings_(races, results, points, discardValue) {
       pilotoId: group.pilotoId,
       piloto: group.piloto,
       puntos: total,
-      participaciones: group.resultados.length,
+      participaciones: group.participaciones,
       victorias: Number(positionCounts[1] || 0),
       positionCounts: positionCounts,
       resultados: group.resultados,

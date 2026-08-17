@@ -370,6 +370,25 @@
       margin-top: 22px;
     }
 
+    .stage-group {
+      margin-top: 12px;
+      padding: 10px;
+      border-left: 3px solid var(--orange);
+      background: rgba(255,255,255,.025);
+    }
+
+    .stage-group h4 {
+      margin: 0;
+      color: #d6dadd;
+      font-size: 12px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .stage-group .splits {
+      margin-top: 8px;
+    }
+
     .race-title {
       display: flex;
       flex-wrap: wrap;
@@ -778,7 +797,9 @@
 
     function renderPointsChip(result) {
       const discarded = result.descartado ? ' discarded' : '';
-      const status = result.completo ? 'P' + result.posicion : 'No puntúa';
+      const status = result.participado === false
+        ? 'No participó'
+        : result.completo ? 'P' + result.posicion : 'No puntúa';
       return '<div class="result-chip' + discarded + '">' +
         '<span>' + safe(result.carrera) + ' · ' + safe(status) + '</span>' +
         '<strong>' + safe(result.puntos) + ' pts</strong>' +
@@ -793,7 +814,7 @@
 
       rows.forEach(function(row) {
         const breakdown = row.resultados.map(function(result) {
-          const value = result.carrera + ': ' + result.puntos;
+          const value = result.carrera + ': ' + (result.participado === false ? 'no participó (0)' : result.puntos);
           return result.descartado ? '[' + value + ']' : value;
         }).join(' · ');
 
@@ -861,32 +882,25 @@
           }
           return a.posicion - b.posicion;
         }).forEach(function(row) {
-          list.appendChild(buildHistoryCard(row));
+          list.appendChild(buildHistoryCard(row, race));
         });
         group.appendChild(list);
         elements.results.appendChild(group);
       });
     }
 
-    function buildHistoryCard(row) {
+    function buildHistoryCard(row, race) {
       const details = document.createElement('details');
       details.className = 'standing-card';
       details.innerHTML =
         '<summary>' +
           '<div class="position">' + safe(row.posicion) + '</div>' +
           '<div class="driver"><strong>' + safe(row.piloto) + '</strong>' +
-            '<span>' + safe(row.categoria) + ' · Dorsal ' + safe(row.dorsal) + '</span></div>' +
+            '<span>' + safe(row.categoria) + ' · ' + safe(row.completadas) + '/' + safe(row.previstas) + ' pasadas</span></div>' +
           '<div class="score"><strong>' + safe(formatTime(row.total)) + '</strong><span>total</span></div>' +
         '</summary>' +
         '<div class="card-detail">' +
-          '<div class="splits">' +
-            renderSplit('Ida 1', row.ida1, row.descartada) +
-            renderSplit('Vuelta 1', row.vuelta1, row.descartada) +
-            renderSplit('Ida 2', row.ida2, row.descartada) +
-            renderSplit('Vuelta 2', row.vuelta2, row.descartada) +
-            renderSplit('Ida 3', row.ida3, row.descartada) +
-            renderSplit('Vuelta 3', row.vuelta3, row.descartada) +
-          '</div>' +
+          renderStageSplits(row, race && race.definicion) +
           '<div class="muted" style="margin-top:12px">Estado: ' + safe(row.estado) +
             ' · Penalizaciones: ' + safe(formatTime(row.penalizaciones)) +
             ' · Gap: ' + safe(formatTime(row.gap)) + '</div>' +
@@ -894,10 +908,27 @@
       return details;
     }
 
-    function renderSplit(label, value, discardedValue) {
-      const discarded = String(discardedValue || '').startsWith(label + ' -');
-      return '<div class="split"><span>' + safe(label) + (discarded ? ' · Descartada' : '') + '</span>' +
-        '<strong' + (discarded ? ' class="discarded-text"' : '') + '>' + safe(formatTime(value)) + '</strong></div>';
+    function renderStageSplits(row, definition) {
+      const passes = row.pasadas || [];
+      const passValues = {};
+      passes.forEach(function(pass) {
+        passValues[pass.pasadaId] = pass;
+      });
+      return (definition && definition.tramos || []).map(function(stage) {
+        const stagePasses = (definition.pasadas || []).filter(function(pass) {
+          return pass.tramoId === stage.tramoId;
+        });
+        return '<section class="stage-group"><h4>' + safe(stage.nombre) + '</h4><div class="splits">' +
+          stagePasses.map(function(pass) {
+            return renderSplit(pass, passValues[pass.pasadaId]);
+          }).join('') + '</div></section>';
+      }).join('');
+    }
+
+    function renderSplit(definition, value) {
+      const discarded = value && value.descartada;
+      return '<div class="split"><span>' + safe(definition.label) + (discarded ? ' · Descartada' : '') + '</span>' +
+        '<strong' + (discarded ? ' class="discarded-text"' : '') + '>' + safe(formatTime(value && value.total)) + '</strong></div>';
     }
 
     function renderHistoryTable(rows) {
@@ -918,40 +949,58 @@
         return a.posicion - b.posicion;
       });
 
-      let html = '<div class="table-wrap"><table><caption>Resultados históricos por carrera</caption><thead><tr>' +
-        '<th scope="col">Carrera</th><th scope="col">Pos.</th><th scope="col">Categoría</th><th scope="col">Dorsal</th><th scope="col">Piloto</th>' +
-        '<th scope="col">Ida 1</th><th scope="col">Vuelta 1</th><th scope="col">Ida 2</th><th scope="col">Vuelta 2</th>' +
-        '<th scope="col">Ida 3</th><th scope="col">Vuelta 3</th><th scope="col">Pen.</th><th scope="col">Total</th><th scope="col">Gap</th><th scope="col">Estado</th>' +
-        '</tr></thead><tbody>';
-
+      const byRace = {};
       rows.forEach(function(row) {
-        const race = racesById[row.carreraId] || {};
-        html += '<tr>' +
-          '<td>' + safe(race.nombre || '') + '</td>' +
-          '<td class="numeric">' + safe(row.posicion) + '</td>' +
-          '<td>' + safe(row.categoria) + '</td>' +
-          '<td>' + safe(row.dorsal) + '</td>' +
-          '<td>' + safe(row.piloto) + '</td>' +
-          historyTimeCell(row, 'ida1', 'Ida 1') +
-          historyTimeCell(row, 'vuelta1', 'Vuelta 1') +
-          historyTimeCell(row, 'ida2', 'Ida 2') +
-          historyTimeCell(row, 'vuelta2', 'Vuelta 2') +
-          historyTimeCell(row, 'ida3', 'Ida 3') +
-          historyTimeCell(row, 'vuelta3', 'Vuelta 3') +
-          '<td class="numeric">' + safe(formatTime(row.penalizaciones)) + '</td>' +
-          '<td class="numeric"><strong>' + safe(formatTime(row.total)) + '</strong></td>' +
-          '<td class="numeric">' + safe(formatTime(row.gap)) + '</td>' +
-          '<td>' + safe(row.estado) + '</td>' +
-        '</tr>';
+        if (!byRace[row.carreraId]) {
+          byRace[row.carreraId] = [];
+        }
+        byRace[row.carreraId].push(row);
       });
 
-      elements.results.innerHTML = html + '</tbody></table></div>';
+      let html = '';
+      (state.data.carreras || []).forEach(function(race) {
+        const raceRows = byRace[race.carreraId];
+        if (!raceRows || !raceRows.length) {
+          return;
+        }
+        const definition = race.definicion || { tramos: [], pasadas: [] };
+        html += '<div class="race-group"><div class="race-title"><h3>' + safe(race.nombre) + '</h3>' +
+          '<span class="muted">' + safe(formatDate(race.fechaPublicacion)) + '</span></div>' +
+          '<div class="table-wrap"><table><caption>Resultados de ' + safe(race.nombre) + '</caption><thead><tr>' +
+          '<th rowspan="2" scope="col">Pos.</th><th rowspan="2" scope="col">Categoría</th><th rowspan="2" scope="col">Piloto</th>';
+        (definition.tramos || []).forEach(function(stage) {
+          const count = (definition.pasadas || []).filter(function(pass) { return pass.tramoId === stage.tramoId; }).length;
+          html += '<th colspan="' + count + '" scope="colgroup">' + safe(stage.nombre) + '</th>';
+        });
+        html += '<th rowspan="2" scope="col">Pen.</th><th rowspan="2" scope="col">Total</th><th rowspan="2" scope="col">Gap</th><th rowspan="2" scope="col">Estado</th></tr><tr>';
+        (definition.tramos || []).forEach(function(stage) {
+          (definition.pasadas || []).filter(function(pass) { return pass.tramoId === stage.tramoId; }).forEach(function(pass) {
+            html += '<th scope="col">' + safe(pass.label) + '</th>';
+          });
+        });
+        html += '</tr></thead><tbody>';
+        raceRows.forEach(function(row) {
+          const passValues = {};
+          (row.pasadas || []).forEach(function(pass) { passValues[pass.pasadaId] = pass; });
+          html += '<tr><td class="numeric">' + safe(row.posicion) + '</td><td>' + safe(row.categoria) + '</td><td>' + safe(row.piloto) + '</td>';
+          (definition.tramos || []).forEach(function(stage) {
+            (definition.pasadas || []).filter(function(pass) { return pass.tramoId === stage.tramoId; }).forEach(function(pass) {
+              html += historyTimeCell(passValues[pass.pasadaId]);
+            });
+          });
+          html += '<td class="numeric">' + safe(formatTime(row.penalizaciones)) + '</td>' +
+            '<td class="numeric"><strong>' + safe(formatTime(row.total)) + '</strong></td>' +
+            '<td class="numeric">' + safe(formatTime(row.gap)) + '</td><td>' + safe(row.estado) + '</td></tr>';
+        });
+        html += '</tbody></table></div></div>';
+      });
+      elements.results.innerHTML = html;
     }
 
-    function historyTimeCell(row, key, label) {
-      const discarded = String(row.descartada || '').startsWith(label + ' -');
+    function historyTimeCell(pass) {
+      const discarded = pass && pass.descartada;
       return '<td class="numeric' + (discarded ? ' discarded-text' : '') + '">' +
-        safe(formatTime(row[key])) + '</td>';
+        safe(formatTime(pass && pass.total)) + '</td>';
     }
 
     function categoryKey(row) {
